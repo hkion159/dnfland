@@ -1,0 +1,1862 @@
+characterId: 4ecd3f9eea4b6dd87044a9d9323efd20
+
+캐릭터 검색
+{
+  "rows" : [ {
+    "serverId" : "cain",
+    "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+    "characterName" : "고운말_7794",
+    "level" : 100,
+    "jobId" : "3909d0b188e9c95311399f776e331da5",
+    "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+    "jobName" : "마법사(여)",
+    "jobGrowName" : "眞 마도학자"
+  } ]
+}
+
+캐릭터 기본정보 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합"
+}
+
+캐릭터 능력치 정보
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "buff" : [ {
+    "name" : "모험단 버프",
+    "level" : 39,
+    "status" : [ {
+      "name" : "힘",
+      "value" : 275
+    }, {
+      "name" : "지능",
+      "value" : 275
+    }, {
+      "name" : "체력",
+      "value" : 275
+    }, {
+      "name" : "정신력",
+      "value" : 275
+    } ]
+  }, {
+    "name" : "무제한 길드능력치",
+    "status" : [ {
+      "name" : "힘",
+      "value" : 60
+    }, {
+      "name" : "지능",
+      "value" : 60
+    }, {
+      "name" : "체력",
+      "value" : 60
+    }, {
+      "name" : "정신력",
+      "value" : 60
+    } ]
+  }, {
+    "name" : "기간제 길드능력치",
+    "status" : [ {
+      "name" : "힘",
+      "value" : 60
+    }, {
+      "name" : "지능",
+      "value" : 60
+    }, {
+      "name" : "체력",
+      "value" : 60
+    }, {
+      "name" : "정신력",
+      "value" : 60
+    } ]
+  } ],
+  "status" : [ {
+    "name" : "HP",
+    "value" : 68333
+  }, {
+    "name" : "MP",
+    "value" : 67066
+  }, {
+    "name" : "물리 방어",
+    "value" : 32802
+  }, {
+    "name" : "마법 방어",
+    "value" : 46084
+  }, {
+    "name" : "힘",
+    "value" : 3057
+  }, {
+    "name" : "지능",
+    "value" : 4588
+  }, {
+    "name" : "체력",
+    "value" : 1977
+  }, {
+    "name" : "정신력",
+    "value" : 2255
+  }, {
+    "name" : "물리 공격",
+    "value" : 1581
+  }, {
+    "name" : "마법 공격",
+    "value" : 1756
+  }, {
+    "name" : "물리 크리티컬",
+    "value" : 34
+  }, {
+    "name" : "마법 크리티컬",
+    "value" : 96.7
+  }, {
+    "name" : "독립 공격",
+    "value" : 2613
+  }, {
+    "name" : "공격 속도",
+    "value" : 35
+  }, {
+    "name" : "캐스팅 속도",
+    "value" : 87.9
+  }, {
+    "name" : "이동 속도",
+    "value" : 35.2
+  }, {
+    "name" : "모험가 명성",
+    "value" : 16744
+  }, {
+    "name" : "적중률",
+    "value" : 19
+  }, {
+    "name" : "회피율",
+    "value" : 5
+  }, {
+    "name" : "HP 회복량",
+    "value" : 801
+  }, {
+    "name" : "MP 회복량",
+    "value" : 5919
+  }, {
+    "name" : "경직도",
+    "value" : 0
+  }, {
+    "name" : "히트리커버리",
+    "value" : 774
+  }, {
+    "name" : "화속성 강화",
+    "value" : 299
+  }, {
+    "name" : "화속성 저항",
+    "value" : 21
+  }, {
+    "name" : "수속성 강화",
+    "value" : 292
+  }, {
+    "name" : "수속성 저항",
+    "value" : 21
+  }, {
+    "name" : "명속성 강화",
+    "value" : 292
+  }, {
+    "name" : "명속성 저항",
+    "value" : 21
+  }, {
+    "name" : "암속성 강화",
+    "value" : 292
+  }, {
+    "name" : "암속성 저항",
+    "value" : 90
+  } ]
+}
+
+캐릭터 장착 장비
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "equipment" : [ {
+    "slotId" : "WEAPON",
+    "slotName" : "무기",
+    "itemId" : "bebc33f83c8f1403dc7a20a535d9db3a",
+    "itemName" : "세계수의 요정",
+    "itemType" : "무기",
+    "itemTypeDetail" : "빗자루",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : null,
+    "setItemName" : null,
+    "skin" : {
+      "itemId" : "30ecea5a510c0339c6c7849d98d39935",
+      "itemName" : "진 : 무신의 기운이 담긴 브러시",
+      "itemRarity" : "에픽"
+    },
+    "reinforce" : 7,
+    "transformInfo" : {
+      "explain" : "물리, 마법, 독립 공격력 16% 증가\n모든 직업 50 레벨 모든 스킬 Lv +2\n모든 직업 85 레벨 모든 스킬 Lv +2\n모든 직업 100 레벨 모든 스킬 Lv +2",
+      "explainDetail" : "물리, 마법, 독립 공격력 16% 증가 (4%~16%)\n모든 직업 50 레벨 모든 스킬 Lv +2 (특성 스킬 제외)\n모든 직업 85 레벨 모든 스킬 Lv +2 (특성 스킬 제외)\n모든 직업 100 레벨 모든 스킬 Lv +2 (특성 스킬 제외)",
+      "buffExplain" : "50Lv 액티브 스킬 레벨 +2",
+      "buffExplainDetail" : "50Lv 액티브 스킬 레벨 +2",
+      "active" : true
+    },
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 13
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 8,
+    "sirocoInfo" : {
+      "options" : [ {
+        "explain" : "힘, 지능 10% 증가",
+        "explainDetail" : "힘, 지능 10% 증가 (6%~10%)",
+        "buffExplain" : "-버퍼 전용 옵션\n\n수호의 은총 체력, 정신력 185 증가\n계시 : 아리아, 퍼페티어 지능 185 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n수호의 은총 체력, 정신력 185 증가 (125~185, 해당 옵션은 30의 배수로만 나옵니다.)\n계시 : 아리아, 퍼페티어 지능 185 증가 (125~185, 해당 옵션은 30의 배수로만 나옵니다.)"
+      }, {
+        "explain" : "무형, 무의식, 환영 장비 모두 장착 시 던전 내에서 효과 발동\n- 공격 시 5% 추가 데미지",
+        "explainDetail" : "무형, 무의식, 환영 장비 모두 장착 시 던전 내에서 효과 발동\n- 공격 시 5% 추가 데미지 (3%~5%)",
+        "buffExplain" : "-버퍼 전용 옵션\n\n무형, 무의식, 환영 장비 모두 장착 시 던전 내에서 효과 발동\n- 30Lv 버프 스킬 물리, 마법, 독립 공격력 증가량 3% 증가 \n50Lv 액티브 스킬 힘, 지능 증가량 25 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n무형, 무의식, 환영 장비 모두 장착 시 던전 내에서 효과 발동\n- 30Lv 버프 스킬 물리, 마법, 독립 공격력 증가량 3% (1%~3%)증가 \n50Lv 액티브 스킬 힘, 지능 증가량 25 증가"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "b4e66979f382a9fb2d93eced09c95927",
+      "itemName" : "무형의 잔향"
+    }
+  }, {
+    "slotId" : "TITLE",
+    "slotName" : "칭호",
+    "itemId" : "6c9fd844f7fb46a74567c1b799e9d898",
+    "itemName" : "한여름 밤의 꿈 플래티넘[30Lv]",
+    "itemType" : "액세서리",
+    "itemTypeDetail" : "칭호",
+    "itemAvailableLevel" : 1,
+    "itemRarity" : "레어",
+    "setItemId" : null,
+    "setItemName" : null,
+    "reinforce" : 0,
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 4
+      } ]
+    },
+    "amplificationName" : null,
+    "refine" : 0
+  }, {
+    "slotId" : "JACKET",
+    "slotName" : "상의",
+    "itemId" : "13f2176533bf8061d1f6937ba9dede52",
+    "itemName" : "트로피카 : 용과",
+    "itemType" : "방어구",
+    "itemTypeDetail" : "가죽 상의",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "25f94ec65bfb7fe250744c3ef186a25f",
+    "setItemName" : "열대의 트로피카 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "독립 공격력",
+        "value" : 50
+      }, {
+        "name" : "지능",
+        "value" : 20
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0
+  }, {
+    "slotId" : "SHOULDER",
+    "slotName" : "머리어깨",
+    "itemId" : "08d71c494803f75e25e73e40a520548d",
+    "itemName" : "트로피카 : 두리안",
+    "itemType" : "방어구",
+    "itemTypeDetail" : "가죽 머리어깨",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "25f94ec65bfb7fe250744c3ef186a25f",
+    "setItemName" : "열대의 트로피카 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "마법 크리티컬 히트",
+        "value" : "10%"
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "ozmaInfo" : {
+      "options" : [ {
+        "buffExplain" : "<버퍼 전용 옵션>\n장착 시 최대 HP의 5% 수치의 보호막 효과 적용(보호막 피격 후 충전 대기시간 5초, 최대 충전 시간 10초, 보호막의 수치는 희생 : 로젠바흐 장비간 공유됩니다.)\n\n보호막 적용 중 파티원의 이동 속도 16% 증가\n\n30Lv 버프 스킬 힘, 지능 증가량 1% 증가\n30Lv 버프 스킬 물리, 마법, 독립 공격력 증가량 1% 증가\n50Lv 액티브 스킬 힘, 지능 37 증가",
+        "buffExplainDetail" : "<버퍼 전용 옵션>\n장착 시 최대 HP의 5% 수치의 보호막 효과 적용(보호막 피격 후 충전 대기시간 5초, 최대 충전 시간 10초, 보호막의 수치는 희생 : 로젠바흐 장비간 공유됩니다.)\n\n보호막 적용 중 파티원의 이동 속도 16% 증가\n\n30Lv 버프 스킬 힘, 지능 증가량 1% 증가\n30Lv 버프 스킬 물리, 마법, 독립 공격력 증가량 1% 증가\n50Lv 액티브 스킬 힘, 지능 37 증가",
+        "explain" : "공격 시 데미지 증가량 3% 추가 증가\n크리티컬 공격 시 데미지 증가량 3% 추가 증가\n공격 시 2% 추가 데미지\n\n장착 시 최대 HP의 20% 수치의 보호막 효과 적용\n보호막 적용 중 피격 시 15초 동안 아래의 효과 적용\n- 피격 데미지 6% 감소 ",
+        "explainDetail" : "공격 시 데미지 증가량 3% 추가 증가\n크리티컬 공격 시 데미지 증가량 3% 추가 증가\n공격 시 2% 추가 데미지\n\n장착 시 최대 HP의 20% 수치의 보호막 효과 적용(버퍼 미적용, 보호막 피격 후 충전 대기시간 5초, 최대 충전시간 10초, 보호막의 수치는 희생 : 로젠바흐 장비간 공유됩니다.)\n보호막 적용 중 피격 시 15초 동안 아래의 효과 적용(아래의 효과 수치는 6, 8, 10% 중 랜덤하게 결정)\n- 피격 데미지 6% 감소(쿨타임 10초) "
+      }, {
+        "explain" : "희생 : 로젠바흐 장비 2부위 장착 시 추가 효과\n- 보호막 적용 중 초당 HP, MP 1% 회복\n- 보호막 최대 수치 5% 추가 증가\n\n희생 : 로젠바흐 장비 3부위 장착 시 추가 효과\n- 보호막 충전 대기시간 2초 감소\n- 보호막 최대 수치 5% 추가 증가\n\n희생 : 로젠바흐 장비 5부위 장착 시 추가 효과\n- 보호막 최대 충전시간 3초 감소\n- 보호막 최대 수치 10% 추가 증가",
+        "explainDetail" : "희생 : 로젠바흐 장비 2부위 장착 시 추가 효과\n- 보호막 적용 중 초당 HP, MP 1% 회복\n- 보호막 최대 수치 5% 추가 증가\n\n희생 : 로젠바흐 장비 3부위 장착 시 추가 효과\n- 보호막 충전 대기시간 2초 감소\n- 보호막 최대 수치 5% 추가 증가\n\n희생 : 로젠바흐 장비 5부위 장착 시 추가 효과\n- 보호막 최대 충전시간 3초 감소\n- 보호막 최대 수치 10% 추가 증가"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "a8b6b8c72f271f30332a5ae2d0744402",
+      "itemName" : "희생 : 로젠바흐의 염원"
+    }
+  }, {
+    "slotId" : "PANTS",
+    "slotName" : "하의",
+    "itemId" : "09442859b73a7cb5ef62194cd6e8aa5a",
+    "itemName" : "어둠을 파헤치는 바지",
+    "itemType" : "방어구",
+    "itemTypeDetail" : "가죽 하의",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "1d4ed1e13b380593c889feef9ec2f62d",
+    "setItemName" : "흑마술의 탐구자 세트",
+    "reinforce" : 7,
+    "transformInfo" : {
+      "explain" : "힘, 지능 25% 증가",
+      "explainDetail" : "힘, 지능 25% 증가 (23%~29%)",
+      "buffExplain" : "수호의 은총 체력, 정신력 120 증가\n계시 : 아리아, 퍼페티어 지능 120 증가",
+      "buffExplainDetail" : "수호의 은총 체력, 정신력 120 증가 (100~160, 해당 옵션 수치는 20의 배수로만 나옵니다.)\n계시 : 아리아, 퍼페티어 지능 120 증가 (100~160, 해당 옵션 수치는 20의 배수로만 나옵니다.)",
+      "active" : true
+    },
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "독립 공격력",
+        "value" : 50
+      }, {
+        "name" : "지능",
+        "value" : 20
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "sirocoInfo" : {
+      "options" : [ {
+        "explain" : "모든 공격력 5% 증가",
+        "explainDetail" : "모든 공격력 5% 증가",
+        "buffExplain" : "-버퍼 전용 옵션\n\n30Lv 버프 스킬 힘, 지능 증가량 3% 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n30Lv 버프 스킬 힘, 지능 증가량 3% 증가"
+      }, {
+        "explain" : "무의식 : 수문장의 몽환의 사념 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15",
+        "explainDetail" : "무의식 : 수문장의 몽환의 사념 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n(해당 효과는 화, 수, 암, 명 순서로 순환됩니다. 장착 시 5초 이후부터 발동 됩니다.)\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15\n(장착 해제 시 모든 옵션이 해제 됩니다)",
+        "buffExplain" : "-버퍼 전용 옵션\n\n무의식 : 수문장의 몽환의 사념 장착 시 던전 내에서 효과 발동\n- 50Lv 액티브 스킬 힘, 지능 증가량 1% 증가\n- 50Lv 액티브 스킬 힘, 지능 증가량 20 증가\n- 50Lv, 100Lv 액티브 스킬 시전 시 파티원에게 시전자 체력의 30%에 해당하는 보호막 생성 (쿨타임 100초)",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n무의식 : 수문장의 몽환의 사념 장착 시 던전 내에서 효과 발동\n- 50Lv 액티브 스킬 힘, 지능 증가량 1% 증가\n- 50Lv 액티브 스킬 힘, 지능 증가량 20 증가\n- 50Lv, 100Lv 액티브 스킬 시전 시 파티원에게 시전자 체력의 30%에 해당하는 보호막 생성\n(쿨타임 100초, 장착 해제 시 옵션이 해제 됩니다)"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "4f1ec9451a4ff2e85a5786af5b843aca",
+      "itemName" : "무형 : 수문장의 잠식된 갑주"
+    }
+  }, {
+    "slotId" : "SHOES",
+    "slotName" : "신발",
+    "itemId" : "38d781f3bef118ce882fc4c82f58bcd1",
+    "itemName" : "나락으로 빠진 발",
+    "itemType" : "방어구",
+    "itemTypeDetail" : "가죽 신발",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "f51b430435a8383b3cf6d34407c4a553",
+    "setItemName" : "나락의 구도자 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "마법 크리티컬 히트",
+        "value" : "5%"
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "ozmaInfo" : {
+      "options" : [ {
+        "buffExplain" : "<버퍼 전용 옵션>\n슬로우 힐, 치유의 기도, 꼼꼼한 바느질 HP 회복량 7% 추가 감소\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 2% 증가\n50Lv 액티브 스킬 힘, 지능 25 증가\n수호의 은총 체력, 정신력 46 증가\n계시 : 아리아, 퍼페티어 지능 46 증가",
+        "buffExplainDetail" : "<버퍼 전용 옵션>\n슬로우 힐, 치유의 기도, 꼼꼼한 바느질 HP 회복량 7% 추가 감소\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 2% 증가\n50Lv 액티브 스킬 힘, 지능 25 증가\n수호의 은총 체력, 정신력 46 증가\n계시 : 아리아, 퍼페티어 지능 46 증가",
+        "explain" : "공격 시 데미지 증가량 3% 추가 증가\n크리티컬 공격 시 데미지 증가량 3% 추가 증가\n공격 시 1% 추가 데미지\n\n모든 70레벨 스킬 쿨타임 10% 감소\nMP Max 16% 추가 감소",
+        "explainDetail" : "공격 시 데미지 증가량 3% 추가 증가\n크리티컬 공격 시 데미지 증가량 3% 추가 증가\n공격 시 1% 추가 데미지\n\n모든 70레벨 스킬 쿨타임 10% 감소\nMP Max 16% 추가 감소(MP Max 감소 수치는 16, 14, 12% 중 랜덤하게 결정)"
+      }, {
+        "explain" : "성화 : 레드메인 장비 2부위 장착 시 추가 효과\n- 스킬 MP 소모량 5% 추가 감소\n\n성화 : 레드메인 장비 3부위 장착 시 추가 효과\n- 스킬 MP 소모량 10% 추가 감소\n\n성화 : 레드메인 장비 5부위 장착 시 추가 효과\n- 스킬 MP 소모량 25% 추가 감소\n- 초당 HP, MP 0.5% 회복",
+        "explainDetail" : "성화 : 레드메인 장비 2부위 장착 시 추가 효과\n- 스킬 MP 소모량 5% 추가 감소\n\n성화 : 레드메인 장비 3부위 장착 시 추가 효과\n- 스킬 MP 소모량 10% 추가 감소\n\n성화 : 레드메인 장비 5부위 장착 시 추가 효과\n- 스킬 MP 소모량 25% 추가 감소\n- 초당 HP, MP 0.5% 회복"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "654b55f28cd5bebbf92c667ddf37ba11",
+      "itemName" : "성화 : 레드메인의 분노"
+    }
+  }, {
+    "slotId" : "WAIST",
+    "slotName" : "허리",
+    "itemId" : "2bc375bde96650e29b3b147359cb7b2b",
+    "itemName" : "트로피카 : 망고스틴",
+    "itemType" : "방어구",
+    "itemTypeDetail" : "가죽 허리",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "25f94ec65bfb7fe250744c3ef186a25f",
+    "setItemName" : "열대의 트로피카 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "마법 크리티컬 히트",
+        "value" : "5%"
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "ozmaInfo" : {
+      "options" : [ {
+        "buffExplain" : "<버퍼 전용 옵션>\n슬로우 힐, 치유의 기도, 꼼꼼한 바느질 HP 회복량 7% 추가 감소\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 2% 증가\n50Lv 액티브 스킬 힘, 지능 25 증가\n수호의 은총 체력, 정신력 46 증가\n계시 : 아리아, 퍼페티어 지능 46 증가",
+        "buffExplainDetail" : "<버퍼 전용 옵션>\n슬로우 힐, 치유의 기도, 꼼꼼한 바느질 HP 회복량 7% 추가 감소\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 2% 증가\n50Lv 액티브 스킬 힘, 지능 25 증가\n수호의 은총 체력, 정신력 46 증가\n계시 : 아리아, 퍼페티어 지능 46 증가",
+        "explain" : "물리, 마법, 독립 공격력 2% 증가\n힘, 지능 3% 증가\n모든 공격력 2% 증가\n\n모든 75레벨 스킬 쿨타임 10% 감소\nHP Max 12% 추가 감소",
+        "explainDetail" : "물리, 마법, 독립 공격력 2% 증가\n힘, 지능 3% 증가\n모든 공격력 2% 증가\n\n모든 75레벨 스킬 쿨타임 10% 감소\nHP Max 12% 추가 감소(HP Max 감소 수치는 12, 10, 8% 중 랜덤하게 결정)"
+      }, {
+        "explain" : "성화 : 레드메인 장비 2부위 장착 시 추가 효과\n- 스킬 MP 소모량 5% 추가 감소\n\n성화 : 레드메인 장비 3부위 장착 시 추가 효과\n- 스킬 MP 소모량 10% 추가 감소\n\n성화 : 레드메인 장비 5부위 장착 시 추가 효과\n- 스킬 MP 소모량 25% 추가 감소\n- 초당 HP, MP 0.5% 회복",
+        "explainDetail" : "성화 : 레드메인 장비 2부위 장착 시 추가 효과\n- 스킬 MP 소모량 5% 추가 감소\n\n성화 : 레드메인 장비 3부위 장착 시 추가 효과\n- 스킬 MP 소모량 10% 추가 감소\n\n성화 : 레드메인 장비 5부위 장착 시 추가 효과\n- 스킬 MP 소모량 25% 추가 감소\n- 초당 HP, MP 0.5% 회복"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "92f54a43656e9ca37ab1c33b469aac07",
+      "itemName" : "성화 : 레드메인의 신념"
+    }
+  }, {
+    "slotId" : "AMULET",
+    "slotName" : "목걸이",
+    "itemId" : "880219804acccc7d1deff35843742c31",
+    "itemName" : "과격한 분노의 격앙",
+    "itemType" : "액세서리",
+    "itemTypeDetail" : "목걸이",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "ae4e5f8c339b667f2af12db2505f6ece",
+    "setItemName" : "삼켜진 분노 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 23
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "ozmaInfo" : {
+      "options" : [ {
+        "buffExplain" : "<버퍼 전용 옵션>\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n홀리 생츄어리, 미라클 샤인 1회 HP 회복량 2% 추가 감소\n검은 숲의 가시나무 지속시간 0.4초 감소, 비편애 파티원 HP 0.5% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 3% 증가\n50Lv 액티브 스킬 힘, 지능 1% 증가\n50Lv 액티브 스킬 힘, 지능 증가량 21 증가",
+        "explain" : "물리, 마법, 독립 공격력 3% 증가\n힘, 지능 3% 증가\n모든 공격력 2% 증가\n\n모든 35레벨 스킬 시전 시 아래의 효과 적용\n- HP 5% 소모\n- 10초 동안 소모품을 통한 자신의 HP 회복량 15% 감소 ",
+        "explainDetail" : "물리, 마법, 독립 공격력 3% 증가\n힘, 지능 3% 증가\n모든 공격력 2% 증가\n\n모든 35레벨 스킬 시전 시 아래의 효과 적용(HP 소모량은 9, 7, 5% 중 랜덤하게 결정)\n- HP 5% 소모(쿨타임 10초, 해당 효과로 HP가 10% 미만으로 감소되지 않음)\n- 10초 동안 소모품을 통한 자신의 HP 회복량 15% 감소(쿨타임 10초) "
+      }, {
+        "explain" : "절망 : 티아매트 장비 2부위 장착 시 추가 효과\n- 소모품, 회복 스킬을 통한 자신의 HP 회복량 20% 증가\n\n절망 : 티아매트 장비 3부위 장착 시 추가 효과\n- 해당 장비의 스킬 시전 시 소모되는 HP의 양 5% 완화\n- 해당 장비의 HP 소모 효과로 HP가 30% 미만으로 감소되지 않음\n\n절망 : 티아매트 장비 5부위 장착 시 추가 효과\n- 해당 장비의 HP 소모 효과로 HP가 50% 미만으로 감소되지 않음",
+        "explainDetail" : "절망 : 티아매트 장비 2부위 장착 시 추가 효과\n- 소모품, 회복 스킬을 통한 자신의 HP 회복량 20% 증가\n\n절망 : 티아매트 장비 3부위 장착 시 추가 효과\n- 해당 장비의 스킬 시전 시 소모되는 HP의 양 5% 완화\n- 해당 장비의 HP 소모 효과로 HP가 30% 미만으로 감소되지 않음\n\n절망 : 티아매트 장비 5부위 장착 시 추가 효과\n- 해당 장비의 HP 소모 효과로 HP가 50% 미만으로 감소되지 않음"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "2c06c12879d0ca5b005d25ab8db76fcd",
+      "itemName" : "절망 : 티아매트의 불신"
+    }
+  }, {
+    "slotId" : "WRIST",
+    "slotName" : "팔찌",
+    "itemId" : "b5f385f622665794605cd7fa94a67bb9",
+    "itemName" : "지독한 집념의 탐구",
+    "itemType" : "액세서리",
+    "itemTypeDetail" : "팔찌",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "1d4ed1e13b380593c889feef9ec2f62d",
+    "setItemName" : "흑마술의 탐구자 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 23
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0
+  }, {
+    "slotId" : "RING",
+    "slotName" : "반지",
+    "itemId" : "b89ed6af0153823f530f9a07e4225d46",
+    "itemName" : "어둠을 지배하는 고리",
+    "itemType" : "액세서리",
+    "itemTypeDetail" : "반지",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "f51b430435a8383b3cf6d34407c4a553",
+    "setItemName" : "나락의 구도자 세트",
+    "reinforce" : 7,
+    "transformInfo" : {
+      "explain" : "힘, 지능 28% 증가",
+      "explainDetail" : "힘, 지능 28% 증가 (22%~28%)",
+      "buffExplain" : "수호의 은총 체력, 정신력 160 증가\n계시 : 아리아, 퍼페티어 지능 160 증가",
+      "buffExplainDetail" : "수호의 은총 체력, 정신력 160 증가 (100~160, 해당 옵션 수치는 20의 배수로만 나옵니다.)\n계시 : 아리아, 퍼페티어 지능 160 증가 (100~160, 해당 옵션 수치는 20의 배수로만 나옵니다.)",
+      "active" : true
+    },
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 23
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "sirocoInfo" : {
+      "options" : [ {
+        "explain" : "물리, 마법, 독립 공격력 5% 증가",
+        "explainDetail" : "물리, 마법, 독립 공격력 5% 증가",
+        "buffExplain" : "-버퍼 전용 옵션\n\n50Lv 액티브 스킬 힘, 지능 증가량 3% 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n50Lv 액티브 스킬 힘, 지능 증가량 3% 증가"
+      }, {
+        "explain" : "환영 : 수문장의 검은 가면 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15",
+        "explainDetail" : "환영 : 수문장의 검은 가면 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n(해당 효과는 화, 수, 암, 명 순서로 순환됩니다. 장착 시 5초 이후부터 발동 됩니다.)\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15\n(장착 해제 시 모든 옵션이 해제 됩니다)",
+        "buffExplain" : "-버퍼 전용 옵션\n\n환영 : 수문장의 검은 가면 장착 시 던전 내에서 효과 발동\n- 수호의 은총 체력, 정신력 55 증가\n- 계시 : 아리아, 퍼페티어 지능 55 증가\n- 썬더 해머 : 유피테르, 빛의 은총, 어둠에 피는 장미 속성 저항 감소 시간 10초 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n환영 : 수문장의 검은 가면 장착 시 던전 내에서 효과 발동\n- 수호의 은총 체력, 정신력 55 증가\n- 계시 : 아리아, 퍼페티어 지능 55 증가\n- 썬더 해머 : 유피테르, 빛의 은총, 어둠에 피는 장미 속성 저항 감소 시간 10초 증가"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "055e9d2ed3606309ddd7c74135fc5cd3",
+      "itemName" : "무의식 : 수문장의 몽환의 사념"
+    }
+  }, {
+    "slotId" : "SUPPORT",
+    "slotName" : "보조장비",
+    "itemId" : "d5aa285ea041ca244da5c0d6103ac8f8",
+    "itemName" : "통제할 수 없는 화",
+    "itemType" : "추가장비",
+    "itemTypeDetail" : "보조장비",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "ae4e5f8c339b667f2af12db2505f6ece",
+    "setItemName" : "삼켜진 분노 세트",
+    "reinforce" : 7,
+    "transformInfo" : {
+      "explain" : "물리, 마법, 독립 공격력 38% 증가",
+      "explainDetail" : "물리, 마법, 독립 공격력 38% 증가 (32%~38%)",
+      "buffExplain" : "30Lv 버프 스킬 레벨 +1\n50Lv 액티브 스킬 힘, 지능 증가량 40 증가",
+      "buffExplainDetail" : "30Lv 버프 스킬 레벨 +1\n50Lv 액티브 스킬 힘, 지능 증가량 40 증가 (10~40, 해당 옵션 수치는 10의 배수로만 나옵니다.)",
+      "active" : true
+    },
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "물리 공격력",
+        "value" : 70
+      }, {
+        "name" : "마법 공격력",
+        "value" : 70
+      }, {
+        "name" : "독립 공격력",
+        "value" : 70
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "sirocoInfo" : {
+      "options" : [ {
+        "explain" : "스킬 공격력 5% 증가",
+        "explainDetail" : "스킬 공격력 5% 증가",
+        "buffExplain" : "-버퍼 전용 옵션\n\n수호의 은총 체력, 정신력 80 증가\n계시 : 아리아, 퍼페티어 지능 80 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n수호의 은총 체력, 정신력 80 증가\n계시 : 아리아, 퍼페티어 지능 80 증가"
+      }, {
+        "explain" : "무형 : 수문장의 잠식된 갑주 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15",
+        "explainDetail" : "무형 : 수문장의 잠식된 갑주 장착 시 던전 내에서 효과 발동\n- 5초마다 단일 속성 강화 +30\n- 단일 속성 부여\n(해당 효과는 화, 수, 암, 명 순서로 순환됩니다. 장착 시 5초 이후부터 발동 됩니다.)\n- 자신의 가장 높은 속성 강화 수치와 가장 낮은 속성강화 수치의 차이가 170 이상일 때 모든 속성 강화 +15\n(장착 해제 시 모든 옵션이 해제 됩니다)",
+        "buffExplain" : "-버퍼 전용 옵션\n\n무형 : 수문장의 잠식된 갑주 장착 시 던전 내에서 효과 발동\n- 30Lv 버프 스킬 힘, 지능 증가량 1% 증가\n- 수호의 은총 체력, 정신력 30 증가\n- 계시 : 아리아, 퍼페티어 지능 30 증가\n- 디바인 퍼니쉬먼트 신앙 버프 유지 시간 15% 증가\n- 용맹의 아리아 버프 유지 시간 30% 증가\n- 데스티니 퍼펫 저주인형 부착 유지 시간 30% 증가",
+        "buffExplainDetail" : "-버퍼 전용 옵션\n\n무형 : 수문장의 잠식된 갑주 장착 시 던전 내에서 효과 발동\n- 30Lv 버프 스킬 힘, 지능 증가량 1% 증가\n- 수호의 은총 체력, 정신력 30 증가\n- 계시 : 아리아, 퍼페티어 지능 30 증가\n- 디바인 퍼니쉬먼트 신앙 버프 유지 시간 15% 증가\n- 용맹의 아리아 버프 유지 시간 30% 증가\n- 데스티니 퍼펫 저주인형 부착 유지 시간 30% 증가"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "48b4f7fe798b5f7552da88f401a7e1a7",
+      "itemName" : "환영 : 수문장의 검은 가면"
+    }
+  }, {
+    "slotId" : "MAGIC_STON",
+    "slotName" : "마법석",
+    "itemId" : "44becbbee44c861cdf8df571d4fd2aed",
+    "itemName" : "암흑술사의 정수",
+    "itemType" : "추가장비",
+    "itemTypeDetail" : "마법석",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "에픽",
+    "setItemId" : "1d4ed1e13b380593c889feef9ec2f62d",
+    "setItemName" : "흑마술의 탐구자 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "모든 속성 강화",
+        "value" : 30
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "ozmaInfo" : {
+      "options" : [ {
+        "buffExplain" : "<버퍼 전용 옵션>\n힐 윈드 HP 회복량 3% 추가 감소\n재생의 아리아, 사랑의 응급조치 초당 HP 회복량 3% 추가 감소\n홀리 생츄어리, 미라클 샤인 1회 HP 회복량 2% 추가 감소\n검은 숲의 가시나무 지속시간 0.4초 감소, 비편애 파티원 HP 0.5% 추가 감소\n\n30Lv 버프 스킬 힘, 지능 증가량 3% 증가\n50Lv 액티브 스킬 힘, 지능 1% 증가\n50Lv 액티브 스킬 힘, 지능 증가량 21 증가",
+        "explain" : "공격 시 3% 추가 데미지\n물리, 마법, 독립 공격력 2% 증가\n모든 공격력 3% 증가\n\n모든 60레벨 스킬 시전 시 아래의 효과 적용\n- HP 7% 소모\n- 10초 동안 소모품을 통한 자신의 HP 회복량 15% 감소 ",
+        "explainDetail" : "공격 시 3% 추가 데미지\n물리, 마법, 독립 공격력 2% 증가\n모든 공격력 3% 증가\n\n모든 60레벨 스킬 시전 시 아래의 효과 적용(HP 소모량은 9, 7, 5% 중 랜덤하게 결정)\n- HP 7% 소모(쿨타임 10초, 해당 효과로 HP가 10% 미만으로 감소되지 않음)\n- 10초 동안 소모품을 통한 자신의 HP 회복량 15% 감소(쿨타임 10초) "
+      }, {
+        "explain" : "절망 : 티아매트 장비 2부위 장착 시 추가 효과\n- 소모품, 회복 스킬을 통한 자신의 HP 회복량 20% 증가\n\n절망 : 티아매트 장비 3부위 장착 시 추가 효과\n- 해당 장비의 스킬 시전 시 소모되는 HP의 양 5% 완화\n- 해당 장비의 HP 소모 효과로 HP가 30% 미만으로 감소되지 않음\n\n절망 : 티아매트 장비 5부위 장착 시 추가 효과\n- 해당 장비의 HP 소모 효과로 HP가 50% 미만으로 감소되지 않음",
+        "explainDetail" : "절망 : 티아매트 장비 2부위 장착 시 추가 효과\n- 소모품, 회복 스킬을 통한 자신의 HP 회복량 20% 증가\n\n절망 : 티아매트 장비 3부위 장착 시 추가 효과\n- 해당 장비의 스킬 시전 시 소모되는 HP의 양 5% 완화\n- 해당 장비의 HP 소모 효과로 HP가 30% 미만으로 감소되지 않음\n\n절망 : 티아매트 장비 5부위 장착 시 추가 효과\n- 해당 장비의 HP 소모 효과로 HP가 50% 미만으로 감소되지 않음"
+      } ]
+    },
+    "upgradeInfo" : {
+      "itemId" : "3b1e308f19734683a30b1e19a7b3d49d",
+      "itemName" : "절망 : 티아매트의 저주"
+    }
+  }, {
+    "slotId" : "EARRING",
+    "slotName" : "귀걸이",
+    "itemId" : "dca766f2875f2ca7df989f32394679c1",
+    "itemName" : "영원한 나락의 다크버스",
+    "itemType" : "추가장비",
+    "itemTypeDetail" : "귀걸이",
+    "itemAvailableLevel" : 100,
+    "itemRarity" : "신화",
+    "setItemId" : "f51b430435a8383b3cf6d34407c4a553",
+    "setItemName" : "나락의 구도자 세트",
+    "reinforce" : 7,
+    "itemGradeName" : "최상급",
+    "enchant" : {
+      "status" : [ {
+        "name" : "힘",
+        "value" : 150
+      }, {
+        "name" : "지능",
+        "value" : 150
+      }, {
+        "name" : "체력",
+        "value" : 150
+      }, {
+        "name" : "정신력",
+        "value" : 150
+      } ]
+    },
+    "amplificationName" : "차원의 지능",
+    "refine" : 0,
+    "mythologyInfo" : {
+      "options" : [ {
+        "explain" : "모든 공격력 11% 증가",
+        "explainDetail" : "모든 공격력 11% 증가 (1%~12%)",
+        "buffExplain" : "30Lv 버프 스킬 힘, 지능 증가량 11% 증가",
+        "buffExplainDetail" : "30Lv 버프 스킬 힘, 지능 증가량 11% 증가 (1%~12%)"
+      }, {
+        "explain" : "모든 속성 강화 +40",
+        "explainDetail" : "모든 속성 강화 +40 (8~40, 해당 옵션 수치는 4의 배수로만 나옵니다.)",
+        "buffExplain" : "수호의 은총 체력, 정신력 240 증가\n계시 : 아리아, 퍼페티어 지능 240 증가",
+        "buffExplainDetail" : "수호의 은총 체력, 정신력 240 증가 (80~240, 해당 옵션 수치는 20의 배수로만 나옵니다.)\n계시 : 아리아, 퍼페티어 지능 240 증가 (80~240, 해당 옵션 수치는 20의 배수로만 나옵니다.)"
+      }, {
+        "explain" : "공격 시 9% 추가 데미지",
+        "explainDetail" : "공격 시 9% 추가 데미지 (1%~9%)",
+        "buffExplain" : "50Lv 액티브 스킬 힘, 지능 증가량 90 증가",
+        "buffExplainDetail" : "50Lv 액티브 스킬 힘, 지능 증가량 90 증가 (10~90, 해당 옵션 수치는 10의 배수로만 나옵니다.)"
+      } ]
+    }
+  } ],
+  "setItemInfo" : [ {
+    "setItemId" : "1d4ed1e13b380593c889feef9ec2f62d",
+    "setItemName" : "흑마술의 탐구자 세트",
+    "slotInfo" : [ {
+      "slotId" : "PANTS",
+      "slotName" : "하의",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "WRIST",
+      "slotName" : "팔찌",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "MAGIC_STON",
+      "slotName" : "마법석",
+      "itemRarity" : "에픽"
+    } ],
+    "activeSetNo" : 3
+  }, {
+    "setItemId" : "f51b430435a8383b3cf6d34407c4a553",
+    "setItemName" : "나락의 구도자 세트",
+    "slotInfo" : [ {
+      "slotId" : "SHOES",
+      "slotName" : "신발",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "RING",
+      "slotName" : "반지",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "EARRING",
+      "slotName" : "귀걸이",
+      "itemRarity" : "신화"
+    } ],
+    "activeSetNo" : 3
+  }, {
+    "setItemId" : "25f94ec65bfb7fe250744c3ef186a25f",
+    "setItemName" : "열대의 트로피카 세트",
+    "slotInfo" : [ {
+      "slotId" : "JACKET",
+      "slotName" : "상의",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "SHOULDER",
+      "slotName" : "머리어깨",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "WAIST",
+      "slotName" : "허리",
+      "itemRarity" : "에픽"
+    } ],
+    "activeSetNo" : 3
+  }, {
+    "setItemId" : "ae4e5f8c339b667f2af12db2505f6ece",
+    "setItemName" : "삼켜진 분노 세트",
+    "slotInfo" : [ {
+      "slotId" : "AMULET",
+      "slotName" : "목걸이",
+      "itemRarity" : "에픽"
+    }, {
+      "slotId" : "SUPPORT",
+      "slotName" : "보조장비",
+      "itemRarity" : "에픽"
+    } ],
+    "activeSetNo" : 2
+  } ]
+}
+
+캐릭터 장착 아바타 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "avatar" : [ {
+    "slotId" : "HEADGEAR",
+    "slotName" : "모자 아바타",
+    "itemId" : "92d9839ad426f31e9de3508d001f84ca",
+    "itemName" : "레어 모자 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "38e674d3397df15a44022cb7fcfd399d",
+      "itemName" : "커다란 리본장식[C타입]"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "지능 55 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "붉은빛",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "붉은빛",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "HAIR",
+    "slotName" : "머리 아바타",
+    "itemId" : "b307bddf9ae7fd51cdb2cd4c2311d8f2",
+    "itemName" : "레어 머리 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "709c61c0aa60fb5cdaea1cb99736abea",
+      "itemName" : "올림푸스 아르테미스의 트윈테일[B타입]"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "지능 55 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "붉은빛",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "붉은빛",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "FACE",
+    "slotName" : "얼굴 아바타",
+    "itemId" : "32898f26a4e314163e68db8a8e8048f5",
+    "itemName" : "레어 얼굴 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "768062c3994541f4f25d807019a8fe1f",
+      "itemName" : "홍조"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "공격 속도 6.0% 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "노란빛",
+      "itemName" : "찬란한 옐로우 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "노란빛",
+      "itemName" : "찬란한 옐로우 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "JACKET",
+    "slotName" : "상의 아바타",
+    "itemId" : "5838c99d8d457c6422a7b8027ef9f7df",
+    "itemName" : "레어 상의 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "97dced2d9266f22dca4f832d2a43dcae",
+      "itemName" : "야생의 사파리 오리의 슈트[C타입]"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "퍼밀리어와 친하게 지내기 스킬Lv +1",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "플래티넘",
+      "itemName" : "플래티넘 엠블렘[퍼밀리어와 친하게 지내기]",
+      "itemRarity" : "레전더리"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "녹색빛",
+      "itemName" : "찬란한 듀얼 엠블렘[지능 + 마법크리티컬]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 3,
+      "slotColor" : "녹색빛",
+      "itemName" : "찬란한 듀얼 엠블렘[지능 + 마법크리티컬]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "PANTS",
+    "slotName" : "하의 아바타",
+    "itemId" : "2fd4d583eef28dfcca026403aa786fa9",
+    "itemName" : "레어 하의 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "bc4e248bbdb15181db8148f7ff61da30",
+      "itemName" : "해변의 로망 비키니 하의"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "HP MAX 400 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "플래티넘",
+      "itemName" : "플래티넘 엠블렘[퍼밀리어와 친하게 지내기]",
+      "itemRarity" : "레전더리"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "녹색빛",
+      "itemName" : "찬란한 듀얼 엠블렘[지능 + 마법크리티컬]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 3,
+      "slotColor" : "녹색빛",
+      "itemName" : "찬란한 듀얼 엠블렘[지능 + 마법크리티컬]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "SHOES",
+    "slotName" : "신발 아바타",
+    "itemId" : "af59e97005cafdb621af0801b713eb0d",
+    "itemName" : "레어 신발 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "b950de957cfa6fb46a134af28668a9bf",
+      "itemName" : "수영 마니아 페디큐어"
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "이동 속도 6.0% 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "푸른빛",
+      "itemName" : "찬란한 듀얼 엠블렘[캐스트속도 + 이동속도]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "푸른빛",
+      "itemName" : "찬란한 듀얼 엠블렘[캐스트속도 + 이동속도]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "BREAST",
+    "slotName" : "목가슴 아바타",
+    "itemId" : "6e699ae53d4a03bc13fbfdb528968c0f",
+    "itemName" : "레어 목가슴 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "공격 속도 6.0% 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "노란빛",
+      "itemName" : "찬란한 옐로우 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "노란빛",
+      "itemName" : "찬란한 옐로우 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "WAIST",
+    "slotName" : "허리 아바타",
+    "itemId" : "c5549838b6aa321e476e5023649b8d29",
+    "itemName" : "레어 허리 클론 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "암속성 저항 35 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "푸른빛",
+      "itemName" : "찬란한 듀얼 엠블렘[캐스트속도 + 이동속도]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "푸른빛",
+      "itemName" : "찬란한 듀얼 엠블렘[캐스트속도 + 이동속도]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "SKIN",
+    "slotName" : "스킨 아바타",
+    "itemId" : "5eac6fb883bb6c6ea253776ac5dca2ad",
+    "itemName" : "지옥의 정복자 여마법사/크리에이터 피부[A타입]",
+    "itemRarity" : "커먼",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "물리피해 추가감소 3.5% 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 녹색빛 엠블렘[마법크리티컬]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 녹색빛 엠블렘[마법크리티컬]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "AURORA",
+    "slotName" : "오라 아바타",
+    "itemId" : "04f32b6dfe89f8a3b7dfa2a2a3415c1c",
+    "itemName" : "위대한 사도의 기운[루크]",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : null,
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "WEAPON",
+    "slotName" : "무기 아바타",
+    "itemId" : "e16f404ee01406d159987f41abd99118",
+    "itemName" : "레어 무기 클론 아바타[40Lv]",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : "지능 55 증가",
+    "emblems" : [ {
+      "slotNo" : 1,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    }, {
+      "slotNo" : 2,
+      "slotColor" : "다색",
+      "itemName" : "찬란한 붉은빛 엠블렘[지능]",
+      "itemRarity" : "유니크"
+    } ]
+  }, {
+    "slotId" : "AURA_SKIN",
+    "slotName" : "오라 스킨 아바타",
+    "itemId" : "56ec2fe8eead861431a9e91df3c53258",
+    "itemName" : "전직의 모션 오라 아바타",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "random" : {
+      "itemId" : null,
+      "itemName" : null
+    },
+    "optionAbility" : null,
+    "emblems" : [ ]
+  } ]
+}
+
+캐릭터 장착 크리쳐 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "creature" : {
+    "itemId" : "383cf573077b1687d3efef94233655da",
+    "itemName" : "SD 지니위즈[노련한]",
+    "itemRarity" : "레어",
+    "clone" : {
+      "itemId" : "cb5a04b4a7029c4dfce0d317acf0b817",
+      "itemName" : "16주년 SD 히만 스텔라"
+    },
+    "artifact" : [ {
+      "slotColor" : "RED",
+      "itemName" : "새끼용의 눈",
+      "itemAvailableLevel" : 0,
+      "itemRarity" : "레어"
+    }, {
+      "slotColor" : "BLUE",
+      "itemName" : "세이렌의 눈물",
+      "itemAvailableLevel" : 0,
+      "itemRarity" : "레어"
+    }, {
+      "slotColor" : "GREEN",
+      "itemName" : "에메랄드 오브",
+      "itemAvailableLevel" : 0,
+      "itemRarity" : "레어"
+    } ]
+  }
+}
+
+캐릭터 장착 휘장 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "flag" : {
+    "itemId" : "515641617bb0e79fbceb013d0b241a27",
+    "itemName" : "완벽한 정기의 문양 휘장",
+    "itemAvailableLevel" : 50,
+    "itemRarity" : "레전더리",
+    "reinforce" : 10,
+    "itemAbility" : "지능 +48, 독립공격력 +30",
+    "gems" : [ {
+      "slotNo" : 1,
+      "itemId" : "b0f416dc812400befb89f6ccbb8ceb36",
+      "itemName" : "영롱하게 빛나는 젬[화속성강화]",
+      "itemRarity" : "유니크",
+      "itemAbility" : "화속성강화 +7"
+    }, {
+      "slotNo" : 2,
+      "itemId" : "1d7f73103b90a45d3a35f9b4b7517808",
+      "itemName" : "영롱하게 빛나는 젬[이동속도]",
+      "itemRarity" : "유니크",
+      "itemAbility" : "이동속도 +3%"
+    }, {
+      "slotNo" : 3,
+      "itemId" : "d17eac0421ef08dde191e6d8ab597ecd",
+      "itemName" : "영롱하게 빛나는 젬[마법크리티컬]",
+      "itemRarity" : "유니크",
+      "itemAbility" : "마법 크리티컬 히트 +1.5%"
+    }, {
+      "slotNo" : 4,
+      "itemId" : "40e357e575d79994c29c540ce8880678",
+      "itemName" : "영롱하게 빛나는 젬[캐스트속도]",
+      "itemRarity" : "유니크",
+      "itemAbility" : "캐스트속도 +4.5%"
+    } ]
+  }
+}
+
+캐릭터 장착 탈리스만 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "talismans" : [ {
+    "talisman" : {
+      "slotNo" : 1,
+      "itemId" : "49fb70bd0d05502f572a483938a8ea09",
+      "itemName" : "카펠라의 성흔 : 후끈한 열기 폭풍",
+      "runeTypes" : [ "테라코타", "서클메이지", "세컨드팩트" ]
+    },
+    "runes" : [ {
+      "slotNo" : 1,
+      "itemId" : "75968c48bef60f5b3eafcf9719b69b54",
+      "itemName" : "화려한 테라코타 룬[롤리팝 크러쉬]"
+    }, {
+      "slotNo" : 2,
+      "itemId" : "73237f1b4209658ce5f826895a781ed5",
+      "itemName" : "화려한 서클 메이지 룬[반중력 기동장치]"
+    }, {
+      "slotNo" : 3,
+      "itemId" : "eeb38803815894b3df254c03edf18ada",
+      "itemName" : "화려한 세컨드 팩트 룬[롤리팝 크러쉬]"
+    } ]
+  }, {
+    "talisman" : {
+      "slotNo" : 2,
+      "itemId" : "5442a677dac3d91641f90ffceb9fe917",
+      "itemName" : "카펠라의 성흔 : 따끔한 맛 특제 빙수",
+      "runeTypes" : [ "테라코타", "수호자들", "세컨드팩트" ]
+    },
+    "runes" : [ {
+      "slotNo" : 1,
+      "itemId" : "75968c48bef60f5b3eafcf9719b69b54",
+      "itemName" : "화려한 테라코타 룬[롤리팝 크러쉬]"
+    }, {
+      "slotNo" : 2,
+      "itemId" : "244b488401ceb687abdac2761f730ea5",
+      "itemName" : "화려한 수호자들 룬[잭프로스트 빙수]"
+    }, {
+      "slotNo" : 3,
+      "itemId" : "eeb38803815894b3df254c03edf18ada",
+      "itemName" : "화려한 세컨드 팩트 룬[롤리팝 크러쉬]"
+    } ]
+  }, {
+    "talisman" : {
+      "slotNo" : 3,
+      "itemId" : "aef58751bd2213bc314f5d248228958b",
+      "itemName" : "카펠라의 성흔 : 비터스위트 롤리팝",
+      "runeTypes" : [ "테라코타", "서클메이지", "수호자들" ]
+    },
+    "runes" : [ {
+      "slotNo" : 1,
+      "itemId" : "75968c48bef60f5b3eafcf9719b69b54",
+      "itemName" : "화려한 테라코타 룬[롤리팝 크러쉬]"
+    }, {
+      "slotNo" : 2,
+      "itemId" : "ecb7c1244dc38a6595d14f49c97a6b01",
+      "itemName" : "화려한 서클 메이지 룬[빗자루 스핀]"
+    }, {
+      "slotNo" : 3,
+      "itemId" : "30022b5a5eafe9d4e29f76b4280b1649",
+      "itemName" : "화려한 수호자들 룬[반중력 기동장치]"
+    } ]
+  } ]
+}
+
+캐릭터 스킬 스타일 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "skill" : {
+    "style" : {
+      "active" : [ {
+        "skillId" : "7822d6d52e10964a6755f142c666b494",
+        "name" : "백스텝",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "01c3a2fb793d293a25ed8dc7a0d70c1a",
+        "name" : "천격",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "ce26c6b69d02a440a81b552bec94f03b",
+        "name" : "퀵 스탠딩",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "45442bbbe33540b4deeec29437dae70c",
+        "name" : "매직 미사일",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "78bd107acd474518b606be1e4fd38239",
+        "name" : "플로레 비비기",
+        "level" : 1,
+        "requiredLevel" : 5
+      }, {
+        "skillId" : "9cb6f9ed646fa87f9b7680a42ce83d1a",
+        "name" : "랜턴 파이어",
+        "level" : 1,
+        "requiredLevel" : 5
+      }, {
+        "skillId" : "a5fa08f5d509e6ff2ebc68856a470b5a",
+        "name" : "계약소환 : 기갑 호도르",
+        "level" : 1,
+        "requiredLevel" : 5
+      }, {
+        "skillId" : "dcd536f1674630f01fc9667bb202b851",
+        "name" : "오라 실드",
+        "level" : 10,
+        "requiredLevel" : 5
+      }, {
+        "skillId" : "1fea5a626f15230237946a11a9d11582",
+        "name" : "도약",
+        "level" : 1,
+        "requiredLevel" : 10
+      }, {
+        "skillId" : "0969cd4054d93da07708108c0cc1c4b5",
+        "name" : "위상변화",
+        "level" : 1,
+        "requiredLevel" : 10
+      }, {
+        "skillId" : "3d8f3d438405d79f8d3ed68072674d1e",
+        "name" : "채찍질",
+        "level" : 1,
+        "requiredLevel" : 10
+      }, {
+        "skillId" : "4224f9b0b8c7c903e9a1e0f9d9f6d04d",
+        "name" : "프로스트 헤드",
+        "level" : 1,
+        "requiredLevel" : 10
+      }, {
+        "skillId" : "d085127b0edd719782bd618d5688f4a1",
+        "name" : "플루토",
+        "level" : 1,
+        "requiredLevel" : 10
+      }, {
+        "skillId" : "7cf17936a039b418660424125dc968d7",
+        "name" : "고출력 매직 미사일",
+        "level" : 1,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "4b2c90ec226fd40e967875aa5eabefb2",
+        "name" : "도발 인형 : 슈르르",
+        "level" : 46,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "8c2379737c5acc935c1731f67f607655",
+        "name" : "낙화장",
+        "level" : 1,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "01384bbfc346775d1267fa0bc4ca605f",
+        "name" : "고대의 도서관",
+        "level" : 10,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "2391a27457b5a8c6fa4b4670a91bdd11",
+        "name" : "블랙 망토",
+        "level" : 1,
+        "requiredLevel" : 20
+      }, {
+        "skillId" : "9dda3f4a849dba1a288dd65e116860f2",
+        "name" : "쇼타임",
+        "level" : 10,
+        "requiredLevel" : 20
+      }, {
+        "skillId" : "1812a1ece67bb37b6b44b54766450064",
+        "name" : "변이 파리채",
+        "level" : 1,
+        "requiredLevel" : 25
+      }, {
+        "skillId" : "7f80b887a09e88e2c4728c898bd73654",
+        "name" : "용암지대 생성물약",
+        "level" : 26,
+        "requiredLevel" : 30
+      }, {
+        "skillId" : "b89c9ab317bc0a443f6497b7cca2f6a8",
+        "name" : "애시드 클라우드",
+        "level" : 26,
+        "requiredLevel" : 30
+      }, {
+        "skillId" : "2c9d9a36c8401bddff6cdb80fab8dc24",
+        "name" : "빗자루 스핀",
+        "level" : 17,
+        "requiredLevel" : 35
+      }, {
+        "skillId" : "c5a2956d8ed3af1746ed2f76ca971a09",
+        "name" : "플로레 컬라이더",
+        "level" : 1,
+        "requiredLevel" : 35
+      }, {
+        "skillId" : "e0daa922b19cdc35de879e938361464e",
+        "name" : "반중력 기동장치",
+        "level" : 33,
+        "requiredLevel" : 40
+      }, {
+        "skillId" : "e0a072e8cef2d77893aad5f68aeed56a",
+        "name" : "성난 불길 가열로",
+        "level" : 33,
+        "requiredLevel" : 40
+      }, {
+        "skillId" : "ce572b597666f4472b1577a02fd5e1c3",
+        "name" : "자폭",
+        "level" : 1,
+        "requiredLevel" : 40
+      }, {
+        "skillId" : "3fb8395ae3b81bd608e0c4223a8eb534",
+        "name" : "퓨전 크래프트",
+        "level" : 11,
+        "requiredLevel" : 50
+      }, {
+        "skillId" : "ac21c02567f04a92b54dd85c091d1e5a",
+        "name" : "대왕 파리채",
+        "level" : 23,
+        "requiredLevel" : 60
+      }, {
+        "skillId" : "8b08f9504167a9c0f3a1d29d71b7943e",
+        "name" : "플로레 전기토끼",
+        "level" : 18,
+        "requiredLevel" : 70
+      }, {
+        "skillId" : "b8f4966608e4ebb3cc80ba4eac3649bb",
+        "name" : "잭 프로스트 빙수",
+        "level" : 16,
+        "requiredLevel" : 75
+      }, {
+        "skillId" : "9bc30e0f6e22b0333762d04acae7d252",
+        "name" : "롤리팝 크러쉬",
+        "level" : 13,
+        "requiredLevel" : 80
+      }, {
+        "skillId" : "0f638da961acf7958ac6070b7aaed013",
+        "name" : "우로보로스",
+        "level" : 5,
+        "requiredLevel" : 85
+      }, {
+        "skillId" : "fa7f1a3dc90600456cbe010e5714bef3",
+        "name" : "잭 오 할로윈",
+        "level" : 6,
+        "requiredLevel" : 95
+      }, {
+        "skillId" : "5fe93d62fcf6d0b1bb6b910b2dd24a0b",
+        "name" : "아르스마그나",
+        "level" : 2,
+        "requiredLevel" : 100
+      } ],
+      "passive" : [ {
+        "skillId" : "5a56514f35cf0270ae8d6c65f8fefd78",
+        "name" : "기본기 숙련",
+        "level" : 100,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "892ef624d8bf3d7fc045f84825fd6104",
+        "name" : "기초 방어구 마스터리",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "e5c09f9132a48dc1d695968592cc5878",
+        "name" : "마도학자의 가죽 갑옷 마스터리",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "12dca7fbf791e882b025a0d916181673",
+        "name" : "컨버전",
+        "level" : 1,
+        "requiredLevel" : 1
+      }, {
+        "skillId" : "5152480fdde81362575a488d4cec4af9",
+        "name" : "빗자루 다루기",
+        "level" : 1,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "5892d1fa4462e561ac8f8d2c74892b0a",
+        "name" : "개조 슈르르",
+        "level" : 1,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "4f2e001e9a19eb7bae50ad1840dfb329",
+        "name" : "퍼밀리어와 친하게 지내기",
+        "level" : 5,
+        "requiredLevel" : 15
+      }, {
+        "skillId" : "fc1262c19f3d0477ee8eda47b8db8696",
+        "name" : "크리티컬 히트",
+        "level" : 6,
+        "requiredLevel" : 20
+      }, {
+        "skillId" : "2ba299855fc22192cba4f73db75e9d0e",
+        "name" : "스위트 캔디바",
+        "level" : 5,
+        "requiredLevel" : 25
+      }, {
+        "skillId" : "b42cab9c815150aee1ef44daec1fe4c5",
+        "name" : "저온살균",
+        "level" : 1,
+        "requiredLevel" : 30
+      }, {
+        "skillId" : "d53301bb328baf12a3ae482cc6a565dd",
+        "name" : "비터스 캔디바",
+        "level" : 1,
+        "requiredLevel" : 35
+      }, {
+        "skillId" : "5806440d21e7546d50007a5ba11f8024",
+        "name" : "성공 예감",
+        "level" : 20,
+        "requiredLevel" : 48
+      }, {
+        "skillId" : "b2b7a2510928516f0a7d614cbd32a71c",
+        "name" : "도발 인형 : 슈르르 강화",
+        "level" : 5,
+        "requiredLevel" : 50
+      }, {
+        "skillId" : "949849d5791944973d60af7e2a7eefb0",
+        "name" : "애시드 클라우드 강화",
+        "level" : 5,
+        "requiredLevel" : 55
+      }, {
+        "skillId" : "2e9c5a06ff3fe8aea672a2a55c40fdbf",
+        "name" : "용암지대 생성물약 강화",
+        "level" : 5,
+        "requiredLevel" : 55
+      }, {
+        "skillId" : "adeabc63a1181031c011471a6eaee110",
+        "name" : "반중력 기동장치 강화",
+        "level" : 4,
+        "requiredLevel" : 55
+      }, {
+        "skillId" : "b501ae53638d33a32351904f31cb6aa3",
+        "name" : "성난 불길 가열로 강화",
+        "level" : 5,
+        "requiredLevel" : 55
+      }, {
+        "skillId" : "5f75a60c73b72ad60bd4321b96b16662",
+        "name" : "플로레 전기토끼 강화",
+        "level" : 5,
+        "requiredLevel" : 70
+      }, {
+        "skillId" : "8e358ecf99ac9df31a6132aeafe378a9",
+        "name" : "현자의 돌",
+        "level" : 11,
+        "requiredLevel" : 75
+      }, {
+        "skillId" : "f1111c21369d2b835b186dd1d58be88d",
+        "name" : "붉은 사탕",
+        "level" : 4,
+        "requiredLevel" : 95
+      } ]
+    }
+  }
+}
+
+캐릭터 버프 스킬 강화 장착 장비 조회
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "skill" : {
+    "buff" : {
+      "skillInfo" : {
+        "skillId" : "01384bbfc346775d1267fa0bc4ca605f",
+        "name" : "고대의 도서관",
+        "option" : {
+          "level" : 20,
+          "desc" : "버프 유지 시간 : {value1}초\n마도학자 기본/스킬 공격력 증가량 : {value2}%",
+          "values" : [ "-", "92" ]
+        }
+      },
+      "equipment" : [ {
+        "slotId" : "WEAPON",
+        "slotName" : "무기",
+        "itemId" : "62a6da9bb1513e6df72c52a95e9e84aa",
+        "itemName" : "심연의 편린 브러쉬S : 고대의 도서관",
+        "itemType" : "무기",
+        "itemTypeDetail" : "빗자루",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "TITLE",
+        "slotName" : "칭호",
+        "itemId" : "f569680cad7b40de93056dcdf5cb2fb7",
+        "itemName" : "세계의 가호[불]",
+        "itemType" : "액세서리",
+        "itemTypeDetail" : "칭호",
+        "itemAvailableLevel" : 1,
+        "itemRarity" : "레어",
+        "setItemId" : null,
+        "setItemName" : null,
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0,
+        "enchant" : {
+          "reinforceSkill" : [ {
+            "jobId" : "3909d0b188e9c95311399f776e331da5",
+            "jobName" : "마법사(여)",
+            "skills" : [ {
+              "skillId" : "01384bbfc346775d1267fa0bc4ca605f",
+              "name" : "고대의 도서관",
+              "value" : 2
+            } ]
+          } ]
+        }
+      }, {
+        "slotId" : "JACKET",
+        "slotName" : "상의",
+        "itemId" : "365c77306a90b87a93130983b0f959db",
+        "itemName" : "심연의 편린 상의 : 고대의 도서관",
+        "itemType" : "방어구",
+        "itemTypeDetail" : "가죽 상의",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "SHOULDER",
+        "slotName" : "머리어깨",
+        "itemId" : "470bcd692fe1f4425cd4b96774040623",
+        "itemName" : "심연의 편린 어깨 : 고대의 도서관",
+        "itemType" : "방어구",
+        "itemTypeDetail" : "가죽 머리어깨",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "PANTS",
+        "slotName" : "하의",
+        "itemId" : "1d1008186f395d3afb22a0d89cad6d00",
+        "itemName" : "심연의 편린 하의 : 고대의 도서관",
+        "itemType" : "방어구",
+        "itemTypeDetail" : "가죽 하의",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "SHOES",
+        "slotName" : "신발",
+        "itemId" : "1b53d4b54aa48d9994163f1730e2dc60",
+        "itemName" : "심연의 편린 신발 : 고대의 도서관",
+        "itemType" : "방어구",
+        "itemTypeDetail" : "가죽 신발",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "WAIST",
+        "slotName" : "허리",
+        "itemId" : "809a2a0a5b08c6371b595a9a9f1566a7",
+        "itemName" : "심연의 편린 벨트 : 고대의 도서관",
+        "itemType" : "방어구",
+        "itemTypeDetail" : "가죽 허리",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "AMULET",
+        "slotName" : "목걸이",
+        "itemId" : "49e1535ffc6f7ca1b3308ed02e1d2352",
+        "itemName" : "심연의 편린 목걸이 : 고대의 도서관",
+        "itemType" : "액세서리",
+        "itemTypeDetail" : "목걸이",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "WRIST",
+        "slotName" : "팔찌",
+        "itemId" : "1eb93eda8c337aa440a29eb7e2afe2a8",
+        "itemName" : "심연의 편린 팔찌 : 고대의 도서관",
+        "itemType" : "액세서리",
+        "itemTypeDetail" : "팔찌",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "RING",
+        "slotName" : "반지",
+        "itemId" : "6bec4cfcf2f23f34064c72b6ca74e76d",
+        "itemName" : "심연의 편린 반지 : 고대의 도서관",
+        "itemType" : "액세서리",
+        "itemTypeDetail" : "반지",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "a58260bc65ca632ab046df0bee7bb8c0",
+        "setItemName" : "심연의 편린 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "SUPPORT",
+        "slotName" : "보조장비",
+        "itemId" : "6acfebee3d251fb03b185fe03a81d832",
+        "itemName" : "뒤틀린 심연의 완장 : 고대의 도서관",
+        "itemType" : "추가장비",
+        "itemTypeDetail" : "보조장비",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "84adda2f9f73a5c33d0a3a6d3bbcfcd2",
+        "setItemName" : "뒤틀린 심연의 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "MAGIC_STON",
+        "slotName" : "마법석",
+        "itemId" : "b0919d4ada9820ea3c11bbca29433922",
+        "itemName" : "뒤틀린 심연의 마법석 : 고대의 도서관",
+        "itemType" : "추가장비",
+        "itemTypeDetail" : "마법석",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "84adda2f9f73a5c33d0a3a6d3bbcfcd2",
+        "setItemName" : "뒤틀린 심연의 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      }, {
+        "slotId" : "EARRING",
+        "slotName" : "귀걸이",
+        "itemId" : "b5e6b27d5f22d75bc93d31f25b4e5022",
+        "itemName" : "뒤틀린 심연의 귀걸이 : 고대의 도서관",
+        "itemType" : "추가장비",
+        "itemTypeDetail" : "귀걸이",
+        "itemAvailableLevel" : 95,
+        "itemRarity" : "레전더리",
+        "setItemId" : "84adda2f9f73a5c33d0a3a6d3bbcfcd2",
+        "setItemName" : "뒤틀린 심연의 고대의 도서관 세트",
+        "reinforce" : 0,
+        "amplificationName" : null,
+        "refine" : 0
+      } ]
+    }
+  }
+}
+
+캐릭터 버프 스킬 강화 장착 아바타
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "skill" : {
+    "buff" : {
+      "skillInfo" : {
+        "skillId" : "01384bbfc346775d1267fa0bc4ca605f",
+        "name" : "고대의 도서관",
+        "option" : {
+          "level" : 20,
+          "desc" : "버프 유지 시간 : {value1}초\n마도학자 기본/스킬 공격력 증가량 : {value2}%",
+          "values" : [ "-", "92" ]
+        }
+      },
+      "avatar" : [ {
+        "slotId" : "JACKET",
+        "slotName" : "상의 아바타",
+        "itemId" : "f16433375d0703194c6f24312b0d2313",
+        "itemName" : "노블레스 클래식 상의",
+        "itemRarity" : "레어",
+        "cloneAvatarName" : null,
+        "optionAbility" : "고대의 도서관 스킬Lv +1",
+        "emblems" : [ {
+          "slotNo" : 1,
+          "slotColor" : "플래티넘",
+          "itemName" : "플래티넘 엠블렘[고대의 도서관]",
+          "itemRarity" : "레전더리"
+        }, {
+          "slotNo" : 2,
+          "slotColor" : "녹색빛",
+          "itemName" : "듀얼 드림 파이터 엠블렘[지능 + MP MAX]",
+          "itemRarity" : "레어"
+        }, {
+          "slotNo" : 3,
+          "slotColor" : "녹색빛",
+          "itemName" : "듀얼 드림 파이터 엠블렘[지능 + MP MAX]",
+          "itemRarity" : "레어"
+        } ]
+      }, {
+        "slotId" : "PANTS",
+        "slotName" : "하의 아바타",
+        "itemId" : "fbd62813f55334be136248ff6a1120e6",
+        "itemName" : "꽃의 요정 - 로즈 드레스 하의",
+        "itemRarity" : "레어",
+        "cloneAvatarName" : null,
+        "optionAbility" : "HP MAX 400 증가",
+        "emblems" : [ {
+          "slotNo" : 1,
+          "slotColor" : "플래티넘",
+          "itemName" : "플래티넘 엠블렘[고대의 도서관]",
+          "itemRarity" : "레전더리"
+        }, {
+          "slotNo" : 2,
+          "slotColor" : "녹색빛",
+          "itemName" : "화려한 듀얼 엠블렘[지능 + 마법크리티컬]",
+          "itemRarity" : "레어"
+        }, {
+          "slotNo" : 3,
+          "slotColor" : "녹색빛",
+          "itemName" : "화려한 듀얼 엠블렘[지능 + 마법크리티컬]",
+          "itemRarity" : "레어"
+        } ]
+      } ]
+    }
+  }
+}
+
+캐릭터 버프 스킬 강화 장착 크리쳐
+{
+  "characterId" : "4ecd3f9eea4b6dd87044a9d9323efd20",
+  "characterName" : "고운말_7794",
+  "level" : 100,
+  "jobId" : "3909d0b188e9c95311399f776e331da5",
+  "jobGrowId" : "c9b492038ee3ca8d27d7004cf58d59f3",
+  "jobName" : "마법사(여)",
+  "jobGrowName" : "眞 마도학자",
+  "adventureName" : "변태소녀",
+  "guildId" : "3c3fb899329f60d9727af322eba3035b",
+  "guildName" : "븜미연합",
+  "skill" : {
+    "buff" : {
+      "skillInfo" : {
+        "skillId" : "01384bbfc346775d1267fa0bc4ca605f",
+        "name" : "고대의 도서관",
+        "option" : {
+          "level" : 20,
+          "desc" : "버프 유지 시간 : {value1}초\n마도학자 기본/스킬 공격력 증가량 : {value2}%",
+          "values" : [ "-", "92" ]
+        }
+      },
+      "creature" : [ {
+        "itemId" : "9b932450b9dcbf93b78b584044c6aaf0",
+        "itemName" : "새 친구 SD 여프리스트 크리쳐",
+        "itemRarity" : "레어",
+        "enchant" : { }
+      } ]
+    }
+  }
+}

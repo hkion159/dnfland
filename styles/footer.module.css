@@ -1,0 +1,22 @@
+.footer {
+  border-top: 1px solid rgb(197, 197, 197);
+}
+
+.devprof {
+  color: #575757;
+}
+
+.devprof h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.devprof h5 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 160%;
+}
+
+.container {
+  flex: 1;
+}

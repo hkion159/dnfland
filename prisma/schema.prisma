@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  adventure Adventure?
+  name      String?    @default("")
+  image     String?
+  createdAt DateTime   @default(now()) @map(name: "created_at")
+  updatedAt DateTime   @updatedAt @map(name: "updated_at")
+  setting   Setting?
+
+  @@map(name: "users")
+}
+
+model Account {
+  id                 Int       @id @default(autoincrement())
+  compoundId         String    @unique @map(name: "compound_id")
+  userId             Int       @map(name: "user_id")
+  providerType       String    @map(name: "provider_type")
+  providerId         String    @map(name: "provider_id")
+  providerAccountId  String    @map(name: "provider_account_id")
+  refreshToken       String?   @map(name: "refresh_token")
+  accessToken        String?   @map(name: "access_token")
+  accessTokenExpires DateTime? @map(name: "access_token_expires")
+  createdAt          DateTime  @default(now()) @map(name: "created_at")
+  updatedAt          DateTime  @default(now()) @map(name: "updated_at")
+
+  @@index([providerAccountId], name: "providerAccountId")
+  @@index([providerId], name: "providerId")
+  @@index([userId], name: "userId")
+  @@map(name: "accounts")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map(name: "user_id")
+  expires      DateTime
+  sessionToken String   @unique @map(name: "session_token")
+  accessToken  String   @unique @map(name: "access_token")
+  createdAt    DateTime @default(now()) @map(name: "created_at")
+  updatedAt    DateTime @default(now()) @map(name: "updated_at")
+
+  @@map(name: "sessions")
+}
+
+model Character {
+  id            String    @id @unique
+  name          String
+  server        String
+  adventureName String
+  adventure     Adventure @relation(fields: [adventureName], references: [name])
+  // guildName     String?
+  // guild         Guild?     @relation(fields: [guildName], references: [name])
+  damage        BigInt?
+  images        Image[]
+
+  @@map(name: "characters")
+}
+
+model Adventure {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  characters Character[]
+  user       User        @relation(fields: [userId], references: [id])
+  userId     Int         @unique
+
+  @@map(name: "adventures")
+}
+
+model Image {
+  id          Int       @id @default(autoincrement())
+  data        Int
+  character   Character @relation(fields: [characterId], references: [id])
+  characterId String
+  date        DateTime  @default(now())
+
+  @@map(name: "images")
+}
+
+// model Guild {
+//   id     Int         @id @default(autoincrement())
+//   name   String      @unique
+//   master Character
+//   stars  Character[]
+//   high   Character[]
+//   low    Character[]
+
+//   @@map(name: "guilds")
+// }
+
+model Setting {
+  id       Int     @id @default(autoincrement())
+  user     User    @relation(fields: [userId], references: [id])
+  userId   Int     @unique
+  darkmode Boolean @default(false)
+
+  @@map(name: "settings")
+}
