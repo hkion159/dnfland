@@ -1,4 +1,4 @@
-import Navbar from './Navbar';
+import Navbar from './navbar';
 import layoutStyle from '../../styles/layout.module.css';
 import Footer from './footer';
 import MainBox from '../box/mainbox';
