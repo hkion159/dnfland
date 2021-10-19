@@ -1,34 +1,31 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## 던파랜드 소개
 
-## Getting Started
+던파랜드는 던전앤파이터의 캐릭터 정보를 쉽고 빠르게 조회하는 사이트입니다.
 
-First, run the development server:
+캐릭터들을 모험단 단위의 그룹으로 검색하면 많은 캐릭터들에 동시에 접근할 수 있습니다.
 
-```bash
-npm run dev
-# or
-yarn dev
-```
+카카오 로그인 후 모험단을 등록하면 어디서든 자신의 캐릭터들을 조회할 수 있습니다.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 프론트엔드 프로젝트
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+누구나 쉽게 하는 클론코딩 프로젝트를 하지 않습니다.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+프론트엔드 직무 역량을 강화하기 위해 실제 개발 과정을 직접 경험했습니다.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+오로지 혼자만의 힘으로 프로젝트를 수행했고 리액트 책 외엔 모두 원어로 적힌 공식 문서와 구글 검색을 보면서 했습니다.
 
-## Learn More
+그 과정에서 마주한 문제점과 해결 과정을 아래에 서술합니다.
 
-To learn more about Next.js, take a look at the following resources:
+## 문제 및 해결 과정
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **문제 1: bootstrap navbar 내부 컴포넌트들의 좌측, 정중앙, 우측 배치가 의도대로 되지 않고 어긋남**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+  - 시도 1: 모든 컴포넌트를 담는 전체 크기의 div를 만들고 justify-content-between을 적용하여 정중앙을 기준으로 간격을 두게 하고자 했습니다.
+    - 실패 원인: navbar는 기본적으로 반응형으로 설계되었고 브라우저 너비가 작을 땐 컴포넌트의 일부가 collapse되도록 설계되어 있습니다. 그래서 일부 컴포넌트들만 div로 감싸여있어서 justify-content-between을 적용하기에 컴포넌트 구분이 불명확하고 복잡했습니다.
+   
+  - 시도 2: 검사를 통해 각 컴포넌트가 flex-item인 것을 확인하고 margin-left, margin-right를 auto로 설정하여 왼쪽, 오른쪽 끝으로 밀착시키고자 했습니다.
+    - 실패 원인: flex-item의 margin을 이용한 배치는 왼쪽과 오른쪽만 고려하여 설계된 것이었습니다. 그래서 navbar의 정중앙에 위치시키고자 했던 컴포넌트가 화면 정중앙이 아니라 빈 공간의 중앙에 위치하면서 중앙에서 치우치게 되었습니다.
+    
+  - 시도 3: 좌측, 정중앙, 우측에 배치시킬 컴포넌트들끼리 div로 감싸고 flex를 적용한 뒤 그 안에서 각자 세부 배치를 조정했습니다.
+    - 성공: 전체 영역을 같은 크기로 3등분한 div로 나누니 좌측, 정중앙, 우측에 잘 배치할 수 있었습니다.
+  - 
