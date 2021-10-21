@@ -36,6 +36,7 @@ https://dnf.land
   ![Screenshot_343](https://user-images.githubusercontent.com/59219773/137828142-a966997e-f253-4539-a497-61f327ef6476.png)
   ![Screenshot_344](https://user-images.githubusercontent.com/59219773/137828270-abb7063c-5184-4282-987e-d02c34458993.png)
 
+
 - **문제 2: jsx문 안에 getServerSideProps에서 fetch한 데이터를 보이려 했으나 에러 메시지(객체는 리액트 child로서 유효하지 않다)를 마주침**
 
   - 시도 1: 데이터가 객체가 아닌데 객체라고 떠서 코드를 면밀하게 점검하고 콘솔에 로그를 찍어봤습니다.
@@ -47,12 +48,14 @@ https://dnf.land
   - 시도 3: 검색으로 Promise 객체를 반환하는 데이터 fetch를 할 땐 Promise.all 함수를 이용해야 모든 응답이 정상적으로 올 때까지 기다린다는 사실을 알았습니다.
     - 성공: 모든 데이터 fetch에 대해 응답을 기다리고 await 구문으로 그 후의 실행도 비동기적으로 처리되었습니다.
 
+
 - **문제 3: next.js에서 제공하는 Image 요소에서 에러를 발생시킴**
 
   - 시도 1: next.js의 공식 문서의 해당 부분을 정독했습니다.
     - 성공: next.js의 Image 요소가 가리키는 src가 외부 사이트면 보안 공격을 막기 위해 next.config.js에 도메인을 적어줘야 한다는 것을 알았습니다.
     
   ![Screenshot_345](https://user-images.githubusercontent.com/59219773/137830116-ebb32908-f109-4398-aea0-398f66993296.png)
+
 
 - **문제 4: jsx 컴포넌트를 변수에 저장하고 꺼내 쓰려 했지만 에러가 발생함**
 
@@ -61,6 +64,7 @@ https://dnf.land
   
   - 시도 2: 검색 결과는 얻지 못했지만 컴포넌트를 변수에 저장하는 사용법이 잘못된 것이라고 추정했습니다.
     - 성공: 이제 변수에 저장하지 않고 항상 바로 import 해와서 jsx 안에 작성합니다.
+
 
 - **문제 5: a 요소가 이미지 밑에 의도하지 않은 여백을 만듦**
 
