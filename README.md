@@ -88,6 +88,10 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
 
   - 시도 2: 일반 자바스크립트는 display를 통해 popover를 보이고 감춥니다. 리액트만의 jsx 문법 특징인 jsx문 내에서의 조건문을 활용하여 popover를 보일지 결정하게 했습니다.
     - 성공: 리액트의 특별한 렌더링 방식때문에 정적으로 위치를 결정하는 popover가 제 위치에 렌더링되지 못했던 것이었습니다.
+  ![Screenshot_350](https://user-images.githubusercontent.com/59219773/138812590-0f55bbae-06f1-4489-9d1a-966ab8cdd257.png)
+  
+  ![Screenshot_351](https://user-images.githubusercontent.com/59219773/138812612-e967d8fa-f249-4755-af0e-332bb0d834d7.png)
+
 
 
 - **문제 7: Next.js의 getServerSideProps 함수 내에서 redux의 state를 제대로 가져오지 못함**
