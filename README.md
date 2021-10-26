@@ -75,6 +75,9 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
   
   - 시도 2: next.js에서의 문제 해결 방안을 찾을 수 없어서 위에도 같은 크기의 여백을 만들어 줌으로써 세로 가운데 정렬을 만들었습니다.
     - 성공: 세로 가운데 정렬은 잘 되지만 문제의 근본을 해결하진 못해서 아쉬움이 남습니다.
+  
+  ![Screenshot_347](https://user-images.githubusercontent.com/59219773/138812352-89d242ba-7901-4667-acef-279f7f092638.png)
+  ![Screenshot_348](https://user-images.githubusercontent.com/59219773/138812369-479bb2b7-ffc6-4130-af00-df43862d3e6e.png)
 
 
 - **문제 6: popper를 이용한 popover의 위치와 화살표가 어긋남**
