@@ -88,10 +88,10 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
 
   - 시도 2: 일반 자바스크립트는 display를 통해 popover를 보이고 감춥니다. 리액트만의 jsx 문법 특징인 jsx문 내에서의 조건문을 활용하여 popover를 보일지 결정하게 했습니다.
     - 성공: 리액트의 특별한 렌더링 방식때문에 정적으로 위치를 결정하는 popover가 제 위치에 렌더링되지 못했던 것이었습니다.
+    
+    
   ![Screenshot_350](https://user-images.githubusercontent.com/59219773/138812590-0f55bbae-06f1-4489-9d1a-966ab8cdd257.png)
-  
   ![Screenshot_351](https://user-images.githubusercontent.com/59219773/138812612-e967d8fa-f249-4755-af0e-332bb0d834d7.png)
-
 
 
 - **문제 7: Next.js의 getServerSideProps 함수 내에서 redux의 state를 제대로 가져오지 못함**
@@ -110,6 +110,8 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
 
   - 시도 2: 계속되는 검색 중에 next-redux-wrapper가 페이지 이동 시마다 클라이언트에서 생성하는 스토어를 서버의 스토어와 합친다는 것을 알게 되었습니다. 그것이 HYDRATE라는 액션이고 리듀서의 상태는 클라이언트의 상태이고 액션의 payload가 서버의 상태임을 알았습니다. 그래서 HYDRATE 액션이 디스패치되면 클라이언트의 상태를 리턴하도록 했습니다.
     - 성공: 이제 페이지 이동 시에도 리덕스 상태가 유지되었습니다.
+
+  ![Screenshot_352](https://user-images.githubusercontent.com/59219773/138812793-eff8ec3d-27cf-4724-817d-9df977026527.png)
 
 
 - **문제 9: getServerSideProps 함수 내에서 받은 리덕트 상태가 브라우저와 달리 항상 초기값임**
@@ -132,4 +134,4 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
 
 ## 느낀 점
 
-ㅁㄴㅇㄹ
+ㅁㄴㅇㄹg
