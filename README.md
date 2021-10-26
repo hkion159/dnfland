@@ -8,7 +8,8 @@
 
 ## 사이트 링크
 
-https://dnf.land
+Vercel 배포 주소: https://dnf.land
+AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
 
 ## 프론트엔드 프로젝트
 
