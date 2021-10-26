@@ -78,6 +78,7 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/
   
   ![Screenshot_347](https://user-images.githubusercontent.com/59219773/138812352-89d242ba-7901-4667-acef-279f7f092638.png)
   ![Screenshot_348](https://user-images.githubusercontent.com/59219773/138812369-479bb2b7-ffc6-4130-af00-df43862d3e6e.png)
+  ![Screenshot_349](https://user-images.githubusercontent.com/59219773/138812455-e29448ea-94ef-4387-80e4-fb78936c0209.png)
 
 
 - **문제 6: popper를 이용한 popover의 위치와 화살표가 어긋남**
