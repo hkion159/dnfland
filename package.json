@@ -27,6 +27,7 @@
     "immer": "^9.0.6",
     "install": "^0.13.0",
     "jquery": "^3.6.0",
+    "mongoose": "^6.0.9",
     "next": "^11.1.2",
     "next-auth": "^3.29.0",
     "next-connect": "^0.10.2",
@@ -59,7 +60,9 @@
     "babel-jest": "^27.3.1",
     "eslint": "7.32.0",
     "eslint-config-next": "11.1.2",
+    "jest": "^27.3.1",
     "prisma": "^3.1.1",
-    "raw-loader": "^4.0.2"
+    "raw-loader": "^4.0.2",
+    "webpack-node-externals": "^3.0.0"
   }
 }
