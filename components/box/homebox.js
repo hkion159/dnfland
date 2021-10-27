@@ -64,10 +64,9 @@ function Homebox({ maxId, notices }) {
       api();
     }
   }, [session, enroll]);
-  console.log(adventure);
   return (
     <div className={HomeStyle.container}>
-      <div className={HomeStyle.introduce}>
+      <div className={`${HomeStyle.introduce} d-flex flex-column`}>
         <div className="py-3 px-4 text-end">{`회원 수: ${maxId}명`}</div>
         <h3>던파랜드에 오신 것을 환영합니다.</h3>
         <h5>
@@ -80,9 +79,15 @@ function Homebox({ maxId, notices }) {
         {session &&
           (adventure ? (
             <div
-              className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4"
-              style={{ width: '90%', minHeight: '100px' }}
-            ></div>
+              className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4 mt-auto"
+              style={{ minWidth: '100px', maxWidth: '90%', minHeight: '100px' }}
+            >
+              {adventure?.characters?.length === 0 ? (
+                <p className="text-center">캐릭터를 검색하세요!</p>
+              ) : (
+                <p>뎃</p>
+              )}
+            </div>
           ) : (
             <div className="p-4">
               <p className="m-2">자신의 모험단을 등록하세요!!</p>

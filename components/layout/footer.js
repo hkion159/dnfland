@@ -40,9 +40,7 @@ function Footer() {
                 <br />
                 본캐명:{' '}
                 <Link
-                  href={`/search?charactername=${encodeURIComponent(
-                    '고운말_7794',
-                  )}`}
+                  href={`/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20}`}
                 >
                   <a className="link-primary">고운말_7794</a>
                 </Link>
