@@ -15,7 +15,7 @@ export function* setUserSaga(action) {
 const test = 'test';
 export const tester = createAction(test);
 
-export const user = handleActions(
+export const character = handleActions(
   {
     [LOAD_USER]: (state, action) => state,
     [test]: (state, action) => {

@@ -2,7 +2,7 @@ import thumbnailStyle from '../../styles/thumbnail.module.css';
 import Link from 'next/link';
 import { CharImg, getDamage } from '../../api/neople';
 
-export default function Thumbnail({ character }) {
+function Thumbnail({ character }) {
   const {
     serverName,
     characterId: charId,
@@ -51,3 +51,5 @@ export default function Thumbnail({ character }) {
     </div>
   );
 }
+
+export default Thumbnail;

@@ -1,0 +1,13 @@
+{
+  "region": "us-east-1",
+  "privateZone": false,
+  "domain": "dnf.land",
+  "subdomains": [
+    {
+      "domain": "www.dnf.land",
+      "distributionId": "E3P2MBXMHQAAMI",
+      "url": "https://d3gnzc2owds3id.cloudfront.net",
+      "type": "awsCloudFront"
+    }
+  ]
+}

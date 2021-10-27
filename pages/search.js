@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { getPosition } from '../api/jobs';
 import wrapper from '../modules/index';
 
-export default function Search({ characters, searchKey, error }) {
+function Search({ characters, searchKey, error }) {
   const router = useRouter();
   useEffect(() => {
     if (error) {
@@ -63,3 +63,5 @@ export const getServerSideProps = wrapper.getServerSideProps(
     };
   },
 );
+
+export default Search;

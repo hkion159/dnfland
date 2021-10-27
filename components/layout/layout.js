@@ -3,7 +3,7 @@ import layoutStyle from '../../styles/layout.module.css';
 import Footer from './footer';
 import MainBox from '../box/mainbox';
 
-export default function Layout(props) {
+function Layout(props) {
   return (
     <div className={`${layoutStyle.layout}`}>
       {/* 높이 100% 만들기 */}
@@ -25,3 +25,5 @@ export default function Layout(props) {
     </div>
   );
 }
+
+export default Layout;

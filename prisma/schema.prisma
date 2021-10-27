@@ -11,13 +11,15 @@ generator client {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  adventure Adventure?
-  name      String?    @default("")
-  image     String?
-  createdAt DateTime   @default(now()) @map(name: "created_at")
-  updatedAt DateTime   @updatedAt @map(name: "updated_at")
-  setting   Setting?
+  id          Int          @id @default(autoincrement())
+  adventure   Adventure?
+  name        String?      @default("")
+  image       String?
+  createdAt   DateTime     @default(now()) @map(name: "created_at")
+  updatedAt   DateTime     @updatedAt @map(name: "updated_at")
+  setting     Setting?
+  posts       Post[]
+  suggestions Suggestion[]
 
   @@map(name: "users")
 }
@@ -63,6 +65,8 @@ model Character {
   // guild         Guild?     @relation(fields: [guildName], references: [name])
   damage        BigInt?
   images        Image[]
+  like          Int       @default(0)
+  hate          Int       @default(0)
 
   @@map(name: "characters")
 }
@@ -71,8 +75,8 @@ model Adventure {
   id         Int         @id @default(autoincrement())
   name       String      @unique
   characters Character[]
-  user       User        @relation(fields: [userId], references: [id])
-  userId     Int         @unique
+  user       User?       @relation(fields: [userId], references: [id])
+  userId     Int?        @unique
 
   @@map(name: "adventures")
 }
@@ -105,4 +109,28 @@ model Setting {
   darkmode Boolean @default(false)
 
   @@map(name: "settings")
+}
+
+model Post {
+  id         Int       @id @default(autoincrement())
+  type       String
+  title      String
+  html       String
+  markdown   String
+  author     User      @relation(fields: [authorId], references: [id])
+  authorId   Int
+  postDate   DateTime  @default(now()) @map(name: "post_date")
+  reviseDate DateTime? @map(name: "revise_date")
+
+  @@map(name: "posts")
+}
+
+model Suggestion {
+  id       Int      @id @default(autoincrement())
+  content  String
+  author   User?    @relation(fields: [authorId], references: [id])
+  authorId Int
+  date     DateTime @default(now())
+
+  @@map(name: "suggestions")
 }

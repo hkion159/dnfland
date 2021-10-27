@@ -1,5 +1,11 @@
 import Layout from '../components/layout/layout';
 
-export default function Adventure() {
-  return <Layout></Layout>;
+function Adventure() {
+  return (
+    <Layout>
+      <p>어드벤처화면입니다.</p>
+    </Layout>
+  );
 }
+
+export default Adventure;

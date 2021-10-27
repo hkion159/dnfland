@@ -1,0 +1,2 @@
+dnfland:
+  component: '@sls-next/serverless-component'

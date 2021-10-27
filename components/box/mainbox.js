@@ -1,6 +1,6 @@
 import mainboxStyle from '../../styles/mainbox.module.css';
 
-export default function MainBox({ children }) {
+function MainBox({ children }) {
   return (
     <div className={`${mainboxStyle.container}`}>
       <div className={`${mainboxStyle.ad}`}></div>
@@ -9,3 +9,5 @@ export default function MainBox({ children }) {
     </div>
   );
 }
+
+export default MainBox;

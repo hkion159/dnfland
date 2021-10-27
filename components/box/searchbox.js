@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import searchStyle from '../../styles/searchbox.module.css';
 import Thumbnail from '../profile/thumbnail';
 
-export default function SearchBox({ characters, name }) {
+function SearchBox({ characters, name }) {
   const charsArr = JSON.parse(characters);
   return (
     <div>
@@ -21,3 +21,4 @@ export default function SearchBox({ characters, name }) {
     </div>
   );
 }
+export default SearchBox;

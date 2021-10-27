@@ -2,7 +2,7 @@ import footerStyle from '../../styles/footer.module.css';
 import Image from 'next/image';
 import Link from 'next/link';
 
-export default function Footer() {
+function Footer() {
   return (
     <div className={`p-3 pb-0 bg-light ${footerStyle.footer}`}>
       <div
@@ -90,3 +90,4 @@ export default function Footer() {
     </div>
   );
 }
+export default Footer;

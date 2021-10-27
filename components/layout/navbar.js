@@ -7,8 +7,9 @@ import { useSession, signIn, signOut } from 'next-auth/client';
 import { usePopper } from 'react-popper';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSettings } from '../../modules/search';
+import loginBtn from '../../public/images/kakao_login_medium_narrow.png';
 
-export default function Navbar() {
+function Navbar() {
   const router = useRouter();
   const inputRef = useRef(null);
   // 캐릭터 검색 이벤트 핸들러 //
@@ -23,7 +24,7 @@ export default function Navbar() {
   // 캐릭터 검색 입력에 포커스 //
   useEffect(() => {
     inputRef?.current?.focus();
-  });
+  }, []);
   // 로그인 세션 //
   const [session, loading] = useSession();
   // popover 세팅 //
@@ -31,6 +32,7 @@ export default function Navbar() {
   const [popperElement, setPopperElement] = useState(null);
   const [arrowElement, setArrowElement] = useState(null);
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
+    placement: 'bottom',
     modifiers: [
       { name: 'arrow', options: { element: arrowElement } },
       {
@@ -54,11 +56,12 @@ export default function Navbar() {
     },
     [dispatch],
   );
+  // popper 닫기 이벤트 핸들러 //
   useEffect(() => {
     document.addEventListener('mousedown', (e) => {
       if (
-        !popRef.current.contains(e.target) &&
-        !btnRef.current.contains(e.target)
+        !popRef?.current?.contains(e.target) &&
+        !btnRef?.current?.contains(e.target)
       )
         setPopover(false);
     });
@@ -102,7 +105,7 @@ export default function Navbar() {
           >
             <ul className="navbar-nav mb-2 mb-md-1">
               <li className="nav-item">
-                <Link href="/">
+                <Link href="/rank">
                   <a className="nav-link">랭킹</a>
                 </Link>
               </li>
@@ -118,30 +121,24 @@ export default function Navbar() {
                 </a>
                 <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
                   <li>
-                    <Link href="/test">
-                      <a className="dropdown-item">자유 게시판</a>
+                    <Link href="/board">
+                      <a className="dropdown-item">종합 게시판</a>
                     </Link>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item"
-                      onClick={() => router.push('/')}
-                    >
-                      질문 게시판
-                    </a>
                   </li>
                   <li>
                     <hr className="dropdown-divider" />
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#">
-                      문의하기
-                    </a>
+                    <Link href="/board/notice">
+                      <a className="dropdown-item">공지사항</a>
+                    </Link>
                   </li>
                 </ul>
               </li>
               <li className="nav-item">
-                <a className="nav-link">사이트이용법</a>
+                <Link href="/help">
+                  <a className="nav-link">FAQ</a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -194,179 +191,191 @@ export default function Navbar() {
         </div>
 
         {/* 검색 설정 pop */}
-        <div
-          ref={setPopperElement}
-          style={styles.popper}
-          className={`${NavStyle.pop} ${popover && NavStyle.show} shadow-sm`}
-          {...attributes.popper}
-        >
-          <div ref={popRef}>
-            <div
-              style={{ borderBottom: '1px solid #b6b6b6', lineHeight: '40px' }}
-            >
-              <p className="text-center">검색 설정</p>
-            </div>
-            <div style={{ padding: '20px' }}>
-              {/* 1번 라인 */}
-              <div className="d-flex">
-                <div className={NavStyle.f1}>
-                  <div className={`form-check form-check-inline`}>
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="scope"
-                      id="inlineRadio1"
-                      value="character"
-                      checked={scope === 'character'}
-                      onChange={onChange}
-                    />
-                    <label
-                      className="form-check-label mb-1"
-                      htmlFor="inlineRadio1"
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      캐릭터
-                    </label>
-                  </div>
-                </div>
-                <div className={NavStyle.f1}>
-                  <div className={`form-check form-check-inline`}>
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="scope"
-                      id="inlineRadio2"
-                      value="adventure"
-                      checked={scope === 'adventure'}
-                      onChange={onChange}
-                    />
-                    <label className="form-check-label" htmlFor="inlineRadio2">
-                      모험단
-                    </label>
-                  </div>
-                </div>
-              </div>
-              {/* 2번 라인 */}
-              <div className="d-flex">
-                <div className={NavStyle.f1}>
-                  <div className="form-check form-check-inline">
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="wordType"
-                      id="inlineRadio3"
-                      value="match"
-                      checked={wordType === 'match'}
-                      onChange={onChange}
-                    />
-                    <label
-                      className="form-check-label mb-1"
-                      htmlFor="inlineRadio3"
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      동일 단어
-                    </label>
-                  </div>
-                </div>
-                <div className={NavStyle.f1}>
-                  <div className="form-check form-check-inline">
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="wordType"
-                      id="inlineRadio4"
-                      value="full"
-                      checked={wordType === 'full'}
-                      onChange={onChange}
-                    />
-                    <label className="form-check-label" htmlFor="inlineRadio4">
-                      전문 검색
-                    </label>
-                  </div>
-                </div>
-              </div>
-              {/* 3번 라인 */}
-              <div className="d-flex">
-                <div className={NavStyle.f1}>
-                  <div className="form-check form-check-inline">
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="filter"
-                      id="inlineRadio5"
-                      value="true"
-                      checked={filter === 'true'}
-                      onChange={onChange}
-                    />
-                    <label
-                      className="form-check-label"
-                      htmlFor="inlineRadio5"
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      100레벨 이상
-                    </label>
-                  </div>
-                </div>
-                <div className={NavStyle.f1}>
-                  <div className="form-check form-check-inline">
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="filter"
-                      id="inlineRadio6"
-                      value="false"
-                      checked={filter === 'false'}
-                      onChange={onChange}
-                    />
-                    <label className="form-check-label" htmlFor="inlineRadio6">
-                      모든 레벨
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {popover && (
           <div
-            ref={setArrowElement}
-            style={styles.arrow}
-            className={NavStyle.arrow}
-          />
-        </div>
+            ref={setPopperElement}
+            style={styles.popper}
+            className={`${NavStyle.pop} shadow-sm`}
+            {...attributes.popper}
+          >
+            <div ref={popRef}>
+              <div
+                style={{
+                  borderBottom: '1px solid #b6b6b6',
+                  lineHeight: '40px',
+                }}
+              >
+                <p className="text-center">검색 설정</p>
+              </div>
+              <div style={{ padding: '20px' }}>
+                {/* 1번 라인 */}
+                <div className="d-flex">
+                  <div className={NavStyle.f1}>
+                    <div className={`form-check form-check-inline`}>
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="scope"
+                        id="inlineRadio1"
+                        value="character"
+                        checked={scope === 'character'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label mb-1"
+                        htmlFor="inlineRadio1"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        캐릭터
+                      </label>
+                    </div>
+                  </div>
+                  <div className={NavStyle.f1}>
+                    <div className={`form-check form-check-inline`}>
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="scope"
+                        id="inlineRadio2"
+                        value="adventure"
+                        checked={scope === 'adventure'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label"
+                        htmlFor="inlineRadio2"
+                      >
+                        모험단
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                {/* 2번 라인 */}
+                <div className="d-flex">
+                  <div className={NavStyle.f1}>
+                    <div className="form-check form-check-inline">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="wordType"
+                        id="inlineRadio3"
+                        value="match"
+                        checked={wordType === 'match'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label mb-1"
+                        htmlFor="inlineRadio3"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        동일 단어
+                      </label>
+                    </div>
+                  </div>
+                  <div className={NavStyle.f1}>
+                    <div className="form-check form-check-inline">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="wordType"
+                        id="inlineRadio4"
+                        value="full"
+                        checked={wordType === 'full'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label"
+                        htmlFor="inlineRadio4"
+                      >
+                        전문 검색
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                {/* 3번 라인 */}
+                <div className="d-flex">
+                  <div className={NavStyle.f1}>
+                    <div className="form-check form-check-inline">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="filter"
+                        id="inlineRadio5"
+                        value="true"
+                        checked={filter === 'true'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label"
+                        htmlFor="inlineRadio5"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        100레벨 이상
+                      </label>
+                    </div>
+                  </div>
+                  <div className={NavStyle.f1}>
+                    <div className="form-check form-check-inline">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="filter"
+                        id="inlineRadio6"
+                        value="false"
+                        checked={filter === 'false'}
+                        onChange={onChange}
+                      />
+                      <label
+                        className="form-check-label"
+                        htmlFor="inlineRadio6"
+                      >
+                        모든 레벨
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={setArrowElement}
+              style={styles.arrow}
+              className={NavStyle.arrow}
+            />
+          </div>
+        )}
 
         {/* 우측 로그인 버튼 */}
         <div
           className={`mb-2 mb-md-0 d-flex justify-content-end ${NavStyle.n1}`}
         >
-          {!session ? (
-            <a onClick={() => signIn('kakao')}>
-              <Image
-                alt="loginbtn"
-                src="/images/kakao_login_medium_narrow.png"
-                width={183}
-                height={45}
-              />
-            </a>
-          ) : (
-            <ul className="navbar-nav mb-2 mb-md-1">
-              <li className="nav-item">
-                <a className="nav-link" href="#">
-                  마이페이지
-                </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link" href="#">
-                  설정
-                </a>
-              </li>
-              <li>
-                <a className="nav-link" onClick={signOut}>
-                  로그아웃
-                </a>
-              </li>
-            </ul>
-          )}
+          {!loading &&
+            (!session ? (
+              <a onClick={() => signIn('kakao')}>
+                <Image alt="loginbtn" src={loginBtn} width="183" height="45" />
+              </a>
+            ) : (
+              <ul className="navbar-nav mb-2 mb-md-1">
+                <li className="nav-item">
+                  <a className="nav-link" href="#">
+                    마이페이지
+                  </a>
+                </li>
+                <li className="nav-item">
+                  <a className="nav-link" href="#">
+                    설정
+                  </a>
+                </li>
+                <li>
+                  <a className="nav-link" onClick={signOut}>
+                    로그아웃
+                  </a>
+                </li>
+              </ul>
+            ))}
         </div>
       </div>
     </nav>
   );
 }
+
+export default Navbar;
