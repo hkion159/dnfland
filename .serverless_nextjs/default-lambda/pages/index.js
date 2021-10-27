@@ -55,6 +55,8 @@ function Homebox({
   maxId,
   notices
 }) {
+  var _adventure$characters;
+
   const [session, loading] = (0,client/* useSession */.kP)(); // 건의하기 //
 
   const inputRef = (0,react.useRef)(null);
@@ -116,7 +118,7 @@ function Homebox({
   const {
     0: adventure,
     1: setAdventure
-  } = (0,react.useState)({});
+  } = (0,react.useState)(null);
   (0,react.useEffect)(() => {
     const api = async () => {
       const response = await fetch('/api/user', {
@@ -137,22 +139,29 @@ function Homebox({
   return /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
     className: (homebox_module_default()).container,
     children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
-      className: (homebox_module_default()).introduce,
+      className: `${(homebox_module_default()).introduce} d-flex flex-column`,
       children: [/*#__PURE__*/jsx_runtime.jsx("div", {
         className: "py-3 px-4 text-end",
         children: `회원 수: ${maxId}명`
       }), /*#__PURE__*/jsx_runtime.jsx("h3", {
         children: "\uB358\uD30C\uB79C\uB4DC\uC5D0 \uC624\uC2E0 \uAC83\uC744 \uD658\uC601\uD569\uB2C8\uB2E4."
       }), /*#__PURE__*/jsx_runtime.jsx("h5", {
-        children: "\uD604\uC7AC \uC0AC\uC774\uD2B8 \uAC1C\uBC1C \uC644\uB8CC \uC911\uC5D0 \uC788\uC73C\uBA70 \uB370\uBBF8\uC9C0 \uACC4\uC0B0 \uB85C\uC9C1\uC740 \uC544\uC9C1 \uBBF8\uAD6C\uD604 \uC0C1\uD0DC\uC785\uB2C8\uB2E4."
+        children: "\uD604\uC7AC \uC0AC\uC774\uD2B8 \uAC1C\uBC1C \uC911\uC5D0 \uC788\uC73C\uBA70 \uB370\uBBF8\uC9C0 \uACC4\uC0B0 \uB85C\uC9C1\uC740 \uC544\uC9C1 \uBBF8\uAD6C\uD604 \uC0C1\uD0DC\uC785\uB2C8\uB2E4."
       }), !session && /*#__PURE__*/jsx_runtime.jsx("h5", {
         children: "\uB85C\uADF8\uC778\uD558\uACE0 \uBAA8\uD5D8\uB2E8\uC744 \uB4F1\uB85D\uD558\uBA74 \uD648\uC5D0\uC11C \uBC14\uB85C \uC811\uADFC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
-      }), adventure ? /*#__PURE__*/jsx_runtime.jsx("div", {
-        className: "border border-secondary rounded-3 ms-auto me-auto p-3",
+      }), session && (adventure ? /*#__PURE__*/jsx_runtime.jsx("div", {
+        className: "border border-secondary rounded-3 ms-auto me-auto p-3 my-4 mt-auto",
         style: {
-          width: '90%',
+          minWidth: '100px',
+          maxWidth: '90%',
           minHeight: '100px'
-        }
+        },
+        children: (adventure === null || adventure === void 0 ? void 0 : (_adventure$characters = adventure.characters) === null || _adventure$characters === void 0 ? void 0 : _adventure$characters.length) === 0 ? /*#__PURE__*/jsx_runtime.jsx("p", {
+          className: "text-center",
+          children: "\uCE90\uB9AD\uD130\uB97C \uAC80\uC0C9\uD558\uC138\uC694!"
+        }) : /*#__PURE__*/jsx_runtime.jsx("p", {
+          children: "\uB383"
+        })
       }) : /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
         className: "p-4",
         children: [/*#__PURE__*/jsx_runtime.jsx("p", {
@@ -184,7 +193,7 @@ function Homebox({
           className: "text-success my-3",
           children: "\uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4!!"
         })]
-      })]
+      }))]
     }), /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
       className: (homebox_module_default()).infos,
       children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
@@ -337,7 +346,7 @@ const getServerSideProps = modules/* default.getServerSideProps */.Z.getServerSi
 
 /***/ }),
 
-/***/ 19306:
+/***/ 71164:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -370,7 +379,7 @@ __webpack_require__.r(__webpack_exports__);
 
       
       const { processEnv } = __webpack_require__(72333)
-      processEnv([{"path":".env","contents":"MONGODB_URI=\"mongodb+srv://jsw:wpwkr1532@dnflanddb.hzpxs.mongodb.net/dnflandDB?retryWrites=true&w=majority\"\nDB_NAME=\"dnflandDB\"\nCLOUDINARY_URL=cloudinary://xxxxxxxxxxx:yyyyyyyyyyyyyyyyyyy@cpro95\nSESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=\"file:./dev.db\"\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=http://localhost:3000/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
+      processEnv([{"path":".env","contents":"SESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=postgresql://hkion159:wpwkr1532@dnfland-db-instance-1.ch1ocouzylsi.ap-northeast-2.rds.amazonaws.com:5432/dnfland-db\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=https://dnf.land/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
     
       
       const runtimeConfig = {}
@@ -432,11 +441,11 @@ __webpack_require__.r(__webpack_exports__);
         rewrites: combinedRewrites,
         i18n: undefined,
         page: "/",
-        buildId: "y0LpFq1LRn-SlLCFg7vBp",
-        escapedBuildId: "y0LpFq1LRn\-SlLCFg7vBp",
+        buildId: "Azujz6yMH3wajXwJM2WdD",
+        escapedBuildId: "Azujz6yMH3wajXwJM2WdD",
         basePath: "",
         pageIsDynamic: false,
-        encodedPreviewProps: {previewModeId:"1b66bea4f00086cb4cefe33b9774825c",previewModeSigningKey:"3ebecb5774aa37f7b4f4072ba8a1b1b494a14cdb66ed52eec553a3ba87ff20ac",previewModeEncryptionKey:"0a0cb74d53e40c48ba86218c995a5bbf414ab9ed009a11c49c723f03e6de1394"}
+        encodedPreviewProps: {previewModeId:"9cc010fe0a301554bcb55dad5651582f",previewModeSigningKey:"6dfcbe883527461bafcfae0860ac1127eec900e24de8e5835b241d01e8484fbc",previewModeEncryptionKey:"6b2611403ef6d1494dffb3962b9c79230790dc4a5f73270f5e88cdbf4f6f9fac"}
       })
       
     
@@ -707,7 +716,7 @@ module.exports = require("zlib");
 /******/ 	__webpack_require__.x = () => {
 /******/ 		// Load entry module and return exports
 /******/ 		// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,280,176,130,930,795,874,209,752], () => (__webpack_require__(19306)))
+/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,84,130,795,930,874,209,752], () => (__webpack_require__(71164)))
 /******/ 		__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 		return __webpack_exports__;
 /******/ 	};
@@ -873,11 +882,10 @@ module.exports = require("zlib");
 /******/ 			__webpack_require__.e(994);
 /******/ 			__webpack_require__.e(572);
 /******/ 			__webpack_require__.e(872);
-/******/ 			__webpack_require__.e(280);
-/******/ 			__webpack_require__.e(176);
+/******/ 			__webpack_require__.e(84);
 /******/ 			__webpack_require__.e(130);
-/******/ 			__webpack_require__.e(930);
 /******/ 			__webpack_require__.e(795);
+/******/ 			__webpack_require__.e(930);
 /******/ 			__webpack_require__.e(874);
 /******/ 			__webpack_require__.e(209);
 /******/ 			__webpack_require__.e(752);

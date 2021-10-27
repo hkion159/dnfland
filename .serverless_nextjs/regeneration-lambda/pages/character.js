@@ -2,55 +2,159 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 60855:
+/***/ 73269:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+// ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "getServerSideProps": () => (/* binding */ getServerSideProps),
-/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
-/* harmony export */ });
-/* harmony import */ var _components_box_boardbox__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(96793);
-/* harmony import */ var _components_layout_layout__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1076);
-/* harmony import */ var _lib_prisma__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(82132);
-/* harmony import */ var _modules_index__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(31519);
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(85893);
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  "default": () => (/* binding */ character),
+  "getServerSideProps": () => (/* binding */ getServerSideProps)
+});
+
+// EXTERNAL MODULE: ./node_modules/next/image.js
+var next_image = __webpack_require__(25675);
+// EXTERNAL MODULE: ./node_modules/axios/index.js
+var node_modules_axios = __webpack_require__(9669);
+// EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
+var jsx_runtime = __webpack_require__(85893);
+;// CONCATENATED MODULE: ./api/neople.js
+
+
+
+function getAPIKey() {
+  return process.env.NEOPLE_API_KEY;
+}
+
+function getBaseUrl() {
+  return 'https://api.neople.co.kr/df';
+} // 캐릭터 이미지
+
+
+function CharImg(props) {
+  const {
+    character,
+    zoom = 1
+  } = props;
+  const {
+    ['serverId']: serverId,
+    ['characterId']: charId
+  } = character;
+  return /*#__PURE__*/_jsx(Image, {
+    alt: "character",
+    src: `https://img-api.neople.co.kr/df/servers/${serverId}/characters/${charId}?zoom=${zoom}`,
+    loader: ({
+      src,
+      width
+    }) => `${src}&w=${width}`,
+    width: `${200 * zoom}`,
+    height: `${230 * zoom}`
+  });
+} // 서버
+
+function getServerList() {
+  const servers = [{
+    serverId: 'cain',
+    serverName: '카인'
+  }, {
+    serverId: 'diregie',
+    serverName: '디레지에'
+  }, {
+    serverId: 'siroco',
+    serverName: '시로코'
+  }, {
+    serverId: 'prey',
+    serverName: '프레이'
+  }, {
+    serverId: 'casillas',
+    serverName: '카시야스'
+  }, {
+    serverId: 'hilder',
+    serverName: '힐더'
+  }, {
+    serverId: 'anton',
+    serverName: '안톤'
+  }, {
+    serverId: 'bakal',
+    serverName: '바칼'
+  }];
+  return servers;
+} // 캐릭터 검색
+
+async function getCharacters(charName, {
+  scope,
+  wordType,
+  filter
+}) {
+  switch (scope) {
+    case 'character':
+      const searchKey = encodeURIComponent(charName);
+      const res = await axios.get(`${getBaseUrl()}/servers/all/characters?characterName=${searchKey}&wordType=${wordType}&limit=200&apikey=${getAPIKey()}`);
+      const data = res.data['rows'];
+      if (filter === 'true') return data.filter(user => user['level'] >= 100);
+      return data;
+
+    case 'adventure':
+      return 0;
+  }
+} // 캐릭터 데미지
+
+function getDamage(character) {
+  return '데미지 계산 작업중입니다';
+} //
+
+function getStats(charId, serverId) {
+  const res = axios.get(`https://api.neople.co.kr/df/servers/${serverId}/characters/${charId}/status?apikey=${getAPIKey()}`);
+  const data = res.data;
+} // 캐릭터 스킬 스타일
+
+async function getSkillStyles(character) {
+  const {
+    ['serverId']: serverId,
+    ['characterId']: charId
+  } = character;
+  const res = await axios.get(`${getBaseUrl()}/servers/${serverId}/characters/${charId}/skill/style?apikey=${getAPIKey()}`);
+  const skills = res.data['skill']['style'];
+  return skills;
+}
+// EXTERNAL MODULE: ./components/layout/layout.js + 4 modules
+var layout = __webpack_require__(1076);
+// EXTERNAL MODULE: ./modules/index.js + 3 modules
+var modules = __webpack_require__(31519);
+;// CONCATENATED MODULE: ./pages/character.js
 
 
 
 
 
 
-const Board = ({
-  posts
-}) => {
-  return /*#__PURE__*/react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx(_components_layout_layout__WEBPACK_IMPORTED_MODULE_1__/* .default */ .Z, {
-    children: /*#__PURE__*/react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx(_components_box_boardbox__WEBPACK_IMPORTED_MODULE_0__/* .default */ .Z, {
-      posts: posts,
-      type: "normal"
-    })
+
+const Character = () => {
+  return /*#__PURE__*/(0,jsx_runtime.jsxs)(layout/* default */.Z, {
+    children: [/*#__PURE__*/jsx_runtime.jsx("div", {
+      className: "",
+      style: {
+        minHeight: '200px',
+        backgroundColor: '#eeeeee'
+      }
+    }), /*#__PURE__*/jsx_runtime.jsx("div", {})]
   });
 };
 
-const getServerSideProps = _modules_index__WEBPACK_IMPORTED_MODULE_3__/* .default.getServerSideProps */ .Z.getServerSideProps(store => async ctx => {
-  const posts = await _lib_prisma__WEBPACK_IMPORTED_MODULE_2__/* .default.post.findMany */ .Z.post.findMany({
-    where: {
-      type: 'normal'
-    },
-    take: 10
-  });
-  const data = JSON.stringify(posts);
+const getServerSideProps = modules/* default.getServerSideProps */.Z.getServerSideProps(store => async ctx => {
+  const id = ctx.query.characterid; //const character = await axios.get()
+
   return {
-    props: {
-      posts: data
-    }
+    props: {}
   };
 });
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Board);
+/* harmony default export */ const character = (Character);
 
 /***/ }),
 
-/***/ 62866:
+/***/ 99903:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -93,7 +197,7 @@ __webpack_require__.r(__webpack_exports__);
       const appMod = __webpack_require__(7672)
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
-      const compMod = __webpack_require__(60855)
+      const compMod = __webpack_require__(73269)
 
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Component);
@@ -143,7 +247,7 @@ __webpack_require__.r(__webpack_exports__);
 
         rewrites: combinedRewrites,
         i18n: undefined,
-        page: "/board",
+        page: "/character",
         buildId: "Azujz6yMH3wajXwJM2WdD",
         escapedBuildId: "Azujz6yMH3wajXwJM2WdD",
         basePath: "",
@@ -155,13 +259,6 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ 55227:
-/***/ ((module) => {
-
-module.exports = require("_http_common");
-
-/***/ }),
-
 /***/ 42357:
 /***/ ((module) => {
 
@@ -169,38 +266,10 @@ module.exports = require("assert");
 
 /***/ }),
 
-/***/ 77303:
-/***/ ((module) => {
-
-module.exports = require("async_hooks");
-
-/***/ }),
-
 /***/ 64293:
 /***/ ((module) => {
 
 module.exports = require("buffer");
-
-/***/ }),
-
-/***/ 63129:
-/***/ ((module) => {
-
-module.exports = require("child_process");
-
-/***/ }),
-
-/***/ 57082:
-/***/ ((module) => {
-
-module.exports = require("console");
-
-/***/ }),
-
-/***/ 27619:
-/***/ ((module) => {
-
-module.exports = require("constants");
 
 /***/ }),
 
@@ -246,13 +315,6 @@ module.exports = require("https");
 
 /***/ }),
 
-/***/ 11631:
-/***/ ((module) => {
-
-module.exports = require("net");
-
-/***/ }),
-
 /***/ 33700:
 /***/ ((module) => {
 
@@ -295,13 +357,6 @@ module.exports = require("string_decoder");
 
 /***/ }),
 
-/***/ 4016:
-/***/ ((module) => {
-
-module.exports = require("tls");
-
-/***/ }),
-
 /***/ 33867:
 /***/ ((module) => {
 
@@ -320,13 +375,6 @@ module.exports = require("url");
 /***/ ((module) => {
 
 module.exports = require("util");
-
-/***/ }),
-
-/***/ 65013:
-/***/ ((module) => {
-
-module.exports = require("worker_threads");
 
 /***/ }),
 
@@ -379,7 +427,7 @@ module.exports = require("zlib");
 /******/ 	__webpack_require__.x = () => {
 /******/ 		// Load entry module and return exports
 /******/ 		// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,84,130,795,930,874,209,752,157], () => (__webpack_require__(62866)))
+/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,84,130,675,158,664,669,874,209,752], () => (__webpack_require__(99903)))
 /******/ 		__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 		return __webpack_exports__;
 /******/ 	};
@@ -502,7 +550,7 @@ module.exports = require("zlib");
 /******/ 		// object to store loaded chunks
 /******/ 		// "1" means "loaded", otherwise not loaded yet
 /******/ 		var installedChunks = {
-/******/ 			743: 1
+/******/ 			29: 1
 /******/ 		};
 /******/ 		
 /******/ 		__webpack_require__.O.require = (chunkId) => (installedChunks[chunkId]);
@@ -547,12 +595,13 @@ module.exports = require("zlib");
 /******/ 			__webpack_require__.e(872);
 /******/ 			__webpack_require__.e(84);
 /******/ 			__webpack_require__.e(130);
-/******/ 			__webpack_require__.e(795);
-/******/ 			__webpack_require__.e(930);
+/******/ 			__webpack_require__.e(675);
+/******/ 			__webpack_require__.e(158);
+/******/ 			__webpack_require__.e(664);
+/******/ 			__webpack_require__.e(669);
 /******/ 			__webpack_require__.e(874);
 /******/ 			__webpack_require__.e(209);
 /******/ 			__webpack_require__.e(752);
-/******/ 			__webpack_require__.e(157);
 /******/ 			return next();
 /******/ 		};
 /******/ 	})();

@@ -430,23 +430,30 @@ function Navbar() {
           className: "navbar-nav mb-2 mb-md-1",
           children: [/*#__PURE__*/jsx_runtime.jsx("li", {
             className: "nav-item",
-            children: /*#__PURE__*/jsx_runtime.jsx("a", {
-              className: "nav-link",
-              href: "#",
-              children: "\uB9C8\uC774\uD398\uC774\uC9C0"
+            children: /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
+              href: "/mypage",
+              children: /*#__PURE__*/jsx_runtime.jsx("a", {
+                className: "nav-link",
+                children: "\uB9C8\uC774\uD398\uC774\uC9C0"
+              })
             })
           }), /*#__PURE__*/jsx_runtime.jsx("li", {
             className: "nav-item",
-            children: /*#__PURE__*/jsx_runtime.jsx("a", {
-              className: "nav-link",
-              href: "#",
-              children: "\uC124\uC815"
+            children: /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
+              href: "/setting",
+              children: /*#__PURE__*/jsx_runtime.jsx("a", {
+                className: "nav-link",
+                children: "\uC124\uC815"
+              })
             })
           }), /*#__PURE__*/jsx_runtime.jsx("li", {
-            children: /*#__PURE__*/jsx_runtime.jsx("a", {
-              className: "nav-link",
-              onClick: client/* signOut */.w7,
-              children: "\uB85C\uADF8\uC544\uC6C3"
+            children: /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
+              href: "/",
+              children: /*#__PURE__*/jsx_runtime.jsx("a", {
+                className: "nav-link",
+                onClick: client/* signOut */.w7,
+                children: "\uB85C\uADF8\uC544\uC6C3"
+              })
             })
           })]
         }))
@@ -506,7 +513,7 @@ function Footer() {
                   children: "\uBCC0\uD0DC\uC18C\uB140"
                 })
               }), /*#__PURE__*/jsx_runtime.jsx("br", {}), "\uBCF8\uCE90\uBA85:", ' ', /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
-                href: `/search?charactername=${encodeURIComponent('고운말_7794')}`,
+                href: `/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20}`,
                 children: /*#__PURE__*/jsx_runtime.jsx("a", {
                   className: "link-primary",
                   children: "\uACE0\uC6B4\uB9D0_7794"

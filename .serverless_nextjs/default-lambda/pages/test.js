@@ -57,7 +57,7 @@ const getServerSideProps = _modules_index__WEBPACK_IMPORTED_MODULE_2__/* .defaul
 
 /***/ }),
 
-/***/ 75525:
+/***/ 73155:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -89,7 +89,7 @@ __webpack_require__.r(__webpack_exports__);
 
       
       const { processEnv } = __webpack_require__(72333)
-      processEnv([{"path":".env","contents":"MONGODB_URI=\"mongodb+srv://jsw:wpwkr1532@dnflanddb.hzpxs.mongodb.net/dnflandDB?retryWrites=true&w=majority\"\nDB_NAME=\"dnflandDB\"\nCLOUDINARY_URL=cloudinary://xxxxxxxxxxx:yyyyyyyyyyyyyyyyyyy@cpro95\nSESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=\"file:./dev.db\"\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=http://localhost:3000/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
+      processEnv([{"path":".env","contents":"SESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=postgresql://hkion159:wpwkr1532@dnfland-db-instance-1.ch1ocouzylsi.ap-northeast-2.rds.amazonaws.com:5432/dnfland-db\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=https://dnf.land/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
     
       
       const runtimeConfig = {}
@@ -151,26 +151,14 @@ __webpack_require__.r(__webpack_exports__);
         rewrites: combinedRewrites,
         i18n: undefined,
         page: "/test",
-        buildId: "y0LpFq1LRn-SlLCFg7vBp",
-        escapedBuildId: "y0LpFq1LRn\-SlLCFg7vBp",
+        buildId: "Azujz6yMH3wajXwJM2WdD",
+        escapedBuildId: "Azujz6yMH3wajXwJM2WdD",
         basePath: "",
         pageIsDynamic: false,
-        encodedPreviewProps: {previewModeId:"1b66bea4f00086cb4cefe33b9774825c",previewModeSigningKey:"3ebecb5774aa37f7b4f4072ba8a1b1b494a14cdb66ed52eec553a3ba87ff20ac",previewModeEncryptionKey:"0a0cb74d53e40c48ba86218c995a5bbf414ab9ed009a11c49c723f03e6de1394"}
+        encodedPreviewProps: {previewModeId:"9cc010fe0a301554bcb55dad5651582f",previewModeSigningKey:"6dfcbe883527461bafcfae0860ac1127eec900e24de8e5835b241d01e8484fbc",previewModeEncryptionKey:"6b2611403ef6d1494dffb3962b9c79230790dc4a5f73270f5e88cdbf4f6f9fac"}
       })
       
     
-
-/***/ }),
-
-/***/ 67294:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-if (true) {
-  module.exports = __webpack_require__(72408);
-} else {}
-
 
 /***/ }),
 
@@ -340,7 +328,7 @@ module.exports = require("zlib");
 /******/ 	__webpack_require__.x = () => {
 /******/ 		// Load entry module and return exports
 /******/ 		// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,280,176,675,874,209,752], () => (__webpack_require__(75525)))
+/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,84,675,874,209,752], () => (__webpack_require__(73155)))
 /******/ 		__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 		return __webpack_exports__;
 /******/ 	};
@@ -506,8 +494,7 @@ module.exports = require("zlib");
 /******/ 			__webpack_require__.e(994);
 /******/ 			__webpack_require__.e(572);
 /******/ 			__webpack_require__.e(872);
-/******/ 			__webpack_require__.e(280);
-/******/ 			__webpack_require__.e(176);
+/******/ 			__webpack_require__.e(84);
 /******/ 			__webpack_require__.e(675);
 /******/ 			__webpack_require__.e(874);
 /******/ 			__webpack_require__.e(209);
