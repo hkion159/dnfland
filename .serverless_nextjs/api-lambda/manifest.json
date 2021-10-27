@@ -1,1 +1,1 @@
-{"apis":{"dynamic":[{"file":"pages/api/auth/[...nextauth].js","regex":"^\\/api\\/auth(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?[\\/#\\?]?$"}],"nonDynamic":{}},"domainRedirects":{},"enableHTTPCompression":false}
+{"apis":{"dynamic":[{"file":"pages/api/auth/[...nextauth].js","regex":"^\\/api\\/auth(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?[\\/#\\?]?$"}],"nonDynamic":{"/api/adventure":"pages/api/adventure.js","/api/post":"pages/api/post.js","/api/sug":"pages/api/sug.js","/api/user":"pages/api/user.js"}},"domainRedirects":{},"enableHTTPCompression":false}

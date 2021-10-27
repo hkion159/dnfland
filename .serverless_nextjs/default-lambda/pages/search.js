@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 46079:
+/***/ 4252:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -10,31 +10,31 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  "default": () => (/* binding */ Search),
+  "default": () => (/* binding */ search),
   "getServerSideProps": () => (/* binding */ getServerSideProps)
 });
 
-// EXTERNAL MODULE: ./components/layout/layout.js + 3 modules
-var layout = __webpack_require__(82181);
-// EXTERNAL MODULE: ./node_modules/.pnpm/next@11.1.2_react-dom@17.0.2+react@17.0.2/node_modules/next/head.js
-var head = __webpack_require__(38288);
-// EXTERNAL MODULE: ./node_modules/.pnpm/react@17.0.2/node_modules/react/index.js
-var react = __webpack_require__(59496);
+// EXTERNAL MODULE: ./components/layout/layout.js + 4 modules
+var layout = __webpack_require__(1076);
+// EXTERNAL MODULE: ./node_modules/next/head.js
+var head = __webpack_require__(9008);
+// EXTERNAL MODULE: ./node_modules/react/index.js
+var react = __webpack_require__(67294);
 // EXTERNAL MODULE: ./styles/searchbox.module.css
-var searchbox_module = __webpack_require__(34667);
+var searchbox_module = __webpack_require__(60391);
 var searchbox_module_default = /*#__PURE__*/__webpack_require__.n(searchbox_module);
 // EXTERNAL MODULE: ./styles/thumbnail.module.css
-var thumbnail_module = __webpack_require__(64827);
+var thumbnail_module = __webpack_require__(70887);
 var thumbnail_module_default = /*#__PURE__*/__webpack_require__.n(thumbnail_module);
-// EXTERNAL MODULE: ./node_modules/.pnpm/next@11.1.2_react-dom@17.0.2+react@17.0.2/node_modules/next/link.js
-var next_link = __webpack_require__(70963);
-// EXTERNAL MODULE: ./node_modules/.pnpm/next@11.1.2_react-dom@17.0.2+react@17.0.2/node_modules/next/image.js
-var next_image = __webpack_require__(59434);
-// EXTERNAL MODULE: ./node_modules/.pnpm/axios@0.22.0/node_modules/axios/index.js
-var node_modules_axios = __webpack_require__(75108);
+// EXTERNAL MODULE: ./node_modules/next/link.js
+var next_link = __webpack_require__(41664);
+// EXTERNAL MODULE: ./node_modules/next/image.js
+var next_image = __webpack_require__(25675);
+// EXTERNAL MODULE: ./node_modules/axios/index.js
+var node_modules_axios = __webpack_require__(9669);
 var axios_default = /*#__PURE__*/__webpack_require__.n(node_modules_axios);
-// EXTERNAL MODULE: ./node_modules/.pnpm/react@17.0.2/node_modules/react/jsx-runtime.js
-var jsx_runtime = __webpack_require__(4637);
+// EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
+var jsx_runtime = __webpack_require__(85893);
 ;// CONCATENATED MODULE: ./api/neople.js
 
 
@@ -140,6 +140,7 @@ async function getSkillStyles(character) {
 
 
 
+
 function Thumbnail({
   character
 }) {
@@ -193,7 +194,10 @@ function Thumbnail({
     })
   });
 }
+
+/* harmony default export */ const thumbnail = (Thumbnail);
 ;// CONCATENATED MODULE: ./components/box/searchbox.js
+
 
 
 
@@ -213,14 +217,16 @@ function SearchBox({
       })
     }), /*#__PURE__*/jsx_runtime.jsx("div", {
       className: `${(searchbox_module_default()).result}`,
-      children: charsArr.map((character, index) => /*#__PURE__*/jsx_runtime.jsx(Thumbnail, {
+      children: charsArr.map((character, index) => /*#__PURE__*/jsx_runtime.jsx(thumbnail, {
         character: character
       }, index))
     })]
   });
 }
-// EXTERNAL MODULE: ./node_modules/.pnpm/next@11.1.2_react-dom@17.0.2+react@17.0.2/node_modules/next/router.js
-var next_router = __webpack_require__(5572);
+
+/* harmony default export */ const searchbox = (SearchBox);
+// EXTERNAL MODULE: ./node_modules/next/router.js
+var next_router = __webpack_require__(11163);
 ;// CONCATENATED MODULE: ./api/jobs.js
 
 async function getPosition(character) {
@@ -1304,14 +1310,15 @@ async function getPosition(character) {
 
   return position;
 }
-// EXTERNAL MODULE: ./modules/index.js + 2 modules
-var modules = __webpack_require__(36292);
+// EXTERNAL MODULE: ./modules/index.js + 3 modules
+var modules = __webpack_require__(31519);
 ;// CONCATENATED MODULE: ./pages/search.js
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) { symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); } keys.push.apply(keys, symbols); } return keys; }
 
 function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 
 
 
@@ -1342,13 +1349,14 @@ function Search({
         children: /*#__PURE__*/jsx_runtime.jsx("title", {
           children: `${searchKey} - 검색결과`
         })
-      }), /*#__PURE__*/jsx_runtime.jsx(SearchBox, {
+      }), /*#__PURE__*/jsx_runtime.jsx(searchbox, {
         characters: characters,
         name: searchKey
       })]
     })
   });
 }
+
 const getServerSideProps = modules/* default.getServerSideProps */.Z.getServerSideProps(store => async ctx => {
   const charName = ctx.query.charactername;
 
@@ -1387,10 +1395,11 @@ const getServerSideProps = modules/* default.getServerSideProps */.Z.getServerSi
     }
   };
 });
+/* harmony default export */ const search = (Search);
 
 /***/ }),
 
-/***/ 46138:
+/***/ 86408:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -1409,12 +1418,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "renderReqToHTML": () => (/* binding */ renderReqToHTML),
 /* harmony export */   "render": () => (/* binding */ render)
 /* harmony export */ });
-/* harmony import */ var next_dist_server_node_polyfill_fetch__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(85184);
+/* harmony import */ var next_dist_server_node_polyfill_fetch__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(70607);
 /* harmony import */ var next_dist_server_node_polyfill_fetch__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_node_polyfill_fetch__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var private_dot_next_routes_manifest_json__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(59450);
 /* harmony import */ var private_dot_next_build_manifest_json__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(97020);
 /* harmony import */ var private_dot_next_react_loadable_manifest_json__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(73978);
-/* harmony import */ var next_dist_build_webpack_loaders_next_serverless_loader_page_handler__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(3392);
+/* harmony import */ var next_dist_build_webpack_loaders_next_serverless_loader_page_handler__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(99436);
 
       
       
@@ -1423,18 +1432,18 @@ __webpack_require__.r(__webpack_exports__);
 
       
       const { processEnv } = __webpack_require__(72333)
-      processEnv([{"path":".env","contents":"MONGODB_URI=\"mongodb+srv://jsw:wpwkr1532@dnflanddb.hzpxs.mongodb.net/dnflandDB?retryWrites=true&w=majority\"\nDB_NAME=\"dnflandDB\"\nCLOUDINARY_URL=cloudinary://xxxxxxxxxxx:yyyyyyyyyyyyyyyyyyy@cpro95\nSESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\n# This was inserted by `prisma init`:\n# Environment variables declared in this file are automatically made available to Prisma.\n# See the documentation for more detail: https://pris.ly/d/prisma-schema#using-environment-variables\n\n# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server and MongoDB (Preview).\n# See the documentation for all the connection string options: https://pris.ly/d/connection-strings\n\nDATABASE_URL=\"file:./dev.db\"\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\n\nNEXTAUTH_URL=http://localhost:3000/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXADLTWLXR\nAWS_SECRET_ACCESS_KEY=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"}])
+      processEnv([{"path":".env","contents":"MONGODB_URI=\"mongodb+srv://jsw:wpwkr1532@dnflanddb.hzpxs.mongodb.net/dnflandDB?retryWrites=true&w=majority\"\nDB_NAME=\"dnflandDB\"\nCLOUDINARY_URL=cloudinary://xxxxxxxxxxx:yyyyyyyyyyyyyyyyyyy@cpro95\nSESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=\"file:./dev.db\"\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=http://localhost:3000/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
     
       
       const runtimeConfig = {}
       ;
 
-      const documentModule = __webpack_require__(90813)
+      const documentModule = __webpack_require__(88881)
 
-      const appMod = __webpack_require__(88406)
+      const appMod = __webpack_require__(7672)
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
-      const compMod = __webpack_require__(46079)
+      const compMod = __webpack_require__(4252)
 
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Component);
@@ -1467,7 +1476,7 @@ __webpack_require__.r(__webpack_exports__);
         pageConfig: config,
         appModule: App,
         documentModule: documentModule,
-        errorModule: __webpack_require__(74329),
+        errorModule: __webpack_require__(3359),
         notFoundModule: undefined,
         pageGetStaticProps: getStaticProps,
         pageGetStaticPaths: getStaticPaths,
@@ -1485,18 +1494,18 @@ __webpack_require__.r(__webpack_exports__);
         rewrites: combinedRewrites,
         i18n: undefined,
         page: "/search",
-        buildId: "GhPgr6qryNIODLUwxyJub",
-        escapedBuildId: "GhPgr6qryNIODLUwxyJub",
+        buildId: "y0LpFq1LRn-SlLCFg7vBp",
+        escapedBuildId: "y0LpFq1LRn\-SlLCFg7vBp",
         basePath: "",
         pageIsDynamic: false,
-        encodedPreviewProps: {previewModeId:"a10a67b9f3b2099646095ff6107fdd8f",previewModeSigningKey:"9223ccb25bedafb9da6b45786c7a268dd06dd6a57feb78b76c9fb7fe79f8e3d1",previewModeEncryptionKey:"2eed1c0079708d950157d61e8028dc4d3996d66e2e5bc02adfa03d45c5c1566a"}
+        encodedPreviewProps: {previewModeId:"1b66bea4f00086cb4cefe33b9774825c",previewModeSigningKey:"3ebecb5774aa37f7b4f4072ba8a1b1b494a14cdb66ed52eec553a3ba87ff20ac",previewModeEncryptionKey:"0a0cb74d53e40c48ba86218c995a5bbf414ab9ed009a11c49c723f03e6de1394"}
       })
       
     
 
 /***/ }),
 
-/***/ 34667:
+/***/ 60391:
 /***/ ((module) => {
 
 // Exports
@@ -1507,7 +1516,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 64827:
+/***/ 70887:
 /***/ ((module) => {
 
 // Exports
@@ -1706,7 +1715,7 @@ module.exports = require("zlib");
 /******/ 	__webpack_require__.x = () => {
 /******/ 		// Load entry module and return exports
 /******/ 		// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [773,609,417,87,434,232,817,210,122], () => (__webpack_require__(46138)))
+/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,872,280,176,130,675,158,68,874,209,752], () => (__webpack_require__(86408)))
 /******/ 		__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 		return __webpack_exports__;
 /******/ 	};
@@ -1868,15 +1877,19 @@ module.exports = require("zlib");
 /******/ 	(() => {
 /******/ 		var next = __webpack_require__.x;
 /******/ 		__webpack_require__.x = () => {
-/******/ 			__webpack_require__.e(773);
-/******/ 			__webpack_require__.e(609);
-/******/ 			__webpack_require__.e(417);
-/******/ 			__webpack_require__.e(87);
-/******/ 			__webpack_require__.e(434);
-/******/ 			__webpack_require__.e(232);
-/******/ 			__webpack_require__.e(817);
-/******/ 			__webpack_require__.e(210);
-/******/ 			__webpack_require__.e(122);
+/******/ 			__webpack_require__.e(580);
+/******/ 			__webpack_require__.e(994);
+/******/ 			__webpack_require__.e(572);
+/******/ 			__webpack_require__.e(872);
+/******/ 			__webpack_require__.e(280);
+/******/ 			__webpack_require__.e(176);
+/******/ 			__webpack_require__.e(130);
+/******/ 			__webpack_require__.e(675);
+/******/ 			__webpack_require__.e(158);
+/******/ 			__webpack_require__.e(68);
+/******/ 			__webpack_require__.e(874);
+/******/ 			__webpack_require__.e(209);
+/******/ 			__webpack_require__.e(752);
 /******/ 			return next();
 /******/ 		};
 /******/ 	})();
