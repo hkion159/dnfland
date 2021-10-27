@@ -10,7 +10,7 @@ function Footer() {
       >
         {/* 개발자 프로필 */}
         <div className={`${footerStyle.devprof} ${footerStyle.container}`}>
-          <h4>던파랜드 개발자</h4>
+          {/* <h4>던파랜드 개발자</h4>
           <div className={`d-flex`}>
             <div>
               <Link
@@ -59,7 +59,7 @@ function Footer() {
                 길드마스터
               </h5>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* 센터 네오플 로고 */}
