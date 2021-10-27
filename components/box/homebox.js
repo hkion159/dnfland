@@ -49,7 +49,7 @@ function Homebox({ maxId, notices }) {
     [session?.id],
   );
   // 모험단 조회 //
-  const [adventure, setAdventure] = useState({});
+  const [adventure, setAdventure] = useState(null);
   useEffect(() => {
     const api = async () => {
       const response = await fetch('/api/user', {
@@ -70,7 +70,7 @@ function Homebox({ maxId, notices }) {
         <div className="py-3 px-4 text-end">{`회원 수: ${maxId}명`}</div>
         <h3>던파랜드에 오신 것을 환영합니다.</h3>
         <h5>
-          현재 사이트 개발 완료 중에 있으며 데미지 계산 로직은 아직 미구현
+          현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현
           상태입니다.
         </h5>
         {!session && (
@@ -78,7 +78,7 @@ function Homebox({ maxId, notices }) {
         )}
         {adventure ? (
           <div
-            className="border border-secondary rounded-3 ms-auto me-auto p-3"
+            className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4"
             style={{ width: '90%', minHeight: '100px' }}
           ></div>
         ) : (

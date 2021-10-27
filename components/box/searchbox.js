@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import searchStyle from '../../styles/searchbox.module.css';
 import Thumbnail from '../profile/thumbnail';
 

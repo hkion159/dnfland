@@ -11,15 +11,17 @@ generator client {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
-  adventure   Adventure?
-  name        String?      @default("")
-  image       String?
-  createdAt   DateTime     @default(now()) @map(name: "created_at")
-  updatedAt   DateTime     @updatedAt @map(name: "updated_at")
-  setting     Setting?
-  posts       Post[]
-  suggestions Suggestion[]
+  id            Int          @id @default(autoincrement())
+  adventure     Adventure?
+  name          String?      @default("")
+  email         String?
+  emailVerified Boolean?
+  image         String?
+  createdAt     DateTime     @default(now()) @map(name: "created_at")
+  updatedAt     DateTime     @updatedAt @map(name: "updated_at")
+  setting       Setting?
+  posts         Post[]
+  suggestions   Suggestion[]
 
   @@map(name: "users")
 }

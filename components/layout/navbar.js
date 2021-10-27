@@ -356,19 +356,21 @@ function Navbar() {
             ) : (
               <ul className="navbar-nav mb-2 mb-md-1">
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    마이페이지
-                  </a>
+                  <Link href="/mypage">
+                    <a className="nav-link">마이페이지</a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    설정
-                  </a>
+                  <Link href="/setting">
+                    <a className="nav-link">설정</a>
+                  </Link>
                 </li>
                 <li>
-                  <a className="nav-link" onClick={signOut}>
-                    로그아웃
-                  </a>
+                  <Link href="/">
+                    <a className="nav-link" onClick={signOut}>
+                      로그아웃
+                    </a>
+                  </Link>
                 </li>
               </ul>
             ))}
