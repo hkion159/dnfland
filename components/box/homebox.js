@@ -64,6 +64,7 @@ function Homebox({ maxId, notices }) {
       api();
     }
   }, [session, enroll]);
+  console.log(adventure);
   return (
     <div className={HomeStyle.container}>
       <div className={HomeStyle.introduce}>
@@ -76,36 +77,37 @@ function Homebox({ maxId, notices }) {
         {!session && (
           <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>
         )}
-        {adventure ? (
-          <div
-            className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4"
-            style={{ width: '90%', minHeight: '100px' }}
-          ></div>
-        ) : (
-          <div className="p-4">
-            <p className="m-2">자신의 모험단을 등록하세요!!</p>
-            <form className="input-group" onSubmit={onEnroll}>
-              <input
-                type="text"
-                className="form-control ms-auto"
-                placeholder="등록할 모험단명"
-                aria-label="등록할 모험단명"
-                aria-describedby="button-addon"
-                required
-                style={{ flex: '0 0 auto', width: '20%', minWidth: '200px' }}
-                ref={enrollRef}
-              />
-              <button
-                className="btn btn-outline-success me-auto"
-                type="submit"
-                id="button-addon"
-              >
-                등록
-              </button>
-            </form>
-            {enroll && <p className="text-success my-3">등록되었습니다!!</p>}
-          </div>
-        )}
+        {session &&
+          (adventure ? (
+            <div
+              className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4"
+              style={{ width: '90%', minHeight: '100px' }}
+            ></div>
+          ) : (
+            <div className="p-4">
+              <p className="m-2">자신의 모험단을 등록하세요!!</p>
+              <form className="input-group" onSubmit={onEnroll}>
+                <input
+                  type="text"
+                  className="form-control ms-auto"
+                  placeholder="등록할 모험단명"
+                  aria-label="등록할 모험단명"
+                  aria-describedby="button-addon"
+                  required
+                  style={{ flex: '0 0 auto', width: '20%', minWidth: '200px' }}
+                  ref={enrollRef}
+                />
+                <button
+                  className="btn btn-outline-success me-auto"
+                  type="submit"
+                  id="button-addon"
+                >
+                  등록
+                </button>
+              </form>
+              {enroll && <p className="text-success my-3">등록되었습니다!!</p>}
+            </div>
+          ))}
       </div>
       <div className={HomeStyle.infos}>
         <div className={HomeStyle.f1}>
