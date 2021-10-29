@@ -350,7 +350,7 @@ function Navbar() {
         >
           {!loading &&
             (!session ? (
-              <a onClick={() => signIn()}>
+              <a onClick={() => signIn('kakao')}>
                 <Image alt="loginbtn" src={loginBtn} width="183" height="45" />
               </a>
             ) : (
