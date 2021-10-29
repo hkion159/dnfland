@@ -1,28 +1,24 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', { value: true });
-
-var manifest = require('./manifest.json');
+var PrerenderManifest = require('./prerender-manifest.json');
+var Manifest = require('./manifest.json');
 var RoutesManifestJson = require('./routes-manifest.json');
 var Stream = require('stream');
 var zlib = require('zlib');
 var http = require('http');
-require('perf_hooks');
+var perf_hooks = require('perf_hooks');
 var Url = require('url');
 var punycode = require('punycode');
 var https = require('https');
-var require$$1$2 = require('path');
-var fs = require('fs');
 var crypto = require('crypto');
-var require$$0$3 = require('events');
-var util$1 = require('util');
-var tty = require('tty');
-var require$$2 = require('net');
-var buffer = require('buffer');
+var buffer$1 = require('buffer');
+var fs = require('fs');
 var os = require('os');
+var path = require('path');
 require('http2');
 var process$1 = require('process');
 var child_process = require('child_process');
+var util$1 = require('util');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -44,7 +40,8 @@ function _interopNamespace(e) {
   return Object.freeze(n);
 }
 
-var manifest__default = /*#__PURE__*/_interopDefaultLegacy(manifest);
+var PrerenderManifest__default = /*#__PURE__*/_interopDefaultLegacy(PrerenderManifest);
+var Manifest__default = /*#__PURE__*/_interopDefaultLegacy(Manifest);
 var RoutesManifestJson__default = /*#__PURE__*/_interopDefaultLegacy(RoutesManifestJson);
 var Stream__default = /*#__PURE__*/_interopDefaultLegacy(Stream);
 var zlib__default = /*#__PURE__*/_interopDefaultLegacy(zlib);
@@ -52,14 +49,10 @@ var http__default = /*#__PURE__*/_interopDefaultLegacy(http);
 var Url__default = /*#__PURE__*/_interopDefaultLegacy(Url);
 var punycode__default = /*#__PURE__*/_interopDefaultLegacy(punycode);
 var https__default = /*#__PURE__*/_interopDefaultLegacy(https);
-var require$$1__default = /*#__PURE__*/_interopDefaultLegacy(require$$1$2);
-var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
-var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
 var crypto__default = /*#__PURE__*/_interopDefaultLegacy(crypto);
-var require$$0__default = /*#__PURE__*/_interopDefaultLegacy(require$$0$3);
+var crypto__namespace = /*#__PURE__*/_interopNamespace(crypto);
+var buffer__default = /*#__PURE__*/_interopDefaultLegacy(buffer$1);
 var util__default = /*#__PURE__*/_interopDefaultLegacy(util$1);
-var tty__default = /*#__PURE__*/_interopDefaultLegacy(tty);
-var require$$2__default = /*#__PURE__*/_interopDefaultLegacy(require$$2);
 
 const specialNodeHeaders = [
   "age",
@@ -453,7 +446,7 @@ function lexer(str) {
 /**
  * Parse a string for the raw tokens.
  */
-function parse$3(str, options) {
+function parse$2(str, options) {
     if (options === void 0) { options = {}; }
     var tokens = lexer(str);
     var _a = options.prefixes, prefixes = _a === void 0 ? "./" : _a;
@@ -533,6 +526,70 @@ function parse$3(str, options) {
         mustConsume("END");
     }
     return result;
+}
+/**
+ * Compile a string to a template function for the path.
+ */
+function compile(str, options) {
+    return tokensToFunction(parse$2(str, options), options);
+}
+/**
+ * Expose a method for transforming tokens into the path function.
+ */
+function tokensToFunction(tokens, options) {
+    if (options === void 0) { options = {}; }
+    var reFlags = flags(options);
+    var _a = options.encode, encode = _a === void 0 ? function (x) { return x; } : _a, _b = options.validate, validate = _b === void 0 ? true : _b;
+    // Compile all the tokens into regexps.
+    var matches = tokens.map(function (token) {
+        if (typeof token === "object") {
+            return new RegExp("^(?:" + token.pattern + ")$", reFlags);
+        }
+    });
+    return function (data) {
+        var path = "";
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            if (typeof token === "string") {
+                path += token;
+                continue;
+            }
+            var value = data ? data[token.name] : undefined;
+            var optional = token.modifier === "?" || token.modifier === "*";
+            var repeat = token.modifier === "*" || token.modifier === "+";
+            if (Array.isArray(value)) {
+                if (!repeat) {
+                    throw new TypeError("Expected \"" + token.name + "\" to not repeat, but got an array");
+                }
+                if (value.length === 0) {
+                    if (optional)
+                        continue;
+                    throw new TypeError("Expected \"" + token.name + "\" to not be empty");
+                }
+                for (var j = 0; j < value.length; j++) {
+                    var segment = encode(value[j], token);
+                    if (validate && !matches[i].test(segment)) {
+                        throw new TypeError("Expected all \"" + token.name + "\" to match \"" + token.pattern + "\", but got \"" + segment + "\"");
+                    }
+                    path += token.prefix + segment + token.suffix;
+                }
+                continue;
+            }
+            if (typeof value === "string" || typeof value === "number") {
+                var segment = encode(String(value), token);
+                if (validate && !matches[i].test(segment)) {
+                    throw new TypeError("Expected \"" + token.name + "\" to match \"" + token.pattern + "\", but got \"" + segment + "\"");
+                }
+                path += token.prefix + segment + token.suffix;
+                continue;
+            }
+            if (optional)
+                continue;
+            var typeOfMessage = repeat ? "an array" : "a string";
+            throw new TypeError("Expected \"" + token.name + "\" to be " + typeOfMessage);
+        }
+        return path;
+    };
 }
 /**
  * Create path match function from `path-to-regexp` spec.
@@ -619,7 +676,7 @@ function arrayToRegexp(paths, keys, options) {
  * Create a path regexp from string input.
  */
 function stringToRegexp(path, keys, options) {
-    return tokensToRegexp(parse$3(path, options), keys, options);
+    return tokensToRegexp(parse$2(path, options), keys, options);
 }
 /**
  * Expose a function for taking tokens and returning a RegExp.
@@ -695,6 +752,107 @@ function pathToRegexp(path, keys, options) {
     return stringToRegexp(path, keys, options);
 }
 
+/*!
+ * cookie
+ * Copyright(c) 2012-2014 Roman Shtylman
+ * Copyright(c) 2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+/**
+ * Module exports.
+ * @public
+ */
+
+var parse_1 = parse$1;
+
+/**
+ * Module variables.
+ * @private
+ */
+
+var decode$1 = decodeURIComponent;
+var pairSplitRegExp = /; */;
+
+/**
+ * Parse a cookie header.
+ *
+ * Parse the given cookie header string into an object
+ * The object has the various cookies as keys(names) => values
+ *
+ * @param {string} str
+ * @param {object} [options]
+ * @return {object}
+ * @public
+ */
+
+function parse$1(str, options) {
+  if (typeof str !== 'string') {
+    throw new TypeError('argument str must be a string');
+  }
+
+  var obj = {};
+  var opt = options || {};
+  var pairs = str.split(pairSplitRegExp);
+  var dec = opt.decode || decode$1;
+
+  for (var i = 0; i < pairs.length; i++) {
+    var pair = pairs[i];
+    var eq_idx = pair.indexOf('=');
+
+    // skip things that don't look like key=value
+    if (eq_idx < 0) {
+      continue;
+    }
+
+    var key = pair.substr(0, eq_idx).trim();
+    var val = pair.substr(++eq_idx, pair.length).trim();
+
+    // quoted values
+    if ('"' == val[0]) {
+      val = val.slice(1, -1);
+    }
+
+    // only assign once
+    if (undefined == obj[key]) {
+      obj[key] = tryDecode(val, dec);
+    }
+  }
+
+  return obj;
+}
+
+/**
+ * Try decoding a string using a decoding function.
+ *
+ * @param {string} str
+ * @param {function} decode
+ * @private
+ */
+
+function tryDecode(str, decode) {
+  try {
+    return decode(str);
+  } catch (e) {
+    return str;
+  }
+}
+
+const findDomainLocale = (req, manifest) => {
+    var _a;
+    const domains = (_a = manifest.i18n) === null || _a === void 0 ? void 0 : _a.domains;
+    if (domains) {
+        const hostHeaders = req.headers.host;
+        if (hostHeaders && hostHeaders.length > 0) {
+            const host = hostHeaders[0].value.split(":")[0];
+            const matchedDomain = domains.find((d) => d.domain === host);
+            if (matchedDomain) {
+                return matchedDomain.defaultLocale;
+            }
+        }
+    }
+    return null;
+};
 function addDefaultLocaleToPath(path, routesManifest, forceLocale = null) {
     if (routesManifest.i18n) {
         const defaultLocale = forceLocale !== null && forceLocale !== void 0 ? forceLocale : routesManifest.i18n.defaultLocale;
@@ -720,6 +878,123 @@ function addDefaultLocaleToPath(path, routesManifest, forceLocale = null) {
     }
     return path;
 }
+function dropLocaleFromPath(path, routesManifest) {
+    if (routesManifest.i18n) {
+        const pathLowerCase = path.toLowerCase();
+        const locales = routesManifest.i18n.locales;
+        // If prefixed with a locale, return path without
+        for (const locale of locales) {
+            const prefixLowerCase = `/${locale.toLowerCase()}`;
+            if (pathLowerCase === prefixLowerCase) {
+                return "/";
+            }
+            if (pathLowerCase.startsWith(`${prefixLowerCase}/`)) {
+                return `${pathLowerCase.slice(prefixLowerCase.length)}`;
+            }
+        }
+    }
+    return path;
+}
+const getAcceptLanguageLocale = async (acceptLanguage, manifest, routesManifest) => {
+    var _a;
+    if (routesManifest.i18n) {
+        const defaultLocaleLowerCase = (_a = routesManifest.i18n.defaultLocale) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+        const localeMap = {};
+        for (const locale of routesManifest.i18n.locales) {
+            localeMap[locale.toLowerCase()] = locale;
+        }
+        // Accept.language(header, locales) prefers the locales order,
+        // so we ask for all to find the order preferred by user.
+        const Accept = await Promise.resolve().then(function () { return require('./index-d7318dad.js'); }).then(function (n) { return n.index; });
+        for (const language of Accept.languages(acceptLanguage)) {
+            const localeLowerCase = language.toLowerCase();
+            if (localeLowerCase === defaultLocaleLowerCase) {
+                break;
+            }
+            if (localeMap[localeLowerCase]) {
+                return `${routesManifest.basePath}/${localeMap[localeLowerCase]}${manifest.trailingSlash ? "/" : ""}`;
+            }
+        }
+    }
+};
+function getLocalePrefixFromUri(uri, routesManifest) {
+    if (routesManifest.basePath && uri.startsWith(routesManifest.basePath)) {
+        uri = uri.slice(routesManifest.basePath.length);
+    }
+    if (routesManifest.i18n) {
+        const uriLowerCase = uri.toLowerCase();
+        for (const locale of routesManifest.i18n.locales) {
+            const localeLowerCase = locale.toLowerCase();
+            if (uriLowerCase === `/${localeLowerCase}` ||
+                uriLowerCase.startsWith(`/${localeLowerCase}/`)) {
+                return `/${locale}`;
+            }
+        }
+        return `/${routesManifest.i18n.defaultLocale}`;
+    }
+    return "";
+}
+/**
+ * Get a redirect to the locale-specific domain. Returns undefined if no redirect found.
+ * @param req
+ * @param routesManifest
+ */
+async function getLocaleDomainRedirect(req, routesManifest) {
+    var _a, _b, _c, _d, _e, _f;
+    // Redirect to correct domain based on user's language
+    const domains = (_a = routesManifest.i18n) === null || _a === void 0 ? void 0 : _a.domains;
+    const hostHeaders = req.headers.host;
+    if (domains && hostHeaders && hostHeaders.length > 0) {
+        const host = hostHeaders[0].value.split(":")[0];
+        const languageHeader = req.headers["accept-language"];
+        const acceptLanguage = languageHeader && ((_b = languageHeader[0]) === null || _b === void 0 ? void 0 : _b.value);
+        const headerCookies = req.headers.cookie
+            ? (_c = req.headers.cookie[0]) === null || _c === void 0 ? void 0 : _c.value
+            : undefined;
+        // Use cookies first, otherwise use the accept-language header
+        let acceptLanguages = [];
+        let nextLocale;
+        if (headerCookies) {
+            const cookies = parse_1(headerCookies);
+            nextLocale = cookies["NEXT_LOCALE"];
+        }
+        if (nextLocale) {
+            acceptLanguages = [nextLocale.toLowerCase()];
+        }
+        else {
+            const Accept = await Promise.resolve().then(function () { return require('./index-d7318dad.js'); }).then(function (n) { return n.index; });
+            acceptLanguages = Accept.languages(acceptLanguage).map((lang) => lang.toLowerCase());
+        }
+        // Try to find the right domain to redirect to if needed
+        // First check current domain can support any preferred language, if so do not redirect
+        const currentDomainData = domains.find((domainData) => domainData.domain === host);
+        if (currentDomainData) {
+            for (const language of acceptLanguages) {
+                if (((_d = currentDomainData.defaultLocale) === null || _d === void 0 ? void 0 : _d.toLowerCase()) === language ||
+                    ((_e = currentDomainData.locales) === null || _e === void 0 ? void 0 : _e.map((locale) => locale.toLowerCase()).includes(language))) {
+                    return undefined;
+                }
+            }
+        }
+        // Try to find domain whose default locale matched preferred language in order
+        for (const language of acceptLanguages) {
+            for (const domainData of domains) {
+                if (domainData.defaultLocale.toLowerCase() === language) {
+                    return `${domainData.domain}${req.uri}`;
+                }
+            }
+        }
+        // Try to find domain whose supported locales matches preferred language in order
+        for (const language of acceptLanguages) {
+            for (const domainData of domains) {
+                if ((_f = domainData.locales) === null || _f === void 0 ? void 0 : _f.map((locale) => locale.toLowerCase()).includes(language)) {
+                    return `${domainData.domain}${req.uri}`;
+                }
+            }
+        }
+    }
+    return undefined;
+}
 
 /**
  Provides matching capabilities to support custom redirects, rewrites, and headers.
@@ -733,6 +1008,50 @@ function matchPath(path, source) {
     const matcher = match(source, { decode: decodeURIComponent });
     return matcher(path);
 }
+/**
+ * Compile a destination for redirects or rewrites.
+ * @param destination
+ * @param params
+ */
+function compileDestination(destination, params) {
+    try {
+        const destinationLowerCase = destination.toLowerCase();
+        if (destinationLowerCase.startsWith("https://") ||
+            destinationLowerCase.startsWith("http://")) {
+            // Handle external URL redirects
+            const { origin, pathname, search } = new URL(destination);
+            const toPath = compile(pathname, { encode: encodeURIComponent });
+            const compiledDestination = `${origin}${toPath(params)}${search}`;
+            // Remove trailing slash if original destination didn't have it
+            if (!destination.endsWith("/") && compiledDestination.endsWith("/")) {
+                return compiledDestination.slice(0, -1);
+            }
+            else {
+                return compiledDestination;
+            }
+        }
+        else {
+            // Handle all other paths. Escape all ? in case of query parameters
+            const escapedDestination = destination.replace(/\?/g, "\\?");
+            const toPath = compile(escapedDestination, {
+                encode: encodeURIComponent
+            });
+            return toPath(params);
+        }
+    }
+    catch (error) {
+        console.error(`Could not compile destination ${destination}, returning null instead. Error: ${error}`);
+        return null;
+    }
+}
+const matchDynamicRoute = (uri, routes) => {
+    for (const { route, regex } of routes) {
+        const re = new RegExp(regex, "i");
+        if (re.test(uri)) {
+            return route;
+        }
+    }
+};
 
 const getCustomHeaders = (uri, routesManifest) => {
     const localized = addDefaultLocaleToPath(uri, routesManifest);
@@ -761,6 +1080,271 @@ const setCustomHeaders = (event, routesManifest) => {
         }
     }
 };
+const setHeadersFromRoute = (event, route) => {
+    var _a;
+    for (const [key, headers] of Object.entries(route.headers || [])) {
+        const keys = headers.map(({ key }) => key);
+        const values = headers.map(({ value }) => value).join(";");
+        if (values) {
+            event.res.setHeader((_a = keys[0]) !== null && _a !== void 0 ? _a : key, values);
+        }
+    }
+};
+
+const redirect = (event, route) => {
+    setHeadersFromRoute(event, route);
+    event.res.statusCode = route.status;
+    event.res.statusMessage = route.statusDescription;
+    event.res.end();
+};
+
+const toRequest = (event) => {
+    var _a;
+    const [uri, querystring] = ((_a = event.req.url) !== null && _a !== void 0 ? _a : "").split("?");
+    const headers = {};
+    for (const [key, value] of Object.entries(event.req.headers)) {
+        if (value && Array.isArray(value)) {
+            headers[key.toLowerCase()] = value.map((value) => ({ key, value }));
+        }
+        else if (value) {
+            headers[key.toLowerCase()] = [{ key, value }];
+        }
+    }
+    return {
+        headers,
+        querystring,
+        uri
+    };
+};
+
+const normalise = (uri, routesManifest) => {
+    const { basePath } = routesManifest;
+    if (basePath) {
+        if (uri.startsWith(basePath)) {
+            uri = uri.slice(basePath.length);
+        }
+        else {
+            // basePath set but URI does not start with basePath, return original path with special flag indicating missing expected base path
+            // but basePath is expected
+            return { normalisedUri: uri, missingExpectedBasePath: true };
+        }
+    }
+    // Remove trailing slash for all paths
+    if (uri.endsWith("/")) {
+        uri = uri.slice(0, -1);
+    }
+    // Empty path should be normalised to "/" as there is no Next.js route for ""
+    return {
+        normalisedUri: uri === "" ? "/" : uri,
+        missingExpectedBasePath: false
+    };
+};
+
+const staticNotFound = (uri, manifest, routesManifest) => {
+    const localePrefix = getLocalePrefixFromUri(uri, routesManifest);
+    const notFoundUri = `${localePrefix}/404`;
+    const static404 = manifest.pages.html.nonDynamic[notFoundUri] ||
+        manifest.pages.ssg.nonDynamic[notFoundUri];
+    if (static404) {
+        return {
+            isData: false,
+            isStatic: true,
+            file: `pages${notFoundUri}.html`,
+            statusCode: 404
+        };
+    }
+};
+const notFoundData = (uri, manifest, routesManifest) => {
+    return (staticNotFound(uri, manifest, routesManifest) || {
+        isData: true,
+        isRender: true,
+        page: "pages/_error.js",
+        statusCode: 404
+    });
+};
+const notFoundPage = (uri, manifest, routesManifest) => {
+    return (staticNotFound(uri, manifest, routesManifest) || {
+        isData: false,
+        isRender: true,
+        page: "pages/_error.js",
+        statusCode: 404
+    });
+};
+
+const pageHtml = (localeUri) => {
+    if (localeUri == "/") {
+        return "pages/index.html";
+    }
+    return `pages${localeUri}.html`;
+};
+const handlePageReq = (req, uri, manifest, routesManifest, isPreview, isRewrite) => {
+    var _a, _b;
+    const { pages } = manifest;
+    const { normalisedUri: localeUri, missingExpectedBasePath } = normalise(addDefaultLocaleToPath(uri, routesManifest, findDomainLocale(req, routesManifest)), routesManifest);
+    // This allows matching against rewrites even without basepath
+    if (!missingExpectedBasePath) {
+        if (pages.html.nonDynamic[localeUri]) {
+            const nonLocaleUri = dropLocaleFromPath(localeUri, routesManifest);
+            const statusCode = nonLocaleUri === "/404"
+                ? 404
+                : nonLocaleUri === "/500"
+                    ? 500
+                    : undefined;
+            return {
+                isData: false,
+                isStatic: true,
+                file: pages.html.nonDynamic[localeUri],
+                statusCode
+            };
+        }
+        if (pages.ssg.nonDynamic[localeUri] && !isPreview) {
+            const ssg = pages.ssg.nonDynamic[localeUri];
+            const route = (_a = ssg.srcRoute) !== null && _a !== void 0 ? _a : localeUri;
+            const nonLocaleUri = dropLocaleFromPath(localeUri, routesManifest);
+            const statusCode = nonLocaleUri === "/404"
+                ? 404
+                : nonLocaleUri === "/500"
+                    ? 500
+                    : undefined;
+            return {
+                isData: false,
+                isStatic: true,
+                file: pageHtml(localeUri),
+                // page JS path is from SSR entries in manifest
+                page: pages.ssr.nonDynamic[route] || pages.ssr.dynamic[route],
+                revalidate: ssg.initialRevalidateSeconds,
+                statusCode
+            };
+        }
+        if (((_b = pages.ssg.notFound) !== null && _b !== void 0 ? _b : {})[localeUri] && !isPreview) {
+            return notFoundPage(uri, manifest, routesManifest);
+        }
+        if (pages.ssr.nonDynamic[localeUri]) {
+            if (localeUri.startsWith("/api/")) {
+                return {
+                    isApi: true,
+                    page: pages.ssr.nonDynamic[localeUri]
+                };
+            }
+            else {
+                return {
+                    isData: false,
+                    isRender: true,
+                    page: pages.ssr.nonDynamic[localeUri]
+                };
+            }
+        }
+    }
+    const rewrite = !isRewrite && getRewritePath(req, uri, routesManifest, manifest);
+    if (rewrite) {
+        const [path, querystring] = rewrite.split("?");
+        if (isExternalRewrite(path)) {
+            return {
+                isExternal: true,
+                path,
+                querystring
+            };
+        }
+        const route = handlePageReq(req, path, manifest, routesManifest, isPreview, true);
+        return {
+            ...route,
+            querystring
+        };
+    }
+    // We don't want to match URIs with missing basepath against dynamic routes if it wasn't already covered by rewrite.
+    if (!missingExpectedBasePath) {
+        const dynamic = matchDynamicRoute(localeUri, pages.dynamic);
+        const dynamicSSG = dynamic && pages.ssg.dynamic[dynamic];
+        if (dynamicSSG && !isPreview) {
+            return {
+                isData: false,
+                isStatic: true,
+                file: pageHtml(localeUri),
+                page: dynamic ? pages.ssr.dynamic[dynamic] : undefined,
+                fallback: dynamicSSG.fallback
+            };
+        }
+        const dynamicSSR = dynamic && pages.ssr.dynamic[dynamic];
+        if (dynamicSSR) {
+            if (dynamic.startsWith("/api/")) {
+                return {
+                    isApi: true,
+                    page: dynamicSSR
+                };
+            }
+            else {
+                return {
+                    isData: false,
+                    isRender: true,
+                    page: dynamicSSR
+                };
+            }
+        }
+        const dynamicHTML = dynamic && pages.html.dynamic[dynamic];
+        if (dynamicHTML) {
+            return {
+                isData: false,
+                isStatic: true,
+                file: dynamicHTML
+            };
+        }
+    }
+    return notFoundPage(uri, manifest, routesManifest);
+};
+
+/**
+ * Get the rewrite of the given path, if it exists.
+ * @param uri
+ * @param pageManifest
+ * @param routesManifest
+ */
+function getRewritePath(req, uri, routesManifest, pageManifest) {
+    const path = addDefaultLocaleToPath(uri, routesManifest, findDomainLocale(req, routesManifest));
+    const rewrites = routesManifest.rewrites;
+    for (const rewrite of rewrites) {
+        const match = matchPath(path, rewrite.source);
+        if (!match) {
+            continue;
+        }
+        const params = match.params;
+        const destination = compileDestination(rewrite.destination, params);
+        if (!destination) {
+            return;
+        }
+        // No-op rewrite support for pages: skip to next rewrite if path does not map to existing non-dynamic and dynamic routes
+        if (pageManifest && path === destination) {
+            const url = handlePageReq(req, destination, pageManifest, routesManifest, false, true);
+            if (url.statusCode === 404) {
+                continue;
+            }
+        }
+        // Pass unused params to destination
+        // except nextInternalLocale param since it's already in path prefix
+        const querystring = Object.keys(params)
+            .filter((key) => key !== "nextInternalLocale")
+            .filter((key) => !rewrite.destination.endsWith(`:${key}`) &&
+            !rewrite.destination.includes(`:${key}/`))
+            .map((key) => {
+            const param = params[key];
+            if (typeof param === "string") {
+                return `${key}=${param}`;
+            }
+            else {
+                return param.map((val) => `${key}=${val}`).join("&");
+            }
+        })
+            .filter((key) => key)
+            .join("&");
+        if (querystring) {
+            const separator = destination.includes("?") ? "&" : "?";
+            return `${destination}${separator}${querystring}`;
+        }
+        return destination;
+    }
+}
+function isExternalRewrite(customRewrite) {
+    return (customRewrite.startsWith("http://") || customRewrite.startsWith("https://"));
+}
 
 function getUnauthenticatedResponse(authorizationHeaders, authentication) {
     var _a;
@@ -780,6 +1364,118 @@ function getUnauthenticatedResponse(authorizationHeaders, authentication) {
         }
     }
 }
+
+/*
+ * Get page name from data route
+ */
+const normaliseDataUri = (uri, buildId) => {
+    const prefix = `/_next/data/${buildId}`;
+    if (!uri.startsWith(prefix)) {
+        return uri;
+    }
+    return uri
+        .slice(prefix.length)
+        .replace(/\.json$/, "")
+        .replace(/^(\/index)?$/, "/");
+};
+/*
+ * Get full data route uri from page name
+ */
+const fullDataUri = (uri, buildId) => {
+    const prefix = `/_next/data/${buildId}`;
+    if (uri === "/") {
+        return `${prefix}/index.json`;
+    }
+    return `${prefix}${uri}.json`;
+};
+/*
+ * Handles a data route
+ */
+const handleDataReq = (uri, manifest, routesManifest, isPreview) => {
+    var _a, _b;
+    const { buildId, pages } = manifest;
+    const localeUri = addDefaultLocaleToPath(normaliseDataUri(uri, buildId), routesManifest);
+    if (pages.ssg.nonDynamic[localeUri] && !isPreview) {
+        const ssg = pages.ssg.nonDynamic[localeUri];
+        const route = (_a = ssg.srcRoute) !== null && _a !== void 0 ? _a : localeUri;
+        return {
+            isData: true,
+            isStatic: true,
+            file: fullDataUri(localeUri, buildId),
+            page: pages.ssr.nonDynamic[route],
+            revalidate: ssg.initialRevalidateSeconds
+        };
+    }
+    if (((_b = pages.ssg.notFound) !== null && _b !== void 0 ? _b : {})[localeUri] && !isPreview) {
+        return notFoundData(uri, manifest, routesManifest);
+    }
+    if (pages.ssr.nonDynamic[localeUri]) {
+        return {
+            isData: true,
+            isRender: true,
+            page: pages.ssr.nonDynamic[localeUri]
+        };
+    }
+    const dynamic = matchDynamicRoute(localeUri, pages.dynamic);
+    const dynamicSSG = dynamic && pages.ssg.dynamic[dynamic];
+    if (dynamicSSG && !isPreview) {
+        return {
+            isData: true,
+            isStatic: true,
+            file: fullDataUri(localeUri, buildId),
+            page: dynamic ? pages.ssr.dynamic[dynamic] : undefined,
+            fallback: dynamicSSG.fallback
+        };
+    }
+    const dynamicSSR = dynamic && pages.ssr.dynamic[dynamic];
+    if (dynamicSSR) {
+        return {
+            isData: true,
+            isRender: true,
+            page: dynamicSSR
+        };
+    }
+    return notFoundData(uri, manifest, routesManifest);
+};
+
+const NEXT_PREVIEW_DATA_COOKIE = "__next_preview_data";
+const NEXT_PRERENDER_BYPASS_COOKIE = "__prerender_bypass";
+const defaultPreviewCookies = {
+    [NEXT_PRERENDER_BYPASS_COOKIE]: "",
+    [NEXT_PREVIEW_DATA_COOKIE]: ""
+};
+/**
+ * Determine if the request contains a valid signed JWT for preview mode
+ *
+ * @param cookies - Cookies header with cookies in RFC 6265 compliant format
+ * @param previewModeSigningKey - Next build key generated in the preRenderManifest
+ */
+const isValidPreviewRequest = async (cookies, previewModeSigningKey) => {
+    const previewCookies = getPreviewCookies(cookies);
+    if (hasPreviewCookies(previewCookies)) {
+        try {
+            const jsonwebtoken = await Promise.resolve().then(function () { return require('./index-a315d912.js'); }).then(function (n) { return n.index; });
+            jsonwebtoken.verify(previewCookies[NEXT_PREVIEW_DATA_COOKIE], previewModeSigningKey);
+            return true;
+        }
+        catch (e) {
+            console.warn("Found preview headers without valid authentication token");
+        }
+    }
+    return false;
+};
+// Private
+const getPreviewCookies = (cookies) => {
+    const targetCookie = cookies || [];
+    return targetCookie.reduce((previewCookies, cookieObj) => {
+        const parsedCookie = parse_1(cookieObj.value);
+        if (hasPreviewCookies(parsedCookie)) {
+            return parsedCookie;
+        }
+        return previewCookies;
+    }, defaultPreviewCookies);
+};
+const hasPreviewCookies = (cookies) => !!(cookies[NEXT_PREVIEW_DATA_COOKIE] && cookies[NEXT_PRERENDER_BYPASS_COOKIE]);
 
 /**
  * Create a redirect response with the given status code
@@ -845,16 +1541,290 @@ function getDomainRedirectPath(request, manifest) {
         }
     }
 }
+/**
+ * Redirect from root to locale.
+ * @param req
+ * @param routesManifest
+ * @param manifest
+ */
+async function getLanguageRedirectPath(req, manifest, routesManifest) {
+    var _a, _b, _c;
+    // Check for disabled locale detection: https://nextjs.org/docs/advanced-features/i18n-routing#disabling-automatic-locale-detection
+    if (((_a = routesManifest.i18n) === null || _a === void 0 ? void 0 : _a.localeDetection) === false) {
+        return undefined;
+    }
+    // Try to get locale domain redirect
+    const localeDomainRedirect = await getLocaleDomainRedirect(req, routesManifest);
+    if (localeDomainRedirect) {
+        return localeDomainRedirect;
+    }
+    const basePath = routesManifest.basePath;
+    const trailingSlash = manifest.trailingSlash;
+    const rootUri = basePath ? `${basePath}${trailingSlash ? "/" : ""}` : "/";
+    // NEXT_LOCALE in cookie will override any accept-language header
+    // per: https://nextjs.org/docs/advanced-features/i18n-routing#leveraging-the-next_locale-cookie
+    const headerCookies = req.headers.cookie
+        ? (_b = req.headers.cookie[0]) === null || _b === void 0 ? void 0 : _b.value
+        : undefined;
+    if (req.uri === rootUri && headerCookies) {
+        const cookies = parse_1(headerCookies);
+        const nextLocale = cookies["NEXT_LOCALE"];
+        if (nextLocale) {
+            return await getAcceptLanguageLocale(nextLocale, manifest, routesManifest);
+        }
+    }
+    const languageHeader = req.headers["accept-language"];
+    const acceptLanguage = languageHeader && ((_c = languageHeader[0]) === null || _c === void 0 ? void 0 : _c.value);
+    if (req.uri === rootUri && acceptLanguage) {
+        return await getAcceptLanguageLocale(acceptLanguage, manifest, routesManifest);
+    }
+}
+/**
+ * Get the redirect of the given path, if it exists.
+ * @param request
+ * @param routesManifest
+ */
+function getRedirectPath(request, routesManifest) {
+    var _a;
+    const path = addDefaultLocaleToPath(request.uri, routesManifest);
+    const redirects = (_a = routesManifest.redirects) !== null && _a !== void 0 ? _a : [];
+    for (const redirect of redirects) {
+        const match = matchPath(path, redirect.source);
+        if (match) {
+            const compiledDestination = compileDestination(redirect.destination, match.params);
+            if (!compiledDestination) {
+                return null;
+            }
+            return {
+                path: compiledDestination,
+                statusCode: redirect.statusCode
+            };
+        }
+    }
+    return null;
+}
+/**
+ * Get a domain redirect such as redirecting www to non-www domain.
+ * @param request
+ * @param manifest
+ */
+function getTrailingSlashPath(request, manifest, isFile) {
+    const { uri } = request;
+    if (isFile) {
+        // Data requests and public files with trailing slash URL always get
+        // redirected to non-trailing slash URL
+        if (uri.endsWith("/")) {
+            return uri.slice(0, -1);
+        }
+    }
+    else if (/^\/[^/]/.test(request.uri)) {
+        // HTML/SSR pages get redirected based on trailingSlash in next.config.js
+        // We do not redirect:
+        // Unnormalised URI is "/" or "" as this could cause a redirect loop
+        const trailingSlash = manifest.trailingSlash;
+        if (!trailingSlash && uri.endsWith("/")) {
+            return uri.slice(0, -1);
+        }
+        if (trailingSlash && !uri.endsWith("/")) {
+            return uri + "/";
+        }
+    }
+}
 
 const handleAuth = (req, manifest) => {
     const { headers } = req;
     return getUnauthenticatedResponse(headers.authorization, manifest.authentication);
+};
+const handleCustomRedirects = (req, routesManifest) => {
+    const redirect = getRedirectPath(req, routesManifest);
+    if (redirect) {
+        const { path, statusCode } = redirect;
+        return createRedirectResponse(path, req.querystring, statusCode);
+    }
 };
 const handleDomainRedirects = (req, manifest) => {
     const path = getDomainRedirectPath(req, manifest);
     if (path) {
         return createRedirectResponse(path, req.querystring, 308);
     }
+};
+const handleLanguageRedirect = async (req, manifest, routesManifest) => {
+    const languageRedirectUri = await getLanguageRedirectPath(req, manifest, routesManifest);
+    if (languageRedirectUri) {
+        return createRedirectResponse(languageRedirectUri, req.querystring, 307);
+    }
+};
+const handleNextStaticFiles = (uri) => {
+    if (uri.startsWith("/_next/static")) {
+        return {
+            isNextStaticFile: true,
+            file: uri
+        };
+    }
+};
+const handlePublicFiles = (uri, manifest) => {
+    const decodedUri = decodeURI(uri);
+    const isPublicFile = manifest.publicFiles && manifest.publicFiles[decodedUri];
+    if (isPublicFile) {
+        return {
+            isPublicFile: true,
+            file: uri
+        };
+    }
+};
+const handleTrailingSlash = (req, manifest, isFile) => {
+    const path = getTrailingSlashPath(req, manifest, isFile);
+    if (path) {
+        return createRedirectResponse(path, req.querystring, 308);
+    }
+};
+/*
+ * Routes:
+ * - auth
+ * - redirects
+ * - public files
+ * - data routes
+ * - pages
+ * - rewrites (external and page)
+ */
+const routeDefault = async (req, manifest, prerenderManifest, routesManifest) => {
+    const auth = handleAuth(req, manifest);
+    if (auth) {
+        return auth;
+    }
+    const domainRedirect = handleDomainRedirects(req, manifest);
+    if (domainRedirect) {
+        return domainRedirect;
+    }
+    const { normalisedUri: uri, missingExpectedBasePath } = normalise(req.uri, routesManifest);
+    const is404 = uri.endsWith("/404");
+    const isDataReq = uri.startsWith("/_next/data");
+    const publicFile = handlePublicFiles(uri, manifest);
+    const isPublicFile = !!publicFile;
+    const nextStaticFile = handleNextStaticFiles(uri);
+    const isNextStaticFile = !!nextStaticFile;
+    // Only try to handle trailing slash redirects or public files if the URI isn't missing a base path.
+    // This allows us to handle redirects without base paths.
+    if (!missingExpectedBasePath) {
+        const trailingSlash = !is404 &&
+            handleTrailingSlash(req, manifest, isDataReq || isPublicFile || isNextStaticFile);
+        if (trailingSlash) {
+            return trailingSlash;
+        }
+        if (publicFile) {
+            return publicFile;
+        }
+        if (nextStaticFile) {
+            return nextStaticFile;
+        }
+    }
+    const otherRedirect = handleCustomRedirects(req, routesManifest) ||
+        (await handleLanguageRedirect(req, manifest, routesManifest));
+    if (otherRedirect) {
+        return otherRedirect;
+    }
+    const isPreview = await isValidPreviewRequest(req.headers.cookie, prerenderManifest.preview.previewModeSigningKey);
+    if (isDataReq) {
+        return handleDataReq(uri, manifest, routesManifest, isPreview);
+    }
+    else {
+        return handlePageReq(req, req.uri, manifest, routesManifest, isPreview);
+    }
+};
+
+const unauthorized = (event, route) => {
+    setHeadersFromRoute(event, route);
+    event.res.statusCode = route.status;
+    event.res.statusMessage = route.statusDescription;
+    event.res.end();
+};
+
+const renderErrorPage = async (error, event, route, manifest, routesManifest, getPage) => {
+    var _a;
+    console.error(`Error rendering page: ${route.page}. Error:\n${error}\nRendering Next.js error page.`);
+    const { req, res } = event;
+    const localePrefix = getLocalePrefixFromUri((_a = req.url) !== null && _a !== void 0 ? _a : "", routesManifest);
+    // Render static error page if present by returning static route
+    const errorRoute = `${localePrefix}/500`;
+    const staticErrorPage = manifest.pages.html.nonDynamic[errorRoute] ||
+        manifest.pages.ssg.nonDynamic[errorRoute];
+    if (staticErrorPage) {
+        return {
+            isData: route.isData,
+            isStatic: true,
+            file: `pages${localePrefix}/500.html`,
+            statusCode: 500
+        };
+    }
+    else {
+        // Set status to 500 so _error.js will render a 500 page
+        res.statusCode = 500;
+        const errorPage = getPage("./pages/_error.js");
+        await Promise.race([errorPage.render(req, res), event.responsePromise]);
+    }
+};
+
+const renderRoute = async (event, route, manifest, routesManifest, getPage) => {
+    const { req, res } = event;
+    setCustomHeaders(event, routesManifest);
+    // For SSR rewrites to work the page needs to be passed a localized url
+    if (req.url && routesManifest.i18n && !route.isData) {
+        req.url = addDefaultLocaleToPath(req.url, routesManifest, findDomainLocale(toRequest(event), routesManifest));
+    }
+    // Sets error page status code so _error renders the right page
+    if (route.statusCode) {
+        res.statusCode = route.statusCode;
+    }
+    const page = getPage(route.page);
+    try {
+        if (route.isData) {
+            const { renderOpts } = await page.renderReqToHTML(req, res, "passthrough");
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(renderOpts.pageData));
+        }
+        else if (route.isApi) {
+            // do nothing for API routes as they will be handled later
+        }
+        else {
+            await Promise.race([page.render(req, res), event.responsePromise]);
+        }
+    }
+    catch (error) {
+        return renderErrorPage(error, event, route, manifest, routesManifest, getPage);
+    }
+};
+/*
+ * Handles page and data routes.
+ *
+ * Returns one of: ExternalRoute, PublicFileRoute, StaticRoute
+ * for handling in the caller.
+ *
+ * If return is void, the response has already been generated in
+ * event.res/event.responsePromise which the caller should wait on.
+ */
+const handleDefault = async (event, manifest, prerenderManifest, routesManifest, getPage) => {
+    const request = toRequest(event);
+    const route = await routeDefault(request, manifest, prerenderManifest, routesManifest);
+    if (route.querystring) {
+        event.req.url = `${event.req.url}${request.querystring ? "&" : "?"}${route.querystring}`;
+    }
+    if (route.isRedirect) {
+        return redirect(event, route);
+    }
+    if (route.isRender) {
+        return renderRoute(event, route, manifest, routesManifest, getPage);
+    }
+    if (route.isApi) {
+        const { page } = route;
+        setCustomHeaders(event, routesManifest);
+        getPage(page).default(event.req, event.res);
+        return;
+    }
+    if (route.isUnauthorized) {
+        return unauthorized(event, route);
+    }
+    // Let typescript check this is correct type to be returned
+    return route;
 };
 
 var esm=(()=>{var e={343:(e,t,r)=>{r.r(t);r.d(t,{Observable:()=>Observable,combineLatest:()=>combineLatest,default:()=>l,merge:()=>merge,zip:()=>zip});const n=()=>typeof Symbol==="function";const o=e=>n()&&Boolean(Symbol[e]);const i=e=>o(e)?Symbol[e]:"@@"+e;if(n()&&!o("observable")){Symbol.observable=Symbol("observable");}const s=i("iterator");const u=i("observable");const c=i("species");function getMethod(e,t){let r=e[t];if(r==null)return undefined;if(typeof r!=="function")throw new TypeError(r+" is not a function");return r}function getSpecies(e){let t=e.constructor;if(t!==undefined){t=t[c];if(t===null){t=undefined;}}return t!==undefined?t:Observable}function isObservable(e){return e instanceof Observable}function hostReportError(e){if(hostReportError.log){hostReportError.log(e);}else {setTimeout(()=>{throw e});}}function enqueue(e){Promise.resolve().then(()=>{try{e();}catch(e){hostReportError(e);}});}function cleanupSubscription(e){let t=e._cleanup;if(t===undefined)return;e._cleanup=undefined;if(!t){return}try{if(typeof t==="function"){t();}else {let e=getMethod(t,"unsubscribe");if(e){e.call(t);}}}catch(e){hostReportError(e);}}function closeSubscription(e){e._observer=undefined;e._queue=undefined;e._state="closed";}function flushSubscription(e){let t=e._queue;if(!t){return}e._queue=undefined;e._state="ready";for(let r=0;r<t.length;++r){notifySubscription(e,t[r].type,t[r].value);if(e._state==="closed")break}}function notifySubscription(e,t,r){e._state="running";let n=e._observer;try{let o=getMethod(n,t);switch(t){case"next":if(o)o.call(n,r);break;case"error":closeSubscription(e);if(o)o.call(n,r);else throw r;break;case"complete":closeSubscription(e);if(o)o.call(n);break}}catch(e){hostReportError(e);}if(e._state==="closed")cleanupSubscription(e);else if(e._state==="running")e._state="ready";}function onNotify(e,t,r){if(e._state==="closed")return;if(e._state==="buffering"){e._queue.push({type:t,value:r});return}if(e._state!=="ready"){e._state="buffering";e._queue=[{type:t,value:r}];enqueue(()=>flushSubscription(e));return}notifySubscription(e,t,r);}class Subscription{constructor(e,t){this._cleanup=undefined;this._observer=e;this._queue=undefined;this._state="initializing";let r=new SubscriptionObserver(this);try{this._cleanup=t.call(undefined,r);}catch(e){r.error(e);}if(this._state==="initializing")this._state="ready";}get closed(){return this._state==="closed"}unsubscribe(){if(this._state!=="closed"){closeSubscription(this);cleanupSubscription(this);}}}class SubscriptionObserver{constructor(e){this._subscription=e;}get closed(){return this._subscription._state==="closed"}next(e){onNotify(this._subscription,"next",e);}error(e){onNotify(this._subscription,"error",e);}complete(){onNotify(this._subscription,"complete");}}class Observable{constructor(e){if(!(this instanceof Observable))throw new TypeError("Observable cannot be called as a function");if(typeof e!=="function")throw new TypeError("Observable initializer must be a function");this._subscriber=e;}subscribe(e){if(typeof e!=="object"||e===null){e={next:e,error:arguments[1],complete:arguments[2]};}return new Subscription(e,this._subscriber)}forEach(e){return new Promise((t,r)=>{if(typeof e!=="function"){r(new TypeError(e+" is not a function"));return}function done(){n.unsubscribe();t();}let n=this.subscribe({next(t){try{e(t,done);}catch(e){r(e);n.unsubscribe();}},error:r,complete:t});})}map(e){if(typeof e!=="function")throw new TypeError(e+" is not a function");let t=getSpecies(this);return new t(t=>this.subscribe({next(r){try{r=e(r);}catch(e){return t.error(e)}t.next(r);},error(e){t.error(e);},complete(){t.complete();}}))}filter(e){if(typeof e!=="function")throw new TypeError(e+" is not a function");let t=getSpecies(this);return new t(t=>this.subscribe({next(r){try{if(!e(r))return}catch(e){return t.error(e)}t.next(r);},error(e){t.error(e);},complete(){t.complete();}}))}reduce(e){if(typeof e!=="function")throw new TypeError(e+" is not a function");let t=getSpecies(this);let r=arguments.length>1;let n=false;let o=arguments[1];let i=o;return new t(t=>this.subscribe({next(o){let s=!n;n=true;if(!s||r){try{i=e(i,o);}catch(e){return t.error(e)}}else {i=o;}},error(e){t.error(e);},complete(){if(!n&&!r)return t.error(new TypeError("Cannot reduce an empty sequence"));t.next(i);t.complete();}}))}concat(...e){let t=getSpecies(this);return new t(r=>{let n;let o=0;function startNext(i){n=i.subscribe({next(e){r.next(e);},error(e){r.error(e);},complete(){if(o===e.length){n=undefined;r.complete();}else {startNext(t.from(e[o++]));}}});}startNext(this);return ()=>{if(n){n.unsubscribe();n=undefined;}}})}flatMap(e){if(typeof e!=="function")throw new TypeError(e+" is not a function");let t=getSpecies(this);return new t(r=>{let n=[];let o=this.subscribe({next(o){if(e){try{o=e(o);}catch(e){return r.error(e)}}let i=t.from(o).subscribe({next(e){r.next(e);},error(e){r.error(e);},complete(){let e=n.indexOf(i);if(e>=0)n.splice(e,1);completeIfDone();}});n.push(i);},error(e){r.error(e);},complete(){completeIfDone();}});function completeIfDone(){if(o.closed&&n.length===0)r.complete();}return ()=>{n.forEach(e=>e.unsubscribe());o.unsubscribe();}})}[u](){return this}static from(e){let t=typeof this==="function"?this:Observable;if(e==null)throw new TypeError(e+" is not an object");let r=getMethod(e,u);if(r){let n=r.call(e);if(Object(n)!==n)throw new TypeError(n+" is not an object");if(isObservable(n)&&n.constructor===t)return n;return new t(e=>n.subscribe(e))}if(o("iterator")){r=getMethod(e,s);if(r){return new t(t=>{enqueue(()=>{if(t.closed)return;for(let n of r.call(e)){t.next(n);if(t.closed)return}t.complete();});})}}if(Array.isArray(e)){return new t(t=>{enqueue(()=>{if(t.closed)return;for(let r=0;r<e.length;++r){t.next(e[r]);if(t.closed)return}t.complete();});})}throw new TypeError(e+" is not observable")}static of(...e){let t=typeof this==="function"?this:Observable;return new t(t=>{enqueue(()=>{if(t.closed)return;for(let r=0;r<e.length;++r){t.next(e[r]);if(t.closed)return}t.complete();});})}static get[c](){return this}}if(n()){Object.defineProperty(Observable,Symbol("extensions"),{value:{symbol:u,hostReportError:hostReportError},configurable:true});}function merge(...e){return new Observable(t=>{if(e.length===0)return Observable.from([]);let r=e.length;let n=e.map(e=>Observable.from(e).subscribe({next(e){t.next(e);},error(e){t.error(e);},complete(){if(--r===0)t.complete();}}));return ()=>n.forEach(e=>e.unsubscribe())})}function combineLatest(...e){return new Observable(t=>{if(e.length===0)return Observable.from([]);let r=e.length;let n=new Set;let o=false;let i=e.map(()=>undefined);let s=e.map((s,u)=>Observable.from(s).subscribe({next(r){i[u]=r;if(!o){n.add(u);if(n.size!==e.length)return;n=null;o=true;}t.next(Array.from(i));},error(e){t.error(e);},complete(){if(--r===0)t.complete();}}));return ()=>s.forEach(e=>e.unsubscribe())})}function zip(...e){return new Observable(t=>{if(e.length===0)return Observable.from([]);let r=e.map(()=>[]);function done(){return r.some((e,t)=>e.length===0&&n[t].closed)}let n=e.map((e,n)=>Observable.from(e).subscribe({next(e){r[n].push(e);if(r.every(e=>e.length>0)){t.next(r.map(e=>e.shift()));if(done())t.complete();}},error(e){t.error(e);},complete(){if(done())t.complete();}}));return ()=>n.forEach(e=>e.unsubscribe())})}const l=Observable;}};var t={};function __nccwpck_require__(r){if(t[r]){return t[r].exports}var n=t[r]={exports:{}};var o=true;try{e[r](n,n.exports,__nccwpck_require__);o=false;}finally{if(o)delete t[r];}return n.exports}(()=>{__nccwpck_require__.d=((e,t)=>{for(var r in t){if(__nccwpck_require__.o(t,r)&&!__nccwpck_require__.o(e,r)){Object.defineProperty(e,r,{enumerable:true,get:t[r]});}}});})();(()=>{__nccwpck_require__.o=((e,t)=>Object.prototype.hasOwnProperty.call(e,t));})();(()=>{__nccwpck_require__.r=(e=>{if(typeof Symbol!=="undefined"&&Symbol.toStringTag){Object.defineProperty(e,Symbol.toStringTag,{value:"Module"});}Object.defineProperty(e,"__esModule",{value:true});});})();__nccwpck_require__.ab=__dirname+"/";return __nccwpck_require__(343)})();
@@ -981,16 +1951,157 @@ exports.TRACE_OUTPUT_VERSION = TRACE_OUTPUT_VERSION;
 
 });
 
-_interopRequireDefault(esm);
+var resultsToString_1 = resultsToString;
+var _zenObservable = _interopRequireDefault(esm);
 
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
+function mergeResults(results) {
+    // @ts-ignore
+    return _zenObservable.default.prototype.concat.call(...results);
+}
+async function resultsToString(results) {
+    const chunks = [];
+    await mergeResults(results).forEach((chunk)=>{
+        chunks.push(chunk);
+    });
+    return chunks.join('');
+}
+
+/**
+ * Render to HTML helper. Starting in Next.js 11.1 a change was introduced so renderReqToHTML no longer returns a string.
+ * See: https://github.com/vercel/next.js/pull/27319
+ * This is a helper to properly render it in backwards compatible way.
+ * @param page
+ * @param req
+ * @param res
+ * @param renderMode
+ */
+const renderPageToHtml = async (page, req, res, renderMode) => {
+    var _a;
+    const { renderOpts, html: htmlResult } = await page.renderReqToHTML(req, res, renderMode);
+    let html = undefined;
+    if (typeof htmlResult === "string") {
+        html = htmlResult; // Next.js < 11.1
+    }
+    else {
+        if (htmlResult) {
+            html = await ((_a = htmlResult.toUnchunkedString) === null || _a === void 0 ? void 0 : _a.call(htmlResult)); // Next >= 12
+            if (!html) {
+                try {
+                    html = await resultsToString_1([htmlResult]); // Next >= 11.1.1
+                }
+                catch (e) {
+                    console.log("html could not be rendered using resultsToString().");
+                }
+            }
+        }
+    }
+    if (!html) {
+        console.log("html is empty, falling back to using page's rendering function for html");
+        html = (await page.renderReqToHTML(req, res));
+    }
+    return { html, renderOpts };
+};
+
+const renderNotFound = async (event, manifest, routesManifest, getPage) => {
+    var _a;
+    const route = notFoundPage((_a = event.req.url) !== null && _a !== void 0 ? _a : "", manifest, routesManifest);
+    if (route.isStatic) {
+        return route;
+    }
+    return await renderRoute(event, route, manifest, routesManifest, getPage);
+};
+const renderFallback = async (event, route, manifest, routesManifest, getPage) => {
+    const { req, res } = event;
+    setCustomHeaders(event, routesManifest);
+    const page = getPage(route.page);
+    try {
+        const { html, renderOpts } = await renderPageToHtml(page, req, res, "passthrough");
+        if (renderOpts.isNotFound) {
+            if (route.isData) {
+                res.setHeader("Content-Type", "application/json");
+                res.statusCode = 404;
+                res.end(JSON.stringify({ notFound: true }));
+                return;
+            }
+            return renderNotFound(event, manifest, routesManifest, getPage);
+        }
+        return { isStatic: false, route, html, renderOpts };
+    }
+    catch (error) {
+        return renderErrorPage(error, event, route, manifest, routesManifest, getPage);
+    }
+};
+/*
+ * Handles fallback routes
+ *
+ * If route is a blocking fallback or a fallback data route,
+ * a Fallback object is returned. It contains the rendered page.
+ *
+ * Otherwise either a page is rendered (like handleDefault) or
+ * returns as StaticRoute for the caller to handle.
+ */
+const handleFallback = async (event, route, manifest, routesManifest, getPage) => {
+    // This should not be needed if all SSR routes are handled correctly
+    if (route.isRender) {
+        return renderRoute(event, route, manifest, routesManifest, getPage);
+    }
+    if (route.isStatic) {
+        const staticRoute = route;
+        const shouldRender = (staticRoute.fallback && staticRoute.isData) ||
+            staticRoute.fallback === null;
+        if (shouldRender && staticRoute.page) {
+            const fallback = staticRoute;
+            return renderFallback(event, fallback, manifest, routesManifest, getPage);
+        }
+        if (staticRoute.fallback) {
+            return { ...staticRoute, file: `pages${staticRoute.fallback}` };
+        }
+    }
+    return await renderNotFound(event, manifest, routesManifest, getPage);
+};
+
+const firstRegenerateExpiryDate = (lastModifiedHeader, initialRevalidateSeconds) => {
+    return new Date(new Date(lastModifiedHeader).getTime() + initialRevalidateSeconds * 1000);
+};
+/**
+ * Function called within an origin response as part of the Incremental Static
+ * Regeneration logic. Returns required headers for the response, or false if
+ * this response is not compatible with ISR.
+ */
+const getStaticRegenerationResponse = (options) => {
+    const { initialRevalidateSeconds } = options;
+    // ISR pages that were either previously regenerated or generated
+    // post-initial-build, will have an `Expires` header set. However ISR pages
+    // that have not been regenerated but at build-time resolved a revalidate
+    // property will not have an `Expires` header and therefore we check using the
+    // manifest.
+    if (!options.expiresHeader &&
+        !(options.lastModifiedHeader && typeof initialRevalidateSeconds === "number")) {
+        return false;
+    }
+    const expiresAt = options.expiresHeader
+        ? new Date(options.expiresHeader)
+        : firstRegenerateExpiryDate(options.lastModifiedHeader, initialRevalidateSeconds);
+    const secondsRemainingUntilRevalidation = Math.ceil(Math.max(0, (expiresAt.getTime() - Date.now()) / 1000));
+    return {
+        secondsRemainingUntilRevalidation,
+        cacheControl: `public, max-age=0, s-maxage=${secondsRemainingUntilRevalidation}, must-revalidate`
+    };
+};
+const getThrottledStaticRegenerationCachePolicy = (expiresInSeconds) => {
+    return {
+        secondsRemainingUntilRevalidation: expiresInSeconds,
+        cacheControl: `public, max-age=0, s-maxage=${expiresInSeconds}, must-revalidate`
+    };
+};
 
 var conversions = {};
-var lib$5 = conversions;
+var lib$1 = conversions;
 
 function sign(x) {
     return x < 0 ? -1 : 1;
@@ -1177,7 +2288,7 @@ conversions["RegExp"] = function (V, opts) {
     return V;
 };
 
-var utils$1 = createCommonjsModule(function (module) {
+var utils = createCommonjsModule(function (module) {
 
 module.exports.mixin = function mixin(target, source) {
   const keys = Object.getOwnPropertyNames(source);
@@ -78854,7 +79965,7 @@ var PROCESSING_OPTIONS = {
   NONTRANSITIONAL: 1
 };
 
-function normalize$1(str) { // fix bug in v8
+function normalize(str) { // fix bug in v8
   return str.split('\u0000').map(function (s) { return s.normalize('NFC'); }).join('\u0000');
 }
 
@@ -78950,7 +80061,7 @@ function validateLabel(label, processing_option) {
 
   var error = false;
 
-  if (normalize$1(label) !== label ||
+  if (normalize(label) !== label ||
       (label[3] === "-" && label[4] === "-") ||
       label[0] === "-" || label[label.length - 1] === "-" ||
       label.indexOf(".") !== -1 ||
@@ -78977,7 +80088,7 @@ function validateLabel(label, processing_option) {
 
 function processing(domain_name, useSTD3, processing_option) {
   var result = mapChars(domain_name, useSTD3, processing_option);
-  result.string = normalize$1(result.string);
+  result.string = normalize(result.string);
 
   var labels = result.string.split(".");
   for (var i = 0; i < labels.length; ++i) {
@@ -80549,7 +81660,7 @@ var URL_1 = createCommonjsModule(function (module) {
 
 
 
-const impl = utils$1.implSymbol;
+const impl = utils.implSymbol;
 
 function URL(url) {
   if (!this || this[impl] || !(this instanceof URL)) {
@@ -80562,9 +81673,9 @@ function URL(url) {
   for (let i = 0; i < arguments.length && i < 2; ++i) {
     args[i] = arguments[i];
   }
-  args[0] = lib$5["USVString"](args[0]);
+  args[0] = lib$1["USVString"](args[0]);
   if (args[1] !== undefined) {
-  args[1] = lib$5["USVString"](args[1]);
+  args[1] = lib$1["USVString"](args[1]);
   }
 
   module.exports.setup(this, args);
@@ -80585,7 +81696,7 @@ Object.defineProperty(URL.prototype, "href", {
     return this[impl].href;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].href = V;
   },
   enumerable: true,
@@ -80612,7 +81723,7 @@ Object.defineProperty(URL.prototype, "protocol", {
     return this[impl].protocol;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].protocol = V;
   },
   enumerable: true,
@@ -80624,7 +81735,7 @@ Object.defineProperty(URL.prototype, "username", {
     return this[impl].username;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].username = V;
   },
   enumerable: true,
@@ -80636,7 +81747,7 @@ Object.defineProperty(URL.prototype, "password", {
     return this[impl].password;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].password = V;
   },
   enumerable: true,
@@ -80648,7 +81759,7 @@ Object.defineProperty(URL.prototype, "host", {
     return this[impl].host;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].host = V;
   },
   enumerable: true,
@@ -80660,7 +81771,7 @@ Object.defineProperty(URL.prototype, "hostname", {
     return this[impl].hostname;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].hostname = V;
   },
   enumerable: true,
@@ -80672,7 +81783,7 @@ Object.defineProperty(URL.prototype, "port", {
     return this[impl].port;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].port = V;
   },
   enumerable: true,
@@ -80684,7 +81795,7 @@ Object.defineProperty(URL.prototype, "pathname", {
     return this[impl].pathname;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].pathname = V;
   },
   enumerable: true,
@@ -80696,7 +81807,7 @@ Object.defineProperty(URL.prototype, "search", {
     return this[impl].search;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].search = V;
   },
   enumerable: true,
@@ -80708,7 +81819,7 @@ Object.defineProperty(URL.prototype, "hash", {
     return this[impl].hash;
   },
   set(V) {
-    V = lib$5["USVString"](V);
+    V = lib$1["USVString"](V);
     this[impl].hash = V;
   },
   enumerable: true,
@@ -80730,7 +81841,7 @@ module.exports = {
     privateData.wrapper = obj;
 
     obj[impl] = new URLImpl_1.implementation(constructorArgs, privateData);
-    obj[impl][utils$1.wrapperSymbol] = obj;
+    obj[impl][utils.wrapperSymbol] = obj;
   },
   interface: URL,
   expose: {
@@ -81281,7 +82392,7 @@ function isBlob(obj) {
  * @param   Mixed  instance  Response or Request instance
  * @return  Mixed
  */
-function clone$2(instance) {
+function clone(instance) {
 	let p1, p2;
 	let body = instance.body;
 
@@ -81862,7 +82973,7 @@ class Response {
   * @return  Response
   */
 	clone() {
-		return new Response(clone$2(this), {
+		return new Response(clone(this), {
 			url: this.url,
 			status: this.status,
 			statusText: this.statusText,
@@ -81972,7 +83083,7 @@ class Request {
 			throw new TypeError('Request with GET/HEAD method cannot have body');
 		}
 
-		let inputBody = init.body != null ? init.body : isRequest(input) && input.body !== null ? clone$2(input) : null;
+		let inputBody = init.body != null ? init.body : isRequest(input) && input.body !== null ? clone(input) : null;
 
 		Body.call(this, inputBody, {
 			timeout: init.timeout || input.timeout || 0,
@@ -82413,10339 +83524,14 @@ fetch.isRedirect = function (code) {
 // expose Promise
 fetch.Promise = global.Promise;
 
-var stringify$2 = function (...args) {
-
-    try {
-        return JSON.stringify.apply(null, args);
-    }
-    catch (err) {
-        return '[Cannot display object: ' + err.message + ']';
-    }
-};
-
-var error = createCommonjsModule(function (module, exports) {
-
-
-module.exports = class extends Error {
-
-    constructor(args) {
-
-        const msgs = args
-            .filter((arg) => arg !== '')
-            .map((arg) => {
-
-                return typeof arg === 'string' ? arg : arg instanceof Error ? arg.message : stringify$2(arg);
-            });
-
-        super(msgs.join(' ') || 'Unknown error');
-
-        if (typeof Error.captureStackTrace === 'function') {            // $lab:coverage:ignore$
-            Error.captureStackTrace(this, exports.assert);
-        }
-    }
-};
+var index = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  'default': fetch,
+  Headers: Headers,
+  Request: Request,
+  Response: Response,
+  FetchError: FetchError
 });
-
-var assert$1 = function (condition, ...args) {
-
-    if (condition) {
-        return;
-    }
-
-    if (args.length === 1 &&
-        args[0] instanceof Error) {
-
-        throw args[0];
-    }
-
-    throw new error(args);
-};
-
-const internals$9 = {};
-
-
-var reach$1 = function (obj, chain, options) {
-
-    if (chain === false ||
-        chain === null ||
-        chain === undefined) {
-
-        return obj;
-    }
-
-    options = options || {};
-    if (typeof options === 'string') {
-        options = { separator: options };
-    }
-
-    const isChainArray = Array.isArray(chain);
-
-    assert$1(!isChainArray || !options.separator, 'Separator option no valid for array-based chain');
-
-    const path = isChainArray ? chain : chain.split(options.separator || '.');
-    let ref = obj;
-    for (let i = 0; i < path.length; ++i) {
-        let key = path[i];
-        const type = options.iterables && internals$9.iterables(ref);
-
-        if (Array.isArray(ref) ||
-            type === 'set') {
-
-            const number = Number(key);
-            if (Number.isInteger(number)) {
-                key = number < 0 ? ref.length + number : number;
-            }
-        }
-
-        if (!ref ||
-            typeof ref === 'function' && options.functions === false ||         // Defaults to true
-            !type && ref[key] === undefined) {
-
-            assert$1(!options.strict || i + 1 === path.length, 'Missing segment', key, 'in reach path ', chain);
-            assert$1(typeof ref === 'object' || options.functions === true || typeof ref !== 'function', 'Invalid segment', key, 'in reach path ', chain);
-            ref = options.default;
-            break;
-        }
-
-        if (!type) {
-            ref = ref[key];
-        }
-        else if (type === 'set') {
-            ref = [...ref][key];
-        }
-        else {  // type === 'map'
-            ref = ref.get(key);
-        }
-    }
-
-    return ref;
-};
-
-
-internals$9.iterables = function (ref) {
-
-    if (ref instanceof Set) {
-        return 'set';
-    }
-
-    if (ref instanceof Map) {
-        return 'map';
-    }
-};
-
-var types$4 = createCommonjsModule(function (module, exports) {
-
-const internals = {};
-
-
-exports = module.exports = {
-    array: Array.prototype,
-    buffer: Buffer && Buffer.prototype,             // $lab:coverage:ignore$
-    date: Date.prototype,
-    error: Error.prototype,
-    generic: Object.prototype,
-    map: Map.prototype,
-    promise: Promise.prototype,
-    regex: RegExp.prototype,
-    set: Set.prototype,
-    weakMap: WeakMap.prototype,
-    weakSet: WeakSet.prototype
-};
-
-
-internals.typeMap = new Map([
-    ['[object Error]', exports.error],
-    ['[object Map]', exports.map],
-    ['[object Promise]', exports.promise],
-    ['[object Set]', exports.set],
-    ['[object WeakMap]', exports.weakMap],
-    ['[object WeakSet]', exports.weakSet]
-]);
-
-
-exports.getInternalProto = function (obj) {
-
-    if (Array.isArray(obj)) {
-        return exports.array;
-    }
-
-    if (Buffer && obj instanceof Buffer) {          // $lab:coverage:ignore$
-        return exports.buffer;
-    }
-
-    if (obj instanceof Date) {
-        return exports.date;
-    }
-
-    if (obj instanceof RegExp) {
-        return exports.regex;
-    }
-
-    if (obj instanceof Error) {
-        return exports.error;
-    }
-
-    const objName = Object.prototype.toString.call(obj);
-    return internals.typeMap.get(objName) || exports.generic;
-};
-});
-
-var keys = function (obj, options = {}) {
-
-    return options.symbols !== false ? Reflect.ownKeys(obj) : Object.getOwnPropertyNames(obj);  // Defaults to true
-};
-
-var utils = {
-	keys: keys
-};
-
-const internals$8 = {
-    needsProtoHack: new Set([types$4.set, types$4.map, types$4.weakSet, types$4.weakMap])
-};
-
-
-var clone$1 = internals$8.clone = function (obj, options = {}, _seen = null) {
-
-    if (typeof obj !== 'object' ||
-        obj === null) {
-
-        return obj;
-    }
-
-    let clone = internals$8.clone;
-    let seen = _seen;
-
-    if (options.shallow) {
-        if (options.shallow !== true) {
-            return internals$8.cloneWithShallow(obj, options);
-        }
-
-        clone = (value) => value;
-    }
-    else if (seen) {
-        const lookup = seen.get(obj);
-        if (lookup) {
-            return lookup;
-        }
-    }
-    else {
-        seen = new Map();
-    }
-
-    // Built-in object types
-
-    const baseProto = types$4.getInternalProto(obj);
-    if (baseProto === types$4.buffer) {
-        return Buffer && Buffer.from(obj);              // $lab:coverage:ignore$
-    }
-
-    if (baseProto === types$4.date) {
-        return new Date(obj.getTime());
-    }
-
-    if (baseProto === types$4.regex) {
-        return new RegExp(obj);
-    }
-
-    // Generic objects
-
-    const newObj = internals$8.base(obj, baseProto, options);
-    if (newObj === obj) {
-        return obj;
-    }
-
-    if (seen) {
-        seen.set(obj, newObj);                              // Set seen, since obj could recurse
-    }
-
-    if (baseProto === types$4.set) {
-        for (const value of obj) {
-            newObj.add(clone(value, options, seen));
-        }
-    }
-    else if (baseProto === types$4.map) {
-        for (const [key, value] of obj) {
-            newObj.set(key, clone(value, options, seen));
-        }
-    }
-
-    const keys = utils.keys(obj, options);
-    for (const key of keys) {
-        if (key === '__proto__') {
-            continue;
-        }
-
-        if (baseProto === types$4.array &&
-            key === 'length') {
-
-            newObj.length = obj.length;
-            continue;
-        }
-
-        const descriptor = Object.getOwnPropertyDescriptor(obj, key);
-        if (descriptor) {
-            if (descriptor.get ||
-                descriptor.set) {
-
-                Object.defineProperty(newObj, key, descriptor);
-            }
-            else if (descriptor.enumerable) {
-                newObj[key] = clone(obj[key], options, seen);
-            }
-            else {
-                Object.defineProperty(newObj, key, { enumerable: false, writable: true, configurable: true, value: clone(obj[key], options, seen) });
-            }
-        }
-        else {
-            Object.defineProperty(newObj, key, {
-                enumerable: true,
-                writable: true,
-                configurable: true,
-                value: clone(obj[key], options, seen)
-            });
-        }
-    }
-
-    return newObj;
-};
-
-
-internals$8.cloneWithShallow = function (source, options) {
-
-    const keys = options.shallow;
-    options = Object.assign({}, options);
-    options.shallow = false;
-
-    const seen = new Map();
-
-    for (const key of keys) {
-        const ref = reach$1(source, key);
-        if (typeof ref === 'object' ||
-            typeof ref === 'function') {
-
-            seen.set(ref, ref);
-        }
-    }
-
-    return internals$8.clone(source, options, seen);
-};
-
-
-internals$8.base = function (obj, baseProto, options) {
-
-    if (options.prototype === false) {                  // Defaults to true
-        if (internals$8.needsProtoHack.has(baseProto)) {
-            return new baseProto.constructor();
-        }
-
-        return baseProto === types$4.array ? [] : {};
-    }
-
-    const proto = Object.getPrototypeOf(obj);
-    if (proto &&
-        proto.isImmutable) {
-
-        return obj;
-    }
-
-    if (baseProto === types$4.array) {
-        const newObj = [];
-        if (proto !== baseProto) {
-            Object.setPrototypeOf(newObj, proto);
-        }
-
-        return newObj;
-    }
-
-    if (internals$8.needsProtoHack.has(baseProto)) {
-        const newObj = new proto.constructor();
-        if (proto !== baseProto) {
-            Object.setPrototypeOf(newObj, proto);
-        }
-
-        return newObj;
-    }
-
-    return Object.create(proto);
-};
-
-const internals$7 = {};
-
-
-var merge$1 = internals$7.merge = function (target, source, options) {
-
-    assert$1(target && typeof target === 'object', 'Invalid target value: must be an object');
-    assert$1(source === null || source === undefined || typeof source === 'object', 'Invalid source value: must be null, undefined, or an object');
-
-    if (!source) {
-        return target;
-    }
-
-    options = Object.assign({ nullOverride: true, mergeArrays: true }, options);
-
-    if (Array.isArray(source)) {
-        assert$1(Array.isArray(target), 'Cannot merge array onto an object');
-        if (!options.mergeArrays) {
-            target.length = 0;                                                          // Must not change target assignment
-        }
-
-        for (let i = 0; i < source.length; ++i) {
-            target.push(clone$1(source[i], { symbols: options.symbols }));
-        }
-
-        return target;
-    }
-
-    const keys = utils.keys(source, options);
-    for (let i = 0; i < keys.length; ++i) {
-        const key = keys[i];
-        if (key === '__proto__' ||
-            !Object.prototype.propertyIsEnumerable.call(source, key)) {
-
-            continue;
-        }
-
-        const value = source[key];
-        if (value &&
-            typeof value === 'object') {
-
-            if (target[key] === value) {
-                continue;                                           // Can occur for shallow merges
-            }
-
-            if (!target[key] ||
-                typeof target[key] !== 'object' ||
-                (Array.isArray(target[key]) !== Array.isArray(value)) ||
-                value instanceof Date ||
-                (Buffer && Buffer.isBuffer(value)) ||               // $lab:coverage:ignore$
-                value instanceof RegExp) {
-
-                target[key] = clone$1(value, { symbols: options.symbols });
-            }
-            else {
-                internals$7.merge(target[key], value, options);
-            }
-        }
-        else {
-            if (value !== null &&
-                value !== undefined) {                              // Explicit to preserve empty strings
-
-                target[key] = value;
-            }
-            else if (options.nullOverride) {
-                target[key] = value;
-            }
-        }
-    }
-
-    return target;
-};
-
-const internals$6 = {};
-
-
-var applyToDefaults$1 = function (defaults, source, options = {}) {
-
-    assert$1(defaults && typeof defaults === 'object', 'Invalid defaults value: must be an object');
-    assert$1(!source || source === true || typeof source === 'object', 'Invalid source value: must be true, falsy or an object');
-    assert$1(typeof options === 'object', 'Invalid options: must be an object');
-
-    if (!source) {                                                  // If no source, return null
-        return null;
-    }
-
-    if (options.shallow) {
-        return internals$6.applyToDefaultsWithShallow(defaults, source, options);
-    }
-
-    const copy = clone$1(defaults);
-
-    if (source === true) {                                          // If source is set to true, use defaults
-        return copy;
-    }
-
-    const nullOverride = options.nullOverride !== undefined ? options.nullOverride : false;
-    return merge$1(copy, source, { nullOverride, mergeArrays: false });
-};
-
-
-internals$6.applyToDefaultsWithShallow = function (defaults, source, options) {
-
-    const keys = options.shallow;
-    assert$1(Array.isArray(keys), 'Invalid keys');
-
-    const seen = new Map();
-    const merge = source === true ? null : new Set();
-
-    for (let key of keys) {
-        key = Array.isArray(key) ? key : key.split('.');            // Pre-split optimization
-
-        const ref = reach$1(defaults, key);
-        if (ref &&
-            typeof ref === 'object') {
-
-            seen.set(ref, merge && reach$1(source, key) || ref);
-        }
-        else if (merge) {
-            merge.add(key);
-        }
-    }
-
-    const copy = clone$1(defaults, {}, seen);
-
-    if (!merge) {
-        return copy;
-    }
-
-    for (const key of merge) {
-        internals$6.reachCopy(copy, source, key);
-    }
-
-    const nullOverride = options.nullOverride !== undefined ? options.nullOverride : false;
-    return merge$1(copy, source, { nullOverride, mergeArrays: false });
-};
-
-
-internals$6.reachCopy = function (dst, src, path) {
-
-    for (const segment of path) {
-        if (!(segment in src)) {
-            return;
-        }
-
-        const val = src[segment];
-
-        if (typeof val !== 'object' || val === null) {
-            return;
-        }
-
-        src = val;
-    }
-
-    const value = src;
-    let ref = dst;
-    for (let i = 0; i < path.length - 1; ++i) {
-        const segment = path[i];
-        if (typeof ref[segment] !== 'object') {
-            ref[segment] = {};
-        }
-
-        ref = ref[segment];
-    }
-
-    ref[path[path.length - 1]] = value;
-};
-
-const internals$5 = {};
-
-
-var bench = internals$5.Bench = class {
-
-    constructor() {
-
-        this.ts = 0;
-        this.reset();
-    }
-
-    reset() {
-
-        this.ts = internals$5.Bench.now();
-    }
-
-    elapsed() {
-
-        return internals$5.Bench.now() - this.ts;
-    }
-
-    static now() {
-
-        const ts = process.hrtime();
-        return (ts[0] * 1e3) + (ts[1] / 1e6);
-    }
-};
-
-var ignore$1 = function () { };
-
-var block$2 = function () {
-
-    return new Promise(ignore$1);
-};
-
-const internals$4 = {
-    mismatched: null
-};
-
-
-var deepEqual$1 = function (obj, ref, options) {
-
-    options = Object.assign({ prototype: true }, options);
-
-    return !!internals$4.isDeepEqual(obj, ref, options, []);
-};
-
-
-internals$4.isDeepEqual = function (obj, ref, options, seen) {
-
-    if (obj === ref) {                                                      // Copied from Deep-eql, copyright(c) 2013 Jake Luer, jake@alogicalparadox.com, MIT Licensed, https://github.com/chaijs/deep-eql
-        return obj !== 0 || 1 / obj === 1 / ref;
-    }
-
-    const type = typeof obj;
-
-    if (type !== typeof ref) {
-        return false;
-    }
-
-    if (obj === null ||
-        ref === null) {
-
-        return false;
-    }
-
-    if (type === 'function') {
-        if (!options.deepFunction ||
-            obj.toString() !== ref.toString()) {
-
-            return false;
-        }
-
-        // Continue as object
-    }
-    else if (type !== 'object') {
-        return obj !== obj && ref !== ref;                                  // NaN
-    }
-
-    const instanceType = internals$4.getSharedType(obj, ref, !!options.prototype);
-    switch (instanceType) {
-        case types$4.buffer:
-            return Buffer && Buffer.prototype.equals.call(obj, ref);        // $lab:coverage:ignore$
-        case types$4.promise:
-            return obj === ref;
-        case types$4.regex:
-            return obj.toString() === ref.toString();
-        case internals$4.mismatched:
-            return false;
-    }
-
-    for (let i = seen.length - 1; i >= 0; --i) {
-        if (seen[i].isSame(obj, ref)) {
-            return true;                                                    // If previous comparison failed, it would have stopped execution
-        }
-    }
-
-    seen.push(new internals$4.SeenEntry(obj, ref));
-
-    try {
-        return !!internals$4.isDeepEqualObj(instanceType, obj, ref, options, seen);
-    }
-    finally {
-        seen.pop();
-    }
-};
-
-
-internals$4.getSharedType = function (obj, ref, checkPrototype) {
-
-    if (checkPrototype) {
-        if (Object.getPrototypeOf(obj) !== Object.getPrototypeOf(ref)) {
-            return internals$4.mismatched;
-        }
-
-        return types$4.getInternalProto(obj);
-    }
-
-    const type = types$4.getInternalProto(obj);
-    if (type !== types$4.getInternalProto(ref)) {
-        return internals$4.mismatched;
-    }
-
-    return type;
-};
-
-
-internals$4.valueOf = function (obj) {
-
-    const objValueOf = obj.valueOf;
-    if (objValueOf === undefined) {
-        return obj;
-    }
-
-    try {
-        return objValueOf.call(obj);
-    }
-    catch (err) {
-        return err;
-    }
-};
-
-
-internals$4.hasOwnEnumerableProperty = function (obj, key) {
-
-    return Object.prototype.propertyIsEnumerable.call(obj, key);
-};
-
-
-internals$4.isSetSimpleEqual = function (obj, ref) {
-
-    for (const entry of Set.prototype.values.call(obj)) {
-        if (!Set.prototype.has.call(ref, entry)) {
-            return false;
-        }
-    }
-
-    return true;
-};
-
-
-internals$4.isDeepEqualObj = function (instanceType, obj, ref, options, seen) {
-
-    const { isDeepEqual, valueOf, hasOwnEnumerableProperty } = internals$4;
-    const { keys, getOwnPropertySymbols } = Object;
-
-    if (instanceType === types$4.array) {
-        if (options.part) {
-
-            // Check if any index match any other index
-
-            for (const objValue of obj) {
-                for (const refValue of ref) {
-                    if (isDeepEqual(objValue, refValue, options, seen)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        else {
-            if (obj.length !== ref.length) {
-                return false;
-            }
-
-            for (let i = 0; i < obj.length; ++i) {
-                if (!isDeepEqual(obj[i], ref[i], options, seen)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-    else if (instanceType === types$4.set) {
-        if (obj.size !== ref.size) {
-            return false;
-        }
-
-        if (!internals$4.isSetSimpleEqual(obj, ref)) {
-
-            // Check for deep equality
-
-            const ref2 = new Set(Set.prototype.values.call(ref));
-            for (const objEntry of Set.prototype.values.call(obj)) {
-                if (ref2.delete(objEntry)) {
-                    continue;
-                }
-
-                let found = false;
-                for (const refEntry of ref2) {
-                    if (isDeepEqual(objEntry, refEntry, options, seen)) {
-                        ref2.delete(refEntry);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    return false;
-                }
-            }
-        }
-    }
-    else if (instanceType === types$4.map) {
-        if (obj.size !== ref.size) {
-            return false;
-        }
-
-        for (const [key, value] of Map.prototype.entries.call(obj)) {
-            if (value === undefined && !Map.prototype.has.call(ref, key)) {
-                return false;
-            }
-
-            if (!isDeepEqual(value, Map.prototype.get.call(ref, key), options, seen)) {
-                return false;
-            }
-        }
-    }
-    else if (instanceType === types$4.error) {
-
-        // Always check name and message
-
-        if (obj.name !== ref.name ||
-            obj.message !== ref.message) {
-
-            return false;
-        }
-    }
-
-    // Check .valueOf()
-
-    const valueOfObj = valueOf(obj);
-    const valueOfRef = valueOf(ref);
-    if ((obj !== valueOfObj || ref !== valueOfRef) &&
-        !isDeepEqual(valueOfObj, valueOfRef, options, seen)) {
-
-        return false;
-    }
-
-    // Check properties
-
-    const objKeys = keys(obj);
-    if (!options.part &&
-        objKeys.length !== keys(ref).length &&
-        !options.skip) {
-
-        return false;
-    }
-
-    let skipped = 0;
-    for (const key of objKeys) {
-        if (options.skip &&
-            options.skip.includes(key)) {
-
-            if (ref[key] === undefined) {
-                ++skipped;
-            }
-
-            continue;
-        }
-
-        if (!hasOwnEnumerableProperty(ref, key)) {
-            return false;
-        }
-
-        if (!isDeepEqual(obj[key], ref[key], options, seen)) {
-            return false;
-        }
-    }
-
-    if (!options.part &&
-        objKeys.length - skipped !== keys(ref).length) {
-
-        return false;
-    }
-
-    // Check symbols
-
-    if (options.symbols !== false) {                                // Defaults to true
-        const objSymbols = getOwnPropertySymbols(obj);
-        const refSymbols = new Set(getOwnPropertySymbols(ref));
-
-        for (const key of objSymbols) {
-            if (!options.skip ||
-                !options.skip.includes(key)) {
-
-                if (hasOwnEnumerableProperty(obj, key)) {
-                    if (!hasOwnEnumerableProperty(ref, key)) {
-                        return false;
-                    }
-
-                    if (!isDeepEqual(obj[key], ref[key], options, seen)) {
-                        return false;
-                    }
-                }
-                else if (hasOwnEnumerableProperty(ref, key)) {
-                    return false;
-                }
-            }
-
-            refSymbols.delete(key);
-        }
-
-        for (const key of refSymbols) {
-            if (hasOwnEnumerableProperty(ref, key)) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-};
-
-
-internals$4.SeenEntry = class {
-
-    constructor(obj, ref) {
-
-        this.obj = obj;
-        this.ref = ref;
-    }
-
-    isSame(obj, ref) {
-
-        return this.obj === obj && this.ref === ref;
-    }
-};
-
-var escapeRegex$1 = function (string) {
-
-    // Escape ^$.*+-?=!:|\/()[]{},
-
-    return string.replace(/[\^\$\.\*\+\-\?\=\!\:\|\\\/\(\)\[\]\{\}\,]/g, '\\$&');
-};
-
-const internals$3 = {};
-
-
-var contain$1 = function (ref, values, options = {}) {        // options: { deep, once, only, part, symbols }
-
-    /*
-        string -> string(s)
-        array -> item(s)
-        object -> key(s)
-        object -> object (key:value)
-    */
-
-    if (typeof values !== 'object') {
-        values = [values];
-    }
-
-    assert$1(!Array.isArray(values) || values.length, 'Values array cannot be empty');
-
-    // String
-
-    if (typeof ref === 'string') {
-        return internals$3.string(ref, values, options);
-    }
-
-    // Array
-
-    if (Array.isArray(ref)) {
-        return internals$3.array(ref, values, options);
-    }
-
-    // Object
-
-    assert$1(typeof ref === 'object', 'Reference must be string or an object');
-    return internals$3.object(ref, values, options);
-};
-
-
-internals$3.array = function (ref, values, options) {
-
-    if (!Array.isArray(values)) {
-        values = [values];
-    }
-
-    if (!ref.length) {
-        return false;
-    }
-
-    if (options.only &&
-        options.once &&
-        ref.length !== values.length) {
-
-        return false;
-    }
-
-    let compare;
-
-    // Map values
-
-    const map = new Map();
-    for (const value of values) {
-        if (!options.deep ||
-            !value ||
-            typeof value !== 'object') {
-
-            const existing = map.get(value);
-            if (existing) {
-                ++existing.allowed;
-            }
-            else {
-                map.set(value, { allowed: 1, hits: 0 });
-            }
-        }
-        else {
-            compare = compare || internals$3.compare(options);
-
-            let found = false;
-            for (const [key, existing] of map.entries()) {
-                if (compare(key, value)) {
-                    ++existing.allowed;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                map.set(value, { allowed: 1, hits: 0 });
-            }
-        }
-    }
-
-    // Lookup values
-
-    let hits = 0;
-    for (const item of ref) {
-        let match;
-        if (!options.deep ||
-            !item ||
-            typeof item !== 'object') {
-
-            match = map.get(item);
-        }
-        else {
-            compare = compare || internals$3.compare(options);
-
-            for (const [key, existing] of map.entries()) {
-                if (compare(key, item)) {
-                    match = existing;
-                    break;
-                }
-            }
-        }
-
-        if (match) {
-            ++match.hits;
-            ++hits;
-
-            if (options.once &&
-                match.hits > match.allowed) {
-
-                return false;
-            }
-        }
-    }
-
-    // Validate results
-
-    if (options.only &&
-        hits !== ref.length) {
-
-        return false;
-    }
-
-    for (const match of map.values()) {
-        if (match.hits === match.allowed) {
-            continue;
-        }
-
-        if (match.hits < match.allowed &&
-            !options.part) {
-
-            return false;
-        }
-    }
-
-    return !!hits;
-};
-
-
-internals$3.object = function (ref, values, options) {
-
-    assert$1(options.once === undefined, 'Cannot use option once with object');
-
-    const keys = utils.keys(ref, options);
-    if (!keys.length) {
-        return false;
-    }
-
-    // Keys list
-
-    if (Array.isArray(values)) {
-        return internals$3.array(keys, values, options);
-    }
-
-    // Key value pairs
-
-    const symbols = Object.getOwnPropertySymbols(values).filter((sym) => values.propertyIsEnumerable(sym));
-    const targets = [...Object.keys(values), ...symbols];
-
-    const compare = internals$3.compare(options);
-    const set = new Set(targets);
-
-    for (const key of keys) {
-        if (!set.has(key)) {
-            if (options.only) {
-                return false;
-            }
-
-            continue;
-        }
-
-        if (!compare(values[key], ref[key])) {
-            return false;
-        }
-
-        set.delete(key);
-    }
-
-    if (set.size) {
-        return options.part ? set.size < targets.length : false;
-    }
-
-    return true;
-};
-
-
-internals$3.string = function (ref, values, options) {
-
-    // Empty string
-
-    if (ref === '') {
-        return values.length === 1 && values[0] === '' ||               // '' contains ''
-            !options.once && !values.some((v) => v !== '');             // '' contains multiple '' if !once
-    }
-
-    // Map values
-
-    const map = new Map();
-    const patterns = [];
-
-    for (const value of values) {
-        assert$1(typeof value === 'string', 'Cannot compare string reference to non-string value');
-
-        if (value) {
-            const existing = map.get(value);
-            if (existing) {
-                ++existing.allowed;
-            }
-            else {
-                map.set(value, { allowed: 1, hits: 0 });
-                patterns.push(escapeRegex$1(value));
-            }
-        }
-        else if (options.once ||
-            options.only) {
-
-            return false;
-        }
-    }
-
-    if (!patterns.length) {                     // Non-empty string contains unlimited empty string
-        return true;
-    }
-
-    // Match patterns
-
-    const regex = new RegExp(`(${patterns.join('|')})`, 'g');
-    const leftovers = ref.replace(regex, ($0, $1) => {
-
-        ++map.get($1).hits;
-        return '';                              // Remove from string
-    });
-
-    // Validate results
-
-    if (options.only &&
-        leftovers) {
-
-        return false;
-    }
-
-    let any = false;
-    for (const match of map.values()) {
-        if (match.hits) {
-            any = true;
-        }
-
-        if (match.hits === match.allowed) {
-            continue;
-        }
-
-        if (match.hits < match.allowed &&
-            !options.part) {
-
-            return false;
-        }
-
-        // match.hits > match.allowed
-
-        if (options.once) {
-            return false;
-        }
-    }
-
-    return !!any;
-};
-
-
-internals$3.compare = function (options) {
-
-    if (!options.deep) {
-        return internals$3.shallow;
-    }
-
-    const hasOnly = options.only !== undefined;
-    const hasPart = options.part !== undefined;
-
-    const flags = {
-        prototype: hasOnly ? options.only : hasPart ? !options.part : false,
-        part: hasOnly ? !options.only : hasPart ? options.part : false
-    };
-
-    return (a, b) => deepEqual$1(a, b, flags);
-};
-
-
-internals$3.shallow = function (a, b) {
-
-    return a === b;
-};
-
-var escapeHeaderAttribute$1 = function (attribute) {
-
-    // Allowed value characters: !#$%&'()*+,-./:;<=>?@[]^_`{|}~ and space, a-z, A-Z, 0-9, \, "
-
-    assert$1(/^[ \w\!#\$%&'\(\)\*\+,\-\.\/\:;<\=>\?@\[\]\^`\{\|\}~\"\\]*$/.test(attribute), 'Bad attribute value (' + attribute + ')');
-
-    return attribute.replace(/\\/g, '\\\\').replace(/\"/g, '\\"');                             // Escape quotes and slash
-};
-
-const internals$2 = {};
-
-
-var escapeHtml$2 = function (input) {
-
-    if (!input) {
-        return '';
-    }
-
-    let escaped = '';
-
-    for (let i = 0; i < input.length; ++i) {
-
-        const charCode = input.charCodeAt(i);
-
-        if (internals$2.isSafe(charCode)) {
-            escaped += input[i];
-        }
-        else {
-            escaped += internals$2.escapeHtmlChar(charCode);
-        }
-    }
-
-    return escaped;
-};
-
-
-internals$2.escapeHtmlChar = function (charCode) {
-
-    const namedEscape = internals$2.namedHtml[charCode];
-    if (typeof namedEscape !== 'undefined') {
-        return namedEscape;
-    }
-
-    if (charCode >= 256) {
-        return '&#' + charCode + ';';
-    }
-
-    const hexValue = charCode.toString(16).padStart(2, '0');
-    return `&#x${hexValue};`;
-};
-
-
-internals$2.isSafe = function (charCode) {
-
-    return (typeof internals$2.safeCharCodes[charCode] !== 'undefined');
-};
-
-
-internals$2.namedHtml = {
-    '38': '&amp;',
-    '60': '&lt;',
-    '62': '&gt;',
-    '34': '&quot;',
-    '160': '&nbsp;',
-    '162': '&cent;',
-    '163': '&pound;',
-    '164': '&curren;',
-    '169': '&copy;',
-    '174': '&reg;'
-};
-
-
-internals$2.safeCharCodes = (function () {
-
-    const safe = {};
-
-    for (let i = 32; i < 123; ++i) {
-
-        if ((i >= 97) ||                    // a-z
-            (i >= 65 && i <= 90) ||         // A-Z
-            (i >= 48 && i <= 57) ||         // 0-9
-            i === 32 ||                     // space
-            i === 46 ||                     // .
-            i === 44 ||                     // ,
-            i === 45 ||                     // -
-            i === 58 ||                     // :
-            i === 95) {                     // _
-
-            safe[i] = null;
-        }
-    }
-
-    return safe;
-}());
-
-var escapeJson$1 = function (input) {
-
-    if (!input) {
-        return '';
-    }
-
-    const lessThan = 0x3C;
-    const greaterThan = 0x3E;
-    const andSymbol = 0x26;
-    const lineSeperator = 0x2028;
-
-    // replace method
-    let charCode;
-    return input.replace(/[<>&\u2028\u2029]/g, (match) => {
-
-        charCode = match.charCodeAt(0);
-
-        if (charCode === lessThan) {
-            return '\\u003c';
-        }
-
-        if (charCode === greaterThan) {
-            return '\\u003e';
-        }
-
-        if (charCode === andSymbol) {
-            return '\\u0026';
-        }
-
-        if (charCode === lineSeperator) {
-            return '\\u2028';
-        }
-
-        return '\\u2029';
-    });
-};
-
-const internals$1 = {};
-
-
-var flatten$1 = internals$1.flatten = function (array, target) {
-
-    const result = target || [];
-
-    for (let i = 0; i < array.length; ++i) {
-        if (Array.isArray(array[i])) {
-            internals$1.flatten(array[i], result);
-        }
-        else {
-            result.push(array[i]);
-        }
-    }
-
-    return result;
-};
-
-const internals = {};
-
-
-var intersect$1 = function (array1, array2, options = {}) {
-
-    if (!array1 ||
-        !array2) {
-
-        return (options.first ? null : []);
-    }
-
-    const common = [];
-    const hash = (Array.isArray(array1) ? new Set(array1) : array1);
-    const found = new Set();
-    for (const value of array2) {
-        if (internals.has(hash, value) &&
-            !found.has(value)) {
-
-            if (options.first) {
-                return value;
-            }
-
-            common.push(value);
-            found.add(value);
-        }
-    }
-
-    return (options.first ? null : common);
-};
-
-
-internals.has = function (ref, key) {
-
-    if (typeof ref.has === 'function') {
-        return ref.has(key);
-    }
-
-    return ref[key] !== undefined;
-};
-
-var isPromise$1 = function (promise) {
-
-    return !!promise && typeof promise.then === 'function';
-};
-
-var once$1 = function (method) {
-
-    if (method._hoekOnce) {
-        return method;
-    }
-
-    let once = false;
-    const wrapped = function (...args) {
-
-        if (!once) {
-            once = true;
-            method(...args);
-        }
-    };
-
-    wrapped._hoekOnce = true;
-    return wrapped;
-};
-
-var reachTemplate$1 = function (obj, template, options) {
-
-    return template.replace(/{([^{}]+)}/g, ($0, chain) => {
-
-        const value = reach$1(obj, chain, options);
-        return (value === undefined || value === null ? '' : value);
-    });
-};
-
-var wait$1 = function (timeout, returnValue) {
-
-    if (typeof timeout !== 'number' && timeout !== undefined) {
-        throw new TypeError('Timeout must be a number');
-    }
-
-    return new Promise((resolve) => setTimeout(resolve, timeout, returnValue));
-};
-
-var applyToDefaults = applyToDefaults$1;
-
-var assert = assert$1;
-
-var Bench = bench;
-
-var block$1 = block$2;
-
-var clone = clone$1;
-
-var contain = contain$1;
-
-var deepEqual = deepEqual$1;
-
-var _Error$1 = error;
-
-var escapeHeaderAttribute = escapeHeaderAttribute$1;
-
-var escapeHtml$1 = escapeHtml$2;
-
-var escapeJson = escapeJson$1;
-
-var escapeRegex = escapeRegex$1;
-
-var flatten = flatten$1;
-
-var ignore = ignore$1;
-
-var intersect = intersect$1;
-
-var isPromise = isPromise$1;
-
-var merge = merge$1;
-
-var once = once$1;
-
-var reach = reach$1;
-
-var reachTemplate = reachTemplate$1;
-
-var stringify$1 = stringify$2;
-
-var wait = wait$1;
-
-var lib$4 = {
-	applyToDefaults: applyToDefaults,
-	assert: assert,
-	Bench: Bench,
-	block: block$1,
-	clone: clone,
-	contain: contain,
-	deepEqual: deepEqual,
-	Error: _Error$1,
-	escapeHeaderAttribute: escapeHeaderAttribute,
-	escapeHtml: escapeHtml$1,
-	escapeJson: escapeJson,
-	escapeRegex: escapeRegex,
-	flatten: flatten,
-	ignore: ignore,
-	intersect: intersect,
-	isPromise: isPromise,
-	merge: merge,
-	once: once,
-	reach: reach,
-	reachTemplate: reachTemplate,
-	stringify: stringify$1,
-	wait: wait
-};
-
-var lib$3 = createCommonjsModule(function (module, exports) {
-
-
-
-
-const internals = {
-    codes: new Map([
-        [100, 'Continue'],
-        [101, 'Switching Protocols'],
-        [102, 'Processing'],
-        [200, 'OK'],
-        [201, 'Created'],
-        [202, 'Accepted'],
-        [203, 'Non-Authoritative Information'],
-        [204, 'No Content'],
-        [205, 'Reset Content'],
-        [206, 'Partial Content'],
-        [207, 'Multi-Status'],
-        [300, 'Multiple Choices'],
-        [301, 'Moved Permanently'],
-        [302, 'Moved Temporarily'],
-        [303, 'See Other'],
-        [304, 'Not Modified'],
-        [305, 'Use Proxy'],
-        [307, 'Temporary Redirect'],
-        [400, 'Bad Request'],
-        [401, 'Unauthorized'],
-        [402, 'Payment Required'],
-        [403, 'Forbidden'],
-        [404, 'Not Found'],
-        [405, 'Method Not Allowed'],
-        [406, 'Not Acceptable'],
-        [407, 'Proxy Authentication Required'],
-        [408, 'Request Time-out'],
-        [409, 'Conflict'],
-        [410, 'Gone'],
-        [411, 'Length Required'],
-        [412, 'Precondition Failed'],
-        [413, 'Request Entity Too Large'],
-        [414, 'Request-URI Too Large'],
-        [415, 'Unsupported Media Type'],
-        [416, 'Requested Range Not Satisfiable'],
-        [417, 'Expectation Failed'],
-        [418, 'I\'m a teapot'],
-        [422, 'Unprocessable Entity'],
-        [423, 'Locked'],
-        [424, 'Failed Dependency'],
-        [425, 'Too Early'],
-        [426, 'Upgrade Required'],
-        [428, 'Precondition Required'],
-        [429, 'Too Many Requests'],
-        [431, 'Request Header Fields Too Large'],
-        [451, 'Unavailable For Legal Reasons'],
-        [500, 'Internal Server Error'],
-        [501, 'Not Implemented'],
-        [502, 'Bad Gateway'],
-        [503, 'Service Unavailable'],
-        [504, 'Gateway Time-out'],
-        [505, 'HTTP Version Not Supported'],
-        [506, 'Variant Also Negotiates'],
-        [507, 'Insufficient Storage'],
-        [509, 'Bandwidth Limit Exceeded'],
-        [510, 'Not Extended'],
-        [511, 'Network Authentication Required']
-    ])
-};
-
-
-exports.Boom = class extends Error {
-
-    constructor(message, options = {}) {
-
-        if (message instanceof Error) {
-            return exports.boomify(lib$4.clone(message), options);
-        }
-
-        const { statusCode = 500, data = null, ctor = exports.Boom } = options;
-        const error = new Error(message ? message : undefined);         // Avoids settings null message
-        Error.captureStackTrace(error, ctor);                           // Filter the stack to our external API
-        error.data = data;
-        const boom = internals.initialize(error, statusCode);
-
-        Object.defineProperty(boom, 'typeof', { value: ctor });
-
-        if (options.decorate) {
-            Object.assign(boom, options.decorate);
-        }
-
-        return boom;
-    }
-
-    static [Symbol.hasInstance](instance) {
-
-        if (this === exports.Boom) {
-            return exports.isBoom(instance);
-        }
-
-        // Cannot use 'instanceof' as it creates infinite recursion
-
-        return this.prototype.isPrototypeOf(instance);
-    }
-};
-
-
-exports.isBoom = function (err, statusCode) {
-
-    return err instanceof Error && !!err.isBoom && (!statusCode || err.output.statusCode === statusCode);
-};
-
-
-exports.boomify = function (err, options) {
-
-    lib$4.assert(err instanceof Error, 'Cannot wrap non-Error object');
-
-    options = options || {};
-
-    if (options.data !== undefined) {
-        err.data = options.data;
-    }
-
-    if (options.decorate) {
-        Object.assign(err, options.decorate);
-    }
-
-    if (!err.isBoom) {
-        return internals.initialize(err, options.statusCode || 500, options.message);
-    }
-
-    if (options.override === false ||                           // Defaults to true
-        !options.statusCode && !options.message) {
-
-        return err;
-    }
-
-    return internals.initialize(err, options.statusCode || err.output.statusCode, options.message);
-};
-
-
-// 4xx Client Errors
-
-exports.badRequest = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 400, data, ctor: exports.badRequest });
-};
-
-
-exports.unauthorized = function (message, scheme, attributes) {          // Or (message, wwwAuthenticate[])
-
-    const err = new exports.Boom(message, { statusCode: 401, ctor: exports.unauthorized });
-
-    // function (message)
-
-    if (!scheme) {
-        return err;
-    }
-
-    // function (message, wwwAuthenticate[])
-
-    if (typeof scheme !== 'string') {
-        err.output.headers['WWW-Authenticate'] = scheme.join(', ');
-        return err;
-    }
-
-    // function (message, scheme, attributes)
-
-    let wwwAuthenticate = `${scheme}`;
-
-    if (attributes ||
-        message) {
-
-        err.output.payload.attributes = {};
-    }
-
-    if (attributes) {
-        if (typeof attributes === 'string') {
-            wwwAuthenticate += ' ' + lib$4.escapeHeaderAttribute(attributes);
-            err.output.payload.attributes = attributes;
-        }
-        else {
-            wwwAuthenticate += ' ' + Object.keys(attributes).map((name) => {
-
-                let value = attributes[name];
-                if (value === null ||
-                    value === undefined) {
-
-                    value = '';
-                }
-
-                err.output.payload.attributes[name] = value;
-                return `${name}="${lib$4.escapeHeaderAttribute(value.toString())}"`;
-            })
-                .join(', ');
-        }
-    }
-
-    if (message) {
-        if (attributes) {
-            wwwAuthenticate += ',';
-        }
-
-        wwwAuthenticate += ` error="${lib$4.escapeHeaderAttribute(message)}"`;
-        err.output.payload.attributes.error = message;
-    }
-    else {
-        err.isMissing = true;
-    }
-
-    err.output.headers['WWW-Authenticate'] = wwwAuthenticate;
-    return err;
-};
-
-
-exports.paymentRequired = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 402, data, ctor: exports.paymentRequired });
-};
-
-
-exports.forbidden = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 403, data, ctor: exports.forbidden });
-};
-
-
-exports.notFound = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 404, data, ctor: exports.notFound });
-};
-
-
-exports.methodNotAllowed = function (message, data, allow) {
-
-    const err = new exports.Boom(message, { statusCode: 405, data, ctor: exports.methodNotAllowed });
-
-    if (typeof allow === 'string') {
-        allow = [allow];
-    }
-
-    if (Array.isArray(allow)) {
-        err.output.headers.Allow = allow.join(', ');
-    }
-
-    return err;
-};
-
-
-exports.notAcceptable = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 406, data, ctor: exports.notAcceptable });
-};
-
-
-exports.proxyAuthRequired = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 407, data, ctor: exports.proxyAuthRequired });
-};
-
-
-exports.clientTimeout = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 408, data, ctor: exports.clientTimeout });
-};
-
-
-exports.conflict = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 409, data, ctor: exports.conflict });
-};
-
-
-exports.resourceGone = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 410, data, ctor: exports.resourceGone });
-};
-
-
-exports.lengthRequired = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 411, data, ctor: exports.lengthRequired });
-};
-
-
-exports.preconditionFailed = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 412, data, ctor: exports.preconditionFailed });
-};
-
-
-exports.entityTooLarge = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 413, data, ctor: exports.entityTooLarge });
-};
-
-
-exports.uriTooLong = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 414, data, ctor: exports.uriTooLong });
-};
-
-
-exports.unsupportedMediaType = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 415, data, ctor: exports.unsupportedMediaType });
-};
-
-
-exports.rangeNotSatisfiable = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 416, data, ctor: exports.rangeNotSatisfiable });
-};
-
-
-exports.expectationFailed = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 417, data, ctor: exports.expectationFailed });
-};
-
-
-exports.teapot = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 418, data, ctor: exports.teapot });
-};
-
-
-exports.badData = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 422, data, ctor: exports.badData });
-};
-
-
-exports.locked = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 423, data, ctor: exports.locked });
-};
-
-
-exports.failedDependency = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 424, data, ctor: exports.failedDependency });
-};
-
-exports.tooEarly = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 425, data, ctor: exports.tooEarly });
-};
-
-
-exports.preconditionRequired = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 428, data, ctor: exports.preconditionRequired });
-};
-
-
-exports.tooManyRequests = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 429, data, ctor: exports.tooManyRequests });
-};
-
-
-exports.illegal = function (message, data) {
-
-    return new exports.Boom(message, { statusCode: 451, data, ctor: exports.illegal });
-};
-
-
-// 5xx Server Errors
-
-exports.internal = function (message, data, statusCode = 500) {
-
-    return internals.serverError(message, data, statusCode, exports.internal);
-};
-
-
-exports.notImplemented = function (message, data) {
-
-    return internals.serverError(message, data, 501, exports.notImplemented);
-};
-
-
-exports.badGateway = function (message, data) {
-
-    return internals.serverError(message, data, 502, exports.badGateway);
-};
-
-
-exports.serverUnavailable = function (message, data) {
-
-    return internals.serverError(message, data, 503, exports.serverUnavailable);
-};
-
-
-exports.gatewayTimeout = function (message, data) {
-
-    return internals.serverError(message, data, 504, exports.gatewayTimeout);
-};
-
-
-exports.badImplementation = function (message, data) {
-
-    const err = internals.serverError(message, data, 500, exports.badImplementation);
-    err.isDeveloperError = true;
-    return err;
-};
-
-
-internals.initialize = function (err, statusCode, message) {
-
-    const numberCode = parseInt(statusCode, 10);
-    lib$4.assert(!isNaN(numberCode) && numberCode >= 400, 'First argument must be a number (400+):', statusCode);
-
-    err.isBoom = true;
-    err.isServer = numberCode >= 500;
-
-    if (!err.hasOwnProperty('data')) {
-        err.data = null;
-    }
-
-    err.output = {
-        statusCode: numberCode,
-        payload: {},
-        headers: {}
-    };
-
-    Object.defineProperty(err, 'reformat', { value: internals.reformat, configurable: true });
-
-    if (!message &&
-        !err.message) {
-
-        err.reformat();
-        message = err.output.payload.error;
-    }
-
-    if (message) {
-        const props = Object.getOwnPropertyDescriptor(err, 'message') || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(err), 'message');
-        lib$4.assert(!props || props.configurable && !props.get, 'The error is not compatible with boom');
-
-        err.message = message + (err.message ? ': ' + err.message : '');
-        err.output.payload.message = err.message;
-    }
-
-    err.reformat();
-    return err;
-};
-
-
-internals.reformat = function (debug = false) {
-
-    this.output.payload.statusCode = this.output.statusCode;
-    this.output.payload.error = internals.codes.get(this.output.statusCode) || 'Unknown';
-
-    if (this.output.statusCode === 500 && debug !== true) {
-        this.output.payload.message = 'An internal server error occurred';              // Hide actual error from user
-    }
-    else if (this.message) {
-        this.output.payload.message = this.message;
-    }
-};
-
-
-internals.serverError = function (message, data, statusCode, ctor) {
-
-    if (data instanceof Error &&
-        !data.isBoom) {
-
-        return exports.boomify(data, { statusCode, message });
-    }
-
-    return new exports.Boom(message, { statusCode, data, ctor });
-};
-});
-
-var header = createCommonjsModule(function (module, exports) {
-
-
-
-
-
-const internals = {};
-
-
-exports.selection = function (header, preferences, options) {
-
-    const selections = exports.selections(header, preferences, options);
-    return selections.length ? selections[0] : '';
-};
-
-
-exports.selections = function (header, preferences, options) {
-
-    lib$4.assert(!preferences || Array.isArray(preferences), 'Preferences must be an array');
-
-    return internals.parse(header || '', preferences, options);
-};
-
-
-//      RFC 7231 Section 5.3.3 (https://tools.ietf.org/html/rfc7231#section-5.3.3)
-//
-//      Accept-Charset  = *( "," OWS ) ( ( charset / "*" ) [ weight ] ) *( OWS "," [ OWS ( ( charset / "*" ) [ weight ] ) ] )
-//      charset         = token
-//
-//      Accept-Charset: iso-8859-5, unicode-1-1;q=0.8
-
-
-//      RFC 7231 Section 5.3.4 (https://tools.ietf.org/html/rfc7231#section-5.3.4)
-//
-//      Accept-Encoding = [ ( "," / ( codings [ weight ] ) ) *( OWS "," [ OWS ( codings [ weight ] ) ] ) ]
-//      codings         = content-coding / "identity" / "*"
-//      content-coding  = token
-//
-//      Accept-Encoding: compress, gzip
-//      Accept-Encoding:
-//      Accept-Encoding: *
-//      Accept-Encoding: compress;q=0.5, gzip;q=1.0
-//      Accept-Encoding: gzip;q=1.0, identity; q=0.5, *;q=0
-
-
-//      RFC 7231 Section 5.3.5 (https://tools.ietf.org/html/rfc7231#section-5.3.5)
-//
-//      Accept-Language = *( "," OWS ) ( language-range [ weight ] ) *( OWS "," [ OWS ( language-range [ weight ] ) ] )
-//      language-range  = ( 1*8ALPHA *( "-" 1*8alphanum ) ) / "*"   ; [RFC4647], Section 2.1
-//      alphanum        = ALPHA / DIGIT
-//
-//       Accept-Language: da, en-gb;q=0.8, en;q=0.7
-
-
-//      token           = 1*tchar
-//      tchar           = "!" / "#" / "$" / "%" / "&" / "'" / "*"
-//                        / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
-//                        / DIGIT / ALPHA
-//                        ; any VCHAR, except delimiters
-//      OWS             = *( SP / HTAB )
-
-
-//      RFC 7231 Section 5.3.1 (https://tools.ietf.org/html/rfc7231#section-5.3.1)
-//
-//      The weight is normalized to a real number in the range 0 through 1,
-//      where 0.001 is the least preferred and 1 is the most preferred; a
-//      value of 0 means "not acceptable".  If no "q" parameter is present,
-//      the default weight is 1.
-//
-//       weight = OWS ";" OWS "q=" qvalue
-//       qvalue = ( "0" [ "." 0*3DIGIT ] ) / ( "1" [ "." 0*3("0") ] )
-
-
-internals.parse = function (raw, preferences, options) {
-
-    // Normalize header (remove spaces and tabs)
-
-    const header = raw.replace(/[ \t]/g, '');
-
-    // Normalize preferences
-
-    const lowers = new Map();
-    if (preferences) {
-        let pos = 0;
-        for (const preference of preferences) {
-            const lower = preference.toLowerCase();
-            lowers.set(lower, { orig: preference, pos: pos++ });
-
-            if (options.prefixMatch) {
-                const parts = lower.split('-');
-                while (parts.pop(), parts.length > 0) {
-                    const joined = parts.join('-');
-                    if (!lowers.has(joined)) {
-                        lowers.set(joined, { orig: preference, pos: pos++ });
-                    }
-                }
-            }
-        }
-    }
-
-    // Parse selections
-
-    const parts = header.split(',');
-    const selections = [];
-    const map = new Set();
-
-    for (let i = 0; i < parts.length; ++i) {
-        const part = parts[i];
-        if (!part) {                            // Ignore empty parts or leading commas
-            continue;
-        }
-
-        // Parse parameters
-
-        const params = part.split(';');
-        if (params.length > 2) {
-            throw lib$3.badRequest(`Invalid ${options.type} header`);
-        }
-
-        let token = params[0].toLowerCase();
-        if (!token) {
-            throw lib$3.badRequest(`Invalid ${options.type} header`);
-        }
-
-        if (options.equivalents &&
-            options.equivalents.has(token)) {
-
-            token = options.equivalents.get(token);
-        }
-
-        const selection = {
-            token,
-            pos: i,
-            q: 1
-        };
-
-        if (preferences &&
-            lowers.has(token)) {
-
-            selection.pref = lowers.get(token).pos;
-        }
-
-        map.add(selection.token);
-
-        // Parse q=value
-
-        if (params.length === 2) {
-            const q = params[1];
-            const [key, value] = q.split('=');
-
-            if (!value ||
-                key !== 'q' && key !== 'Q') {
-
-                throw lib$3.badRequest(`Invalid ${options.type} header`);
-            }
-
-            const score = parseFloat(value);
-            if (score === 0) {
-                continue;
-            }
-
-            if (Number.isFinite(score) &&
-                score <= 1 &&
-                score >= 0.001) {
-
-                selection.q = score;
-            }
-        }
-
-        selections.push(selection);             // Only add allowed selections (q !== 0)
-    }
-
-    // Sort selection based on q and then position in header
-
-    selections.sort(internals.sort);
-
-    // Extract tokens
-
-    const values = selections.map((selection) => selection.token);
-
-    if (options.default &&
-        !map.has(options.default)) {
-
-        values.push(options.default);
-    }
-
-    if (!preferences ||
-        !preferences.length) {
-
-        return values;
-    }
-
-    const preferred = [];
-    for (const selection of values) {
-        if (selection === '*') {
-            for (const [preference, value] of lowers) {
-                if (!map.has(preference)) {
-                    preferred.push(value.orig);
-                }
-            }
-        }
-        else {
-            const lower = selection.toLowerCase();
-            if (lowers.has(lower)) {
-                preferred.push(lowers.get(lower).orig);
-            }
-        }
-    }
-
-    return preferred;
-};
-
-
-internals.sort = function (a, b) {
-
-    const aFirst = -1;
-    const bFirst = 1;
-
-    if (b.q !== a.q) {
-        return b.q - a.q;
-    }
-
-    if (b.pref !== a.pref) {
-        if (a.pref === undefined) {
-            return bFirst;
-        }
-
-        if (b.pref === undefined) {
-            return aFirst;
-        }
-
-        return a.pref - b.pref;
-    }
-
-    return a.pos - b.pos;
-};
-});
-
-var media = createCommonjsModule(function (module, exports) {
-
-
-
-
-
-const internals = {};
-
-
-exports.selection = function (header, preferences) {
-
-    const selections = exports.selections(header, preferences);
-    return selections.length ? selections[0] : '';
-};
-
-
-exports.selections = function (header, preferences) {
-
-    lib$4.assert(!preferences || Array.isArray(preferences), 'Preferences must be an array');
-
-    return internals.parse(header, preferences);
-};
-
-
-//      RFC 7231 Section 5.3.2 (https://tools.ietf.org/html/rfc7231#section-5.3.2)
-//
-//      Accept          = [ ( "," / ( media-range [ accept-params ] ) ) *( OWS "," [ OWS ( media-range [ accept-params ] ) ] ) ]
-//      media-range     = ( "*/*" / ( type "/*" ) / ( type "/" subtype ) ) *( OWS ";" OWS parameter )
-//      accept-params   = weight *accept-ext
-//      accept-ext      = OWS ";" OWS token [ "=" ( token / quoted-string ) ]
-//      type            = token
-//      subtype         = token
-//      parameter       = token "=" ( token / quoted-string )
-//
-//      quoted-string   = DQUOTE *( qdtext / quoted-pair ) DQUOTE
-//      qdtext          = HTAB / SP /%x21 / %x23-5B / %x5D-7E / obs-text
-//      obs-text        = %x80-FF
-//      quoted-pair     = "\" ( HTAB / SP / VCHAR / obs-text )
-//      VCHAR           = %x21-7E                                ; visible (printing) characters
-//      token           = 1*tchar
-//      tchar           = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-//      OWS             = *( SP / HTAB )
-//
-//      Accept: audio/*; q=0.2, audio/basic
-//      Accept: text/plain; q=0.5, text/html, text/x-dvi; q=0.8, text/x-c
-//      Accept: text/plain, application/json;q=0.5, text/html, */*; q = 0.1
-//      Accept: text/plain, application/json;q=0.5, text/html, text/drop;q=0
-//      Accept: text/*, text/plain, text/plain;format=flowed, */*
-//      Accept: text/*;q=0.3, text/html;q=0.7, text/html;level=1, text/html;level=2;q=0.4, */*;q=0.5
-
-
-//      RFC 7231 Section 5.3.1 (https://tools.ietf.org/html/rfc7231#section-5.3.1)
-//
-//      The weight is normalized to a real number in the range 0 through 1,
-//      where 0.001 is the least preferred and 1 is the most preferred; a
-//      value of 0 means "not acceptable".  If no "q" parameter is present,
-//      the default weight is 1.
-//
-//       weight = OWS ";" OWS "q=" qvalue
-//       qvalue = ( "0" [ "." 0*3DIGIT ] ) / ( "1" [ "." 0*3("0") ] )
-
-
-//                         */*        type/*                              type/subtype
-internals.validMediaRx = /^(?:\*\/\*)|(?:[\w\!#\$%&'\*\+\-\.\^`\|~]+\/\*)|(?:[\w\!#\$%&'\*\+\-\.\^`\|~]+\/[\w\!#\$%&'\*\+\-\.\^`\|~]+)$/;
-
-
-internals.parse = function (raw, preferences) {
-
-    // Normalize header (remove spaces and temporary remove quoted strings)
-
-    const { header, quoted } = internals.normalize(raw);
-
-    // Parse selections
-
-    const parts = header.split(',');
-    const selections = [];
-    const map = {};
-
-    for (let i = 0; i < parts.length; ++i) {
-        const part = parts[i];
-        if (!part) {                                    // Ignore empty parts or leading commas
-            continue;
-        }
-
-        // Parse parameters
-
-        const pairs = part.split(';');
-        const token = pairs.shift().toLowerCase();
-
-        if (!internals.validMediaRx.test(token)) {       // Ignore invalid types
-            continue;
-        }
-
-        const selection = {
-            token,
-            params: {},
-            exts: {},
-            pos: i
-        };
-
-        // Parse key=value
-
-        let target = 'params';
-        for (const pair of pairs) {
-            const kv = pair.split('=');
-            if (kv.length !== 2 ||
-                !kv[1]) {
-
-                throw lib$3.badRequest(`Invalid accept header`);
-            }
-
-            const key = kv[0];
-            let value = kv[1];
-
-            if (key === 'q' ||
-                key === 'Q') {
-
-                target = 'exts';
-
-                value = parseFloat(value);
-                if (!Number.isFinite(value) ||
-                    value > 1 ||
-                    (value < 0.001 && value !== 0)) {
-
-                    value = 1;
-                }
-
-                selection.q = value;
-            }
-            else {
-                if (value[0] === '"') {
-                    value = `"${quoted[value]}"`;
-                }
-
-                selection[target][kv[0]] = value;
-            }
-        }
-
-        const params = Object.keys(selection.params);
-        selection.original = [''].concat(params.map((key) => `${key}=${selection.params[key]}`)).join(';');
-        selection.specificity = params.length;
-
-        if (selection.q === undefined) {     // Default no preference to q=1 (top preference)
-            selection.q = 1;
-        }
-
-        const tparts = selection.token.split('/');
-        selection.type = tparts[0];
-        selection.subtype = tparts[1];
-
-        map[selection.token] = selection;
-
-        if (selection.q) {                   // Skip denied selections (q=0)
-            selections.push(selection);
-        }
-    }
-
-    // Sort selection based on q and then position in header
-
-    selections.sort(internals.sort);
-
-    return internals.preferences(map, selections, preferences);
-};
-
-
-internals.normalize = function (raw) {
-
-    raw = raw || '*/*';
-
-    const normalized = {
-        header: raw,
-        quoted: {}
-    };
-
-    if (raw.includes('"')) {
-        let i = 0;
-        normalized.header = raw.replace(/="([^"]*)"/g, ($0, $1) => {
-
-            const key = '"' + ++i;
-            normalized.quoted[key] = $1;
-            return '=' + key;
-        });
-    }
-
-    normalized.header = normalized.header.replace(/[ \t]/g, '');
-    return normalized;
-};
-
-
-internals.sort = function (a, b) {
-
-    // Sort by quality score
-
-    if (b.q !== a.q) {
-        return b.q - a.q;
-    }
-
-    // Sort by type
-
-    if (a.type !== b.type) {
-        return internals.innerSort(a, b, 'type');
-    }
-
-    // Sort by subtype
-
-    if (a.subtype !== b.subtype) {
-        return internals.innerSort(a, b, 'subtype');
-    }
-
-    // Sort by specificity
-
-    if (a.specificity !== b.specificity) {
-        return b.specificity - a.specificity;
-    }
-
-    return a.pos - b.pos;
-};
-
-
-internals.innerSort = function (a, b, key) {
-
-    const aFirst = -1;
-    const bFirst = 1;
-
-    if (a[key] === '*') {
-        return bFirst;
-    }
-
-    if (b[key] === '*') {
-        return aFirst;
-    }
-
-    return a[key] < b[key] ? aFirst : bFirst;       // Group alphabetically
-};
-
-
-internals.preferences = function (map, selections, preferences) {
-
-    // Return selections if no preferences
-
-    if (!preferences ||
-        !preferences.length) {
-
-        return selections.map((selection) => selection.token + selection.original);
-    }
-
-    // Map wildcards and filter selections to preferences
-
-    const lowers = Object.create(null);
-    const flat = Object.create(null);
-    let any = false;
-
-    for (const preference of preferences) {
-        const lower = preference.toLowerCase();
-        flat[lower] = preference;
-        const parts = lower.split('/');
-        const type = parts[0];
-        const subtype = parts[1];
-
-        if (type === '*') {
-            lib$4.assert(subtype === '*', 'Invalid media type preference contains wildcard type with a subtype');
-            any = true;
-            continue;
-        }
-
-        lowers[type] = lowers[type] || Object.create(null);
-        lowers[type][subtype] = preference;
-    }
-
-    const preferred = [];
-    for (const selection of selections) {
-        const token = selection.token;
-        const { type, subtype } = map[token];
-        const subtypes = lowers[type];
-
-        // */*
-
-        if (type === '*') {
-            for (const preference of Object.keys(flat)) {
-                if (!map[preference]) {
-                    preferred.push(flat[preference]);
-                }
-            }
-
-            if (any) {
-                preferred.push('*/*');
-            }
-
-            continue;
-        }
-
-        // any
-
-        if (any) {
-            preferred.push((flat[token] || token) + selection.original);
-            continue;
-        }
-
-        // type/subtype
-
-        if (subtype !== '*') {
-            const pref = flat[token];
-            if (pref ||
-                (subtypes && subtypes['*'])) {
-
-                preferred.push((pref || token) + selection.original);
-            }
-
-            continue;
-        }
-
-        // type/*
-
-        if (subtypes) {
-            for (const psub of Object.keys(subtypes)) {
-                if (!map[`${type}/${psub}`]) {
-                    preferred.push(subtypes[psub]);
-                }
-            }
-        }
-    }
-
-    return preferred;
-};
-});
-
-var lib$2 = createCommonjsModule(function (module, exports) {
-
-
-
-
-
-const internals = {
-    options: {
-        charset: {
-            type: 'accept-charset'
-        },
-        encoding: {
-            type: 'accept-encoding',
-            default: 'identity',
-            equivalents: new Map([
-                ['x-compress', 'compress'],
-                ['x-gzip', 'gzip']
-            ])
-        },
-        language: {
-            type: 'accept-language',
-            prefixMatch: true
-        }
-    }
-};
-
-
-for (const type in internals.options) {
-    exports[type] = (header$1, preferences) => header.selection(header$1, preferences, internals.options[type]);
-
-    exports[`${type}s`] = (header$1, preferences) => header.selections(header$1, preferences, internals.options[type]);
-}
-
-
-exports.mediaType = (header, preferences) => media.selection(header, preferences);
-
-exports.mediaTypes = (header, preferences) => media.selections(header, preferences);
-
-
-exports.parseAll = function (requestHeaders) {
-
-    return {
-        charsets: exports.charsets(requestHeaders['accept-charset']),
-        encodings: exports.encodings(requestHeaders['accept-encoding']),
-        languages: exports.languages(requestHeaders['accept-language']),
-        mediaTypes: exports.mediaTypes(requestHeaders.accept)
-    };
-};
-});
-
-/*!
- * depd
- * Copyright(c) 2014 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- */
-
-var callsiteTostring = callSiteToString$1;
-
-/**
- * Format a CallSite file location to a string.
- */
-
-function callSiteFileLocation (callSite) {
-  var fileName;
-  var fileLocation = '';
-
-  if (callSite.isNative()) {
-    fileLocation = 'native';
-  } else if (callSite.isEval()) {
-    fileName = callSite.getScriptNameOrSourceURL();
-    if (!fileName) {
-      fileLocation = callSite.getEvalOrigin();
-    }
-  } else {
-    fileName = callSite.getFileName();
-  }
-
-  if (fileName) {
-    fileLocation += fileName;
-
-    var lineNumber = callSite.getLineNumber();
-    if (lineNumber != null) {
-      fileLocation += ':' + lineNumber;
-
-      var columnNumber = callSite.getColumnNumber();
-      if (columnNumber) {
-        fileLocation += ':' + columnNumber;
-      }
-    }
-  }
-
-  return fileLocation || 'unknown source'
-}
-
-/**
- * Format a CallSite to a string.
- */
-
-function callSiteToString$1 (callSite) {
-  var addSuffix = true;
-  var fileLocation = callSiteFileLocation(callSite);
-  var functionName = callSite.getFunctionName();
-  var isConstructor = callSite.isConstructor();
-  var isMethodCall = !(callSite.isToplevel() || isConstructor);
-  var line = '';
-
-  if (isMethodCall) {
-    var methodName = callSite.getMethodName();
-    var typeName = getConstructorName(callSite);
-
-    if (functionName) {
-      if (typeName && functionName.indexOf(typeName) !== 0) {
-        line += typeName + '.';
-      }
-
-      line += functionName;
-
-      if (methodName && functionName.lastIndexOf('.' + methodName) !== functionName.length - methodName.length - 1) {
-        line += ' [as ' + methodName + ']';
-      }
-    } else {
-      line += typeName + '.' + (methodName || '<anonymous>');
-    }
-  } else if (isConstructor) {
-    line += 'new ' + (functionName || '<anonymous>');
-  } else if (functionName) {
-    line += functionName;
-  } else {
-    addSuffix = false;
-    line += fileLocation;
-  }
-
-  if (addSuffix) {
-    line += ' (' + fileLocation + ')';
-  }
-
-  return line
-}
-
-/**
- * Get constructor name of reviver.
- */
-
-function getConstructorName (obj) {
-  var receiver = obj.receiver;
-  return (receiver.constructor && receiver.constructor.name) || null
-}
-
-/*!
- * depd
- * Copyright(c) 2015 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var eventListenerCount_1 = eventListenerCount$1;
-
-/**
- * Get the count of listeners on an event emitter of a specific type.
- */
-
-function eventListenerCount$1 (emitter, type) {
-  return emitter.listeners(type).length
-}
-
-/*!
- * depd
- * Copyright(c) 2014-2015 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-var compat = createCommonjsModule(function (module) {
-
-/**
- * Module dependencies.
- * @private
- */
-
-var EventEmitter = require$$0__default["default"].EventEmitter;
-
-/**
- * Module exports.
- * @public
- */
-
-lazyProperty(module.exports, 'callSiteToString', function callSiteToString () {
-  var limit = Error.stackTraceLimit;
-  var obj = {};
-  var prep = Error.prepareStackTrace;
-
-  function prepareObjectStackTrace (obj, stack) {
-    return stack
-  }
-
-  Error.prepareStackTrace = prepareObjectStackTrace;
-  Error.stackTraceLimit = 2;
-
-  // capture the stack
-  Error.captureStackTrace(obj);
-
-  // slice the stack
-  var stack = obj.stack.slice();
-
-  Error.prepareStackTrace = prep;
-  Error.stackTraceLimit = limit;
-
-  return stack[0].toString ? toString : callsiteTostring
-});
-
-lazyProperty(module.exports, 'eventListenerCount', function eventListenerCount () {
-  return EventEmitter.listenerCount || eventListenerCount_1
-});
-
-/**
- * Define a lazy property.
- */
-
-function lazyProperty (obj, prop, getter) {
-  function get () {
-    var val = getter();
-
-    Object.defineProperty(obj, prop, {
-      configurable: true,
-      enumerable: true,
-      value: val
-    });
-
-    return val
-  }
-
-  Object.defineProperty(obj, prop, {
-    configurable: true,
-    enumerable: true,
-    get: get
-  });
-}
-
-/**
- * Call toString() on the obj
- */
-
-function toString (obj) {
-  return obj.toString()
-}
-});
-
-/*!
- * depd
- * Copyright(c) 2014-2017 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module dependencies.
- */
-
-var callSiteToString = compat.callSiteToString;
-var eventListenerCount = compat.eventListenerCount;
-var relative = require$$1__default["default"].relative;
-
-/**
- * Module exports.
- */
-
-var depd_1 = depd;
-
-/**
- * Get the path to base files on.
- */
-
-var basePath$1 = process.cwd();
-
-/**
- * Determine if namespace is contained in the string.
- */
-
-function containsNamespace (str, namespace) {
-  var vals = str.split(/[ ,]+/);
-  var ns = String(namespace).toLowerCase();
-
-  for (var i = 0; i < vals.length; i++) {
-    var val = vals[i];
-
-    // namespace contained
-    if (val && (val === '*' || val.toLowerCase() === ns)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Convert a data descriptor to accessor descriptor.
- */
-
-function convertDataDescriptorToAccessor (obj, prop, message) {
-  var descriptor = Object.getOwnPropertyDescriptor(obj, prop);
-  var value = descriptor.value;
-
-  descriptor.get = function getter () { return value };
-
-  if (descriptor.writable) {
-    descriptor.set = function setter (val) { return (value = val) };
-  }
-
-  delete descriptor.value;
-  delete descriptor.writable;
-
-  Object.defineProperty(obj, prop, descriptor);
-
-  return descriptor
-}
-
-/**
- * Create arguments string to keep arity.
- */
-
-function createArgumentsString (arity) {
-  var str = '';
-
-  for (var i = 0; i < arity; i++) {
-    str += ', arg' + i;
-  }
-
-  return str.substr(2)
-}
-
-/**
- * Create stack string from stack.
- */
-
-function createStackString (stack) {
-  var str = this.name + ': ' + this.namespace;
-
-  if (this.message) {
-    str += ' deprecated ' + this.message;
-  }
-
-  for (var i = 0; i < stack.length; i++) {
-    str += '\n    at ' + callSiteToString(stack[i]);
-  }
-
-  return str
-}
-
-/**
- * Create deprecate for namespace in caller.
- */
-
-function depd (namespace) {
-  if (!namespace) {
-    throw new TypeError('argument namespace is required')
-  }
-
-  var stack = getStack();
-  var site = callSiteLocation(stack[1]);
-  var file = site[0];
-
-  function deprecate (message) {
-    // call to self as log
-    log.call(deprecate, message);
-  }
-
-  deprecate._file = file;
-  deprecate._ignored = isignored(namespace);
-  deprecate._namespace = namespace;
-  deprecate._traced = istraced(namespace);
-  deprecate._warned = Object.create(null);
-
-  deprecate.function = wrapfunction;
-  deprecate.property = wrapproperty;
-
-  return deprecate
-}
-
-/**
- * Determine if namespace is ignored.
- */
-
-function isignored (namespace) {
-  /* istanbul ignore next: tested in a child processs */
-  if (process.noDeprecation) {
-    // --no-deprecation support
-    return true
-  }
-
-  var str = process.env.NO_DEPRECATION || '';
-
-  // namespace ignored
-  return containsNamespace(str, namespace)
-}
-
-/**
- * Determine if namespace is traced.
- */
-
-function istraced (namespace) {
-  /* istanbul ignore next: tested in a child processs */
-  if (process.traceDeprecation) {
-    // --trace-deprecation support
-    return true
-  }
-
-  var str = process.env.TRACE_DEPRECATION || '';
-
-  // namespace traced
-  return containsNamespace(str, namespace)
-}
-
-/**
- * Display deprecation message.
- */
-
-function log (message, site) {
-  var haslisteners = eventListenerCount(process, 'deprecation') !== 0;
-
-  // abort early if no destination
-  if (!haslisteners && this._ignored) {
-    return
-  }
-
-  var caller;
-  var callFile;
-  var callSite;
-  var depSite;
-  var i = 0;
-  var seen = false;
-  var stack = getStack();
-  var file = this._file;
-
-  if (site) {
-    // provided site
-    depSite = site;
-    callSite = callSiteLocation(stack[1]);
-    callSite.name = depSite.name;
-    file = callSite[0];
-  } else {
-    // get call site
-    i = 2;
-    depSite = callSiteLocation(stack[i]);
-    callSite = depSite;
-  }
-
-  // get caller of deprecated thing in relation to file
-  for (; i < stack.length; i++) {
-    caller = callSiteLocation(stack[i]);
-    callFile = caller[0];
-
-    if (callFile === file) {
-      seen = true;
-    } else if (callFile === this._file) {
-      file = this._file;
-    } else if (seen) {
-      break
-    }
-  }
-
-  var key = caller
-    ? depSite.join(':') + '__' + caller.join(':')
-    : undefined;
-
-  if (key !== undefined && key in this._warned) {
-    // already warned
-    return
-  }
-
-  this._warned[key] = true;
-
-  // generate automatic message from call site
-  var msg = message;
-  if (!msg) {
-    msg = callSite === depSite || !callSite.name
-      ? defaultMessage(depSite)
-      : defaultMessage(callSite);
-  }
-
-  // emit deprecation if listeners exist
-  if (haslisteners) {
-    var err = DeprecationError(this._namespace, msg, stack.slice(i));
-    process.emit('deprecation', err);
-    return
-  }
-
-  // format and write message
-  var format = process.stderr.isTTY
-    ? formatColor
-    : formatPlain;
-  var output = format.call(this, msg, caller, stack.slice(i));
-  process.stderr.write(output + '\n', 'utf8');
-}
-
-/**
- * Get call site location as array.
- */
-
-function callSiteLocation (callSite) {
-  var file = callSite.getFileName() || '<anonymous>';
-  var line = callSite.getLineNumber();
-  var colm = callSite.getColumnNumber();
-
-  if (callSite.isEval()) {
-    file = callSite.getEvalOrigin() + ', ' + file;
-  }
-
-  var site = [file, line, colm];
-
-  site.callSite = callSite;
-  site.name = callSite.getFunctionName();
-
-  return site
-}
-
-/**
- * Generate a default message from the site.
- */
-
-function defaultMessage (site) {
-  var callSite = site.callSite;
-  var funcName = site.name;
-
-  // make useful anonymous name
-  if (!funcName) {
-    funcName = '<anonymous@' + formatLocation(site) + '>';
-  }
-
-  var context = callSite.getThis();
-  var typeName = context && callSite.getTypeName();
-
-  // ignore useless type name
-  if (typeName === 'Object') {
-    typeName = undefined;
-  }
-
-  // make useful type name
-  if (typeName === 'Function') {
-    typeName = context.name || typeName;
-  }
-
-  return typeName && callSite.getMethodName()
-    ? typeName + '.' + funcName
-    : funcName
-}
-
-/**
- * Format deprecation message without color.
- */
-
-function formatPlain (msg, caller, stack) {
-  var timestamp = new Date().toUTCString();
-
-  var formatted = timestamp +
-    ' ' + this._namespace +
-    ' deprecated ' + msg;
-
-  // add stack trace
-  if (this._traced) {
-    for (var i = 0; i < stack.length; i++) {
-      formatted += '\n    at ' + callSiteToString(stack[i]);
-    }
-
-    return formatted
-  }
-
-  if (caller) {
-    formatted += ' at ' + formatLocation(caller);
-  }
-
-  return formatted
-}
-
-/**
- * Format deprecation message with color.
- */
-
-function formatColor (msg, caller, stack) {
-  var formatted = '\x1b[36;1m' + this._namespace + '\x1b[22;39m' + // bold cyan
-    ' \x1b[33;1mdeprecated\x1b[22;39m' + // bold yellow
-    ' \x1b[0m' + msg + '\x1b[39m'; // reset
-
-  // add stack trace
-  if (this._traced) {
-    for (var i = 0; i < stack.length; i++) {
-      formatted += '\n    \x1b[36mat ' + callSiteToString(stack[i]) + '\x1b[39m'; // cyan
-    }
-
-    return formatted
-  }
-
-  if (caller) {
-    formatted += ' \x1b[36m' + formatLocation(caller) + '\x1b[39m'; // cyan
-  }
-
-  return formatted
-}
-
-/**
- * Format call site location.
- */
-
-function formatLocation (callSite) {
-  return relative(basePath$1, callSite[0]) +
-    ':' + callSite[1] +
-    ':' + callSite[2]
-}
-
-/**
- * Get the stack as array of call sites.
- */
-
-function getStack () {
-  var limit = Error.stackTraceLimit;
-  var obj = {};
-  var prep = Error.prepareStackTrace;
-
-  Error.prepareStackTrace = prepareObjectStackTrace;
-  Error.stackTraceLimit = Math.max(10, limit);
-
-  // capture the stack
-  Error.captureStackTrace(obj);
-
-  // slice this function off the top
-  var stack = obj.stack.slice(1);
-
-  Error.prepareStackTrace = prep;
-  Error.stackTraceLimit = limit;
-
-  return stack
-}
-
-/**
- * Capture call site stack from v8.
- */
-
-function prepareObjectStackTrace (obj, stack) {
-  return stack
-}
-
-/**
- * Return a wrapped function in a deprecation message.
- */
-
-function wrapfunction (fn, message) {
-  if (typeof fn !== 'function') {
-    throw new TypeError('argument fn must be a function')
-  }
-
-  var args = createArgumentsString(fn.length);
-  var stack = getStack();
-  var site = callSiteLocation(stack[1]);
-
-  site.name = fn.name;
-
-   // eslint-disable-next-line no-eval
-  var deprecatedfn = eval('(function (' + args + ') {\n' +
-    '"use strict"\n' +
-    'log.call(deprecate, message, site)\n' +
-    'return fn.apply(this, arguments)\n' +
-    '})');
-
-  return deprecatedfn
-}
-
-/**
- * Wrap property in a deprecation message.
- */
-
-function wrapproperty (obj, prop, message) {
-  if (!obj || (typeof obj !== 'object' && typeof obj !== 'function')) {
-    throw new TypeError('argument obj must be object')
-  }
-
-  var descriptor = Object.getOwnPropertyDescriptor(obj, prop);
-
-  if (!descriptor) {
-    throw new TypeError('must call property on owner object')
-  }
-
-  if (!descriptor.configurable) {
-    throw new TypeError('property must be configurable')
-  }
-
-  var deprecate = this;
-  var stack = getStack();
-  var site = callSiteLocation(stack[1]);
-
-  // set site name
-  site.name = prop;
-
-  // convert data descriptor
-  if ('value' in descriptor) {
-    descriptor = convertDataDescriptorToAccessor(obj, prop);
-  }
-
-  var get = descriptor.get;
-  var set = descriptor.set;
-
-  // wrap getter
-  if (typeof get === 'function') {
-    descriptor.get = function getter () {
-      log.call(deprecate, message, site);
-      return get.apply(this, arguments)
-    };
-  }
-
-  // wrap setter
-  if (typeof set === 'function') {
-    descriptor.set = function setter () {
-      log.call(deprecate, message, site);
-      return set.apply(this, arguments)
-    };
-  }
-
-  Object.defineProperty(obj, prop, descriptor);
-}
-
-/**
- * Create DeprecationError for deprecation
- */
-
-function DeprecationError (namespace, message, stack) {
-  var error = new Error();
-  var stackString;
-
-  Object.defineProperty(error, 'constructor', {
-    value: DeprecationError
-  });
-
-  Object.defineProperty(error, 'message', {
-    configurable: true,
-    enumerable: false,
-    value: message,
-    writable: true
-  });
-
-  Object.defineProperty(error, 'name', {
-    enumerable: false,
-    configurable: true,
-    value: 'DeprecationError',
-    writable: true
-  });
-
-  Object.defineProperty(error, 'namespace', {
-    configurable: true,
-    enumerable: false,
-    value: namespace,
-    writable: true
-  });
-
-  Object.defineProperty(error, 'stack', {
-    configurable: true,
-    enumerable: false,
-    get: function () {
-      if (stackString !== undefined) {
-        return stackString
-      }
-
-      // prepare stack trace
-      return (stackString = createStackString.call(this, stack))
-    },
-    set: function setter (val) {
-      stackString = val;
-    }
-  });
-
-  return error
-}
-
-/* eslint no-proto: 0 */
-var setprototypeof = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
-
-function setProtoOf (obj, proto) {
-  obj.__proto__ = proto;
-  return obj
-}
-
-function mixinProperties (obj, proto) {
-  for (var prop in proto) {
-    if (!obj.hasOwnProperty(prop)) {
-      obj[prop] = proto[prop];
-    }
-  }
-  return obj
-}
-
-var codes = {
-	"100": "Continue",
-	"101": "Switching Protocols",
-	"102": "Processing",
-	"103": "Early Hints",
-	"200": "OK",
-	"201": "Created",
-	"202": "Accepted",
-	"203": "Non-Authoritative Information",
-	"204": "No Content",
-	"205": "Reset Content",
-	"206": "Partial Content",
-	"207": "Multi-Status",
-	"208": "Already Reported",
-	"226": "IM Used",
-	"300": "Multiple Choices",
-	"301": "Moved Permanently",
-	"302": "Found",
-	"303": "See Other",
-	"304": "Not Modified",
-	"305": "Use Proxy",
-	"306": "(Unused)",
-	"307": "Temporary Redirect",
-	"308": "Permanent Redirect",
-	"400": "Bad Request",
-	"401": "Unauthorized",
-	"402": "Payment Required",
-	"403": "Forbidden",
-	"404": "Not Found",
-	"405": "Method Not Allowed",
-	"406": "Not Acceptable",
-	"407": "Proxy Authentication Required",
-	"408": "Request Timeout",
-	"409": "Conflict",
-	"410": "Gone",
-	"411": "Length Required",
-	"412": "Precondition Failed",
-	"413": "Payload Too Large",
-	"414": "URI Too Long",
-	"415": "Unsupported Media Type",
-	"416": "Range Not Satisfiable",
-	"417": "Expectation Failed",
-	"418": "I'm a teapot",
-	"421": "Misdirected Request",
-	"422": "Unprocessable Entity",
-	"423": "Locked",
-	"424": "Failed Dependency",
-	"425": "Unordered Collection",
-	"426": "Upgrade Required",
-	"428": "Precondition Required",
-	"429": "Too Many Requests",
-	"431": "Request Header Fields Too Large",
-	"451": "Unavailable For Legal Reasons",
-	"500": "Internal Server Error",
-	"501": "Not Implemented",
-	"502": "Bad Gateway",
-	"503": "Service Unavailable",
-	"504": "Gateway Timeout",
-	"505": "HTTP Version Not Supported",
-	"506": "Variant Also Negotiates",
-	"507": "Insufficient Storage",
-	"508": "Loop Detected",
-	"509": "Bandwidth Limit Exceeded",
-	"510": "Not Extended",
-	"511": "Network Authentication Required"
-};
-
-/*!
- * statuses
- * Copyright(c) 2014 Jonathan Ong
- * Copyright(c) 2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module dependencies.
- * @private
- */
-
-
-
-/**
- * Module exports.
- * @public
- */
-
-var statuses = status;
-
-// status code to message map
-status.STATUS_CODES = codes;
-
-// array of status codes
-status.codes = populateStatusesMap(status, codes);
-
-// status codes for redirects
-status.redirect = {
-  300: true,
-  301: true,
-  302: true,
-  303: true,
-  305: true,
-  307: true,
-  308: true
-};
-
-// status codes for empty bodies
-status.empty = {
-  204: true,
-  205: true,
-  304: true
-};
-
-// status codes for when you should retry the request
-status.retry = {
-  502: true,
-  503: true,
-  504: true
-};
-
-/**
- * Populate the statuses map for given codes.
- * @private
- */
-
-function populateStatusesMap (statuses, codes) {
-  var arr = [];
-
-  Object.keys(codes).forEach(function forEachCode (code) {
-    var message = codes[code];
-    var status = Number(code);
-
-    // Populate properties
-    statuses[status] = message;
-    statuses[message] = status;
-    statuses[message.toLowerCase()] = status;
-
-    // Add to array
-    arr.push(status);
-  });
-
-  return arr
-}
-
-/**
- * Get the status code.
- *
- * Given a number, this will throw if it is not a known status
- * code, otherwise the code will be returned. Given a string,
- * the string will be parsed for a number and return the code
- * if valid, otherwise will lookup the code assuming this is
- * the status message.
- *
- * @param {string|number} code
- * @returns {number}
- * @public
- */
-
-function status (code) {
-  if (typeof code === 'number') {
-    if (!status[code]) throw new Error('invalid status code: ' + code)
-    return code
-  }
-
-  if (typeof code !== 'string') {
-    throw new TypeError('code must be a number or string')
-  }
-
-  // '403'
-  var n = parseInt(code, 10);
-  if (!isNaN(n)) {
-    if (!status[n]) throw new Error('invalid status code: ' + n)
-    return n
-  }
-
-  n = status[code.toLowerCase()];
-  if (!n) throw new Error('invalid status message: "' + code + '"')
-  return n
-}
-
-var inherits_browser = createCommonjsModule(function (module) {
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    if (superCtor) {
-      ctor.super_ = superCtor;
-      ctor.prototype = Object.create(superCtor.prototype, {
-        constructor: {
-          value: ctor,
-          enumerable: false,
-          writable: true,
-          configurable: true
-        }
-      });
-    }
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    if (superCtor) {
-      ctor.super_ = superCtor;
-      var TempCtor = function () {};
-      TempCtor.prototype = superCtor.prototype;
-      ctor.prototype = new TempCtor();
-      ctor.prototype.constructor = ctor;
-    }
-  };
-}
-});
-
-var inherits = createCommonjsModule(function (module) {
-try {
-  var util = util__default["default"];
-  /* istanbul ignore next */
-  if (typeof util.inherits !== 'function') throw '';
-  module.exports = util.inherits;
-} catch (e) {
-  /* istanbul ignore next */
-  module.exports = inherits_browser;
-}
-});
-
-/*!
- * toidentifier
- * Copyright(c) 2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-/**
- * Module exports.
- * @public
- */
-
-var toidentifier = toIdentifier;
-
-/**
- * Trasform the given string into a JavaScript identifier
- *
- * @param {string} str
- * @returns {string}
- * @public
- */
-
-function toIdentifier (str) {
-  return str
-    .split(' ')
-    .map(function (token) {
-      return token.slice(0, 1).toUpperCase() + token.slice(1)
-    })
-    .join('')
-    .replace(/[^ _0-9a-z]/gi, '')
-}
-
-/*!
- * http-errors
- * Copyright(c) 2014 Jonathan Ong
- * Copyright(c) 2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-var httpErrors = createCommonjsModule(function (module) {
-
-/**
- * Module dependencies.
- * @private
- */
-
-var deprecate = depd_1('http-errors');
-
-
-
-
-
-/**
- * Module exports.
- * @public
- */
-
-module.exports = createError;
-module.exports.HttpError = createHttpErrorConstructor();
-
-// Populate exports for all constructors
-populateConstructorExports(module.exports, statuses.codes, module.exports.HttpError);
-
-/**
- * Get the code class of a status code.
- * @private
- */
-
-function codeClass (status) {
-  return Number(String(status).charAt(0) + '00')
-}
-
-/**
- * Create a new HTTP Error.
- *
- * @returns {Error}
- * @public
- */
-
-function createError () {
-  // so much arity going on ~_~
-  var err;
-  var msg;
-  var status = 500;
-  var props = {};
-  for (var i = 0; i < arguments.length; i++) {
-    var arg = arguments[i];
-    if (arg instanceof Error) {
-      err = arg;
-      status = err.status || err.statusCode || status;
-      continue
-    }
-    switch (typeof arg) {
-      case 'string':
-        msg = arg;
-        break
-      case 'number':
-        status = arg;
-        if (i !== 0) {
-          deprecate('non-first-argument status code; replace with createError(' + arg + ', ...)');
-        }
-        break
-      case 'object':
-        props = arg;
-        break
-    }
-  }
-
-  if (typeof status === 'number' && (status < 400 || status >= 600)) {
-    deprecate('non-error status code; use only 4xx or 5xx status codes');
-  }
-
-  if (typeof status !== 'number' ||
-    (!statuses[status] && (status < 400 || status >= 600))) {
-    status = 500;
-  }
-
-  // constructor
-  var HttpError = createError[status] || createError[codeClass(status)];
-
-  if (!err) {
-    // create error
-    err = HttpError
-      ? new HttpError(msg)
-      : new Error(msg || statuses[status]);
-    Error.captureStackTrace(err, createError);
-  }
-
-  if (!HttpError || !(err instanceof HttpError) || err.status !== status) {
-    // add properties to generic error
-    err.expose = status < 500;
-    err.status = err.statusCode = status;
-  }
-
-  for (var key in props) {
-    if (key !== 'status' && key !== 'statusCode') {
-      err[key] = props[key];
-    }
-  }
-
-  return err
-}
-
-/**
- * Create HTTP error abstract base class.
- * @private
- */
-
-function createHttpErrorConstructor () {
-  function HttpError () {
-    throw new TypeError('cannot construct abstract class')
-  }
-
-  inherits(HttpError, Error);
-
-  return HttpError
-}
-
-/**
- * Create a constructor for a client error.
- * @private
- */
-
-function createClientErrorConstructor (HttpError, name, code) {
-  var className = name.match(/Error$/) ? name : name + 'Error';
-
-  function ClientError (message) {
-    // create the error object
-    var msg = message != null ? message : statuses[code];
-    var err = new Error(msg);
-
-    // capture a stack trace to the construction point
-    Error.captureStackTrace(err, ClientError);
-
-    // adjust the [[Prototype]]
-    setprototypeof(err, ClientError.prototype);
-
-    // redefine the error message
-    Object.defineProperty(err, 'message', {
-      enumerable: true,
-      configurable: true,
-      value: msg,
-      writable: true
-    });
-
-    // redefine the error name
-    Object.defineProperty(err, 'name', {
-      enumerable: false,
-      configurable: true,
-      value: className,
-      writable: true
-    });
-
-    return err
-  }
-
-  inherits(ClientError, HttpError);
-  nameFunc(ClientError, className);
-
-  ClientError.prototype.status = code;
-  ClientError.prototype.statusCode = code;
-  ClientError.prototype.expose = true;
-
-  return ClientError
-}
-
-/**
- * Create a constructor for a server error.
- * @private
- */
-
-function createServerErrorConstructor (HttpError, name, code) {
-  var className = name.match(/Error$/) ? name : name + 'Error';
-
-  function ServerError (message) {
-    // create the error object
-    var msg = message != null ? message : statuses[code];
-    var err = new Error(msg);
-
-    // capture a stack trace to the construction point
-    Error.captureStackTrace(err, ServerError);
-
-    // adjust the [[Prototype]]
-    setprototypeof(err, ServerError.prototype);
-
-    // redefine the error message
-    Object.defineProperty(err, 'message', {
-      enumerable: true,
-      configurable: true,
-      value: msg,
-      writable: true
-    });
-
-    // redefine the error name
-    Object.defineProperty(err, 'name', {
-      enumerable: false,
-      configurable: true,
-      value: className,
-      writable: true
-    });
-
-    return err
-  }
-
-  inherits(ServerError, HttpError);
-  nameFunc(ServerError, className);
-
-  ServerError.prototype.status = code;
-  ServerError.prototype.statusCode = code;
-  ServerError.prototype.expose = false;
-
-  return ServerError
-}
-
-/**
- * Set the name of a function, if possible.
- * @private
- */
-
-function nameFunc (func, name) {
-  var desc = Object.getOwnPropertyDescriptor(func, 'name');
-
-  if (desc && desc.configurable) {
-    desc.value = name;
-    Object.defineProperty(func, 'name', desc);
-  }
-}
-
-/**
- * Populate the exports object with constructors for every error class.
- * @private
- */
-
-function populateConstructorExports (exports, codes, HttpError) {
-  codes.forEach(function forEachCode (code) {
-    var CodeError;
-    var name = toidentifier(statuses[code]);
-
-    switch (codeClass(code)) {
-      case 400:
-        CodeError = createClientErrorConstructor(HttpError, name, code);
-        break
-      case 500:
-        CodeError = createServerErrorConstructor(HttpError, name, code);
-        break
-    }
-
-    if (CodeError) {
-      // export the constructor
-      exports[code] = CodeError;
-      exports[name] = CodeError;
-    }
-  });
-
-  // backwards-compatibility
-  exports["I'mateapot"] = deprecate.function(exports.ImATeapot,
-    '"I\'mateapot"; use "ImATeapot" instead');
-}
-});
-
-/**
- * Helpers.
- */
-var s$1 = 1000;
-var m$1 = s$1 * 60;
-var h$1 = m$1 * 60;
-var d$1 = h$1 * 24;
-var y$1 = d$1 * 365.25;
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} [options]
- * @throws {Error} throw an error if val is not a non-empty string or a number
- * @return {String|Number}
- * @api public
- */
-
-var ms$1 = function(val, options) {
-  options = options || {};
-  var type = typeof val;
-  if (type === 'string' && val.length > 0) {
-    return parse$2(val);
-  } else if (type === 'number' && isNaN(val) === false) {
-    return options.long ? fmtLong$1(val) : fmtShort$1(val);
-  }
-  throw new Error(
-    'val is not a non-empty string or a valid number. val=' +
-      JSON.stringify(val)
-  );
-};
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse$2(str) {
-  str = String(str);
-  if (str.length > 100) {
-    return;
-  }
-  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
-    str
-  );
-  if (!match) {
-    return;
-  }
-  var n = parseFloat(match[1]);
-  var type = (match[2] || 'ms').toLowerCase();
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y$1;
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d$1;
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h$1;
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m$1;
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s$1;
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n;
-    default:
-      return undefined;
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtShort$1(ms) {
-  if (ms >= d$1) {
-    return Math.round(ms / d$1) + 'd';
-  }
-  if (ms >= h$1) {
-    return Math.round(ms / h$1) + 'h';
-  }
-  if (ms >= m$1) {
-    return Math.round(ms / m$1) + 'm';
-  }
-  if (ms >= s$1) {
-    return Math.round(ms / s$1) + 's';
-  }
-  return ms + 'ms';
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtLong$1(ms) {
-  return plural$1(ms, d$1, 'day') ||
-    plural$1(ms, h$1, 'hour') ||
-    plural$1(ms, m$1, 'minute') ||
-    plural$1(ms, s$1, 'second') ||
-    ms + ' ms';
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural$1(ms, n, name) {
-  if (ms < n) {
-    return;
-  }
-  if (ms < n * 1.5) {
-    return Math.floor(ms / n) + ' ' + name;
-  }
-  return Math.ceil(ms / n) + ' ' + name + 's';
-}
-
-var debug$1 = createCommonjsModule(function (module, exports) {
-/**
- * This is the common logic for both the Node.js and web browser
- * implementations of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
-exports.coerce = coerce;
-exports.disable = disable;
-exports.enable = enable;
-exports.enabled = enabled;
-exports.humanize = ms$1;
-
-/**
- * The currently active debug mode names, and names to skip.
- */
-
-exports.names = [];
-exports.skips = [];
-
-/**
- * Map of special "%n" handling functions, for the debug "format" argument.
- *
- * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
- */
-
-exports.formatters = {};
-
-/**
- * Previous log timestamp.
- */
-
-var prevTime;
-
-/**
- * Select a color.
- * @param {String} namespace
- * @return {Number}
- * @api private
- */
-
-function selectColor(namespace) {
-  var hash = 0, i;
-
-  for (i in namespace) {
-    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
-  }
-
-  return exports.colors[Math.abs(hash) % exports.colors.length];
-}
-
-/**
- * Create a debugger with the given `namespace`.
- *
- * @param {String} namespace
- * @return {Function}
- * @api public
- */
-
-function createDebug(namespace) {
-
-  function debug() {
-    // disabled?
-    if (!debug.enabled) return;
-
-    var self = debug;
-
-    // set `diff` timestamp
-    var curr = +new Date();
-    var ms = curr - (prevTime || curr);
-    self.diff = ms;
-    self.prev = prevTime;
-    self.curr = curr;
-    prevTime = curr;
-
-    // turn the `arguments` into a proper Array
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-
-    args[0] = exports.coerce(args[0]);
-
-    if ('string' !== typeof args[0]) {
-      // anything else let's inspect with %O
-      args.unshift('%O');
-    }
-
-    // apply any `formatters` transformations
-    var index = 0;
-    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-      // if we encounter an escaped % then don't increase the array index
-      if (match === '%%') return match;
-      index++;
-      var formatter = exports.formatters[format];
-      if ('function' === typeof formatter) {
-        var val = args[index];
-        match = formatter.call(self, val);
-
-        // now we need to remove `args[index]` since it's inlined in the `format`
-        args.splice(index, 1);
-        index--;
-      }
-      return match;
-    });
-
-    // apply env-specific formatting (colors, etc.)
-    exports.formatArgs.call(self, args);
-
-    var logFn = debug.log || exports.log || console.log.bind(console);
-    logFn.apply(self, args);
-  }
-
-  debug.namespace = namespace;
-  debug.enabled = exports.enabled(namespace);
-  debug.useColors = exports.useColors();
-  debug.color = selectColor(namespace);
-
-  // env-specific initialization logic for debug instances
-  if ('function' === typeof exports.init) {
-    exports.init(debug);
-  }
-
-  return debug;
-}
-
-/**
- * Enables a debug mode by namespaces. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} namespaces
- * @api public
- */
-
-function enable(namespaces) {
-  exports.save(namespaces);
-
-  exports.names = [];
-  exports.skips = [];
-
-  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
-  var len = split.length;
-
-  for (var i = 0; i < len; i++) {
-    if (!split[i]) continue; // ignore empty strings
-    namespaces = split[i].replace(/\*/g, '.*?');
-    if (namespaces[0] === '-') {
-      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
-    } else {
-      exports.names.push(new RegExp('^' + namespaces + '$'));
-    }
-  }
-}
-
-/**
- * Disable debug output.
- *
- * @api public
- */
-
-function disable() {
-  exports.enable('');
-}
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-function enabled(name) {
-  var i, len;
-  for (i = 0, len = exports.skips.length; i < len; i++) {
-    if (exports.skips[i].test(name)) {
-      return false;
-    }
-  }
-  for (i = 0, len = exports.names.length; i < len; i++) {
-    if (exports.names[i].test(name)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Coerce `val`.
- *
- * @param {Mixed} val
- * @return {Mixed}
- * @api private
- */
-
-function coerce(val) {
-  if (val instanceof Error) return val.stack || val.message;
-  return val;
-}
-});
-
-/**
- * This is the web browser implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-var browser$4 = createCommonjsModule(function (module, exports) {
-exports = module.exports = debug$1;
-exports.log = log;
-exports.formatArgs = formatArgs;
-exports.save = save;
-exports.load = load;
-exports.useColors = useColors;
-exports.storage = 'undefined' != typeof chrome
-               && 'undefined' != typeof chrome.storage
-                  ? chrome.storage.local
-                  : localstorage();
-
-/**
- * Colors.
- */
-
-exports.colors = [
-  'lightseagreen',
-  'forestgreen',
-  'goldenrod',
-  'dodgerblue',
-  'darkorchid',
-  'crimson'
-];
-
-/**
- * Currently only WebKit-based Web Inspectors, Firefox >= v31,
- * and the Firebug extension (any Firefox version) are known
- * to support "%c" CSS customizations.
- *
- * TODO: add a `localStorage` variable to explicitly enable/disable colors
- */
-
-function useColors() {
-  // NB: In an Electron preload script, document will be defined but not fully
-  // initialized. Since we know we're in Chrome, we'll just detect this case
-  // explicitly
-  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
-    return true;
-  }
-
-  // is webkit? http://stackoverflow.com/a/16459606/376773
-  // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
-  return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
-    // is firebug? http://stackoverflow.com/a/398120/376773
-    (typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
-    // is firefox >= v31?
-    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
-    // double check webkit in userAgent just in case we are in a worker
-    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
-}
-
-/**
- * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
- */
-
-exports.formatters.j = function(v) {
-  try {
-    return JSON.stringify(v);
-  } catch (err) {
-    return '[UnexpectedJSONParseError]: ' + err.message;
-  }
-};
-
-
-/**
- * Colorize log arguments if enabled.
- *
- * @api public
- */
-
-function formatArgs(args) {
-  var useColors = this.useColors;
-
-  args[0] = (useColors ? '%c' : '')
-    + this.namespace
-    + (useColors ? ' %c' : ' ')
-    + args[0]
-    + (useColors ? '%c ' : ' ')
-    + '+' + exports.humanize(this.diff);
-
-  if (!useColors) return;
-
-  var c = 'color: ' + this.color;
-  args.splice(1, 0, c, 'color: inherit');
-
-  // the final "%c" is somewhat tricky, because there could be other
-  // arguments passed either before or after the %c, so we need to
-  // figure out the correct index to insert the CSS into
-  var index = 0;
-  var lastC = 0;
-  args[0].replace(/%[a-zA-Z%]/g, function(match) {
-    if ('%%' === match) return;
-    index++;
-    if ('%c' === match) {
-      // we only are interested in the *last* %c
-      // (the user may have provided their own)
-      lastC = index;
-    }
-  });
-
-  args.splice(lastC, 0, c);
-}
-
-/**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
- *
- * @api public
- */
-
-function log() {
-  // this hackery is required for IE8/9, where
-  // the `console.log` function doesn't have 'apply'
-  return 'object' === typeof console
-    && console.log
-    && Function.prototype.apply.call(console.log, console, arguments);
-}
-
-/**
- * Save `namespaces`.
- *
- * @param {String} namespaces
- * @api private
- */
-
-function save(namespaces) {
-  try {
-    if (null == namespaces) {
-      exports.storage.removeItem('debug');
-    } else {
-      exports.storage.debug = namespaces;
-    }
-  } catch(e) {}
-}
-
-/**
- * Load `namespaces`.
- *
- * @return {String} returns the previously persisted debug modes
- * @api private
- */
-
-function load() {
-  var r;
-  try {
-    r = exports.storage.debug;
-  } catch(e) {}
-
-  // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
-  if (!r && typeof process !== 'undefined' && 'env' in process) {
-    r = process.env.DEBUG;
-  }
-
-  return r;
-}
-
-/**
- * Enable namespaces listed in `localStorage.debug` initially.
- */
-
-exports.enable(load());
-
-/**
- * Localstorage attempts to return the localstorage.
- *
- * This is necessary because safari throws
- * when a user disables cookies/localstorage
- * and you attempt to access it.
- *
- * @return {LocalStorage}
- * @api private
- */
-
-function localstorage() {
-  try {
-    return window.localStorage;
-  } catch (e) {}
-}
-});
-
-/**
- * Module dependencies.
- */
-
-var node = createCommonjsModule(function (module, exports) {
-/**
- * This is the Node.js implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = debug$1;
-exports.init = init;
-exports.log = log;
-exports.formatArgs = formatArgs;
-exports.save = save;
-exports.load = load;
-exports.useColors = useColors;
-
-/**
- * Colors.
- */
-
-exports.colors = [6, 2, 3, 4, 5, 1];
-
-/**
- * Build up the default `inspectOpts` object from the environment variables.
- *
- *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
- */
-
-exports.inspectOpts = Object.keys(process.env).filter(function (key) {
-  return /^debug_/i.test(key);
-}).reduce(function (obj, key) {
-  // camel-case
-  var prop = key
-    .substring(6)
-    .toLowerCase()
-    .replace(/_([a-z])/g, function (_, k) { return k.toUpperCase() });
-
-  // coerce string value into JS value
-  var val = process.env[key];
-  if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
-  else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
-  else if (val === 'null') val = null;
-  else val = Number(val);
-
-  obj[prop] = val;
-  return obj;
-}, {});
-
-/**
- * The file descriptor to write the `debug()` calls to.
- * Set the `DEBUG_FD` env variable to override with another value. i.e.:
- *
- *   $ DEBUG_FD=3 node script.js 3>debug.log
- */
-
-var fd = parseInt(process.env.DEBUG_FD, 10) || 2;
-
-if (1 !== fd && 2 !== fd) {
-  util__default["default"].deprecate(function(){}, 'except for stderr(2) and stdout(1), any other usage of DEBUG_FD is deprecated. Override debug.log if you want to use a different log function (https://git.io/debug_fd)')();
-}
-
-var stream = 1 === fd ? process.stdout :
-             2 === fd ? process.stderr :
-             createWritableStdioStream(fd);
-
-/**
- * Is stdout a TTY? Colored output is enabled when `true`.
- */
-
-function useColors() {
-  return 'colors' in exports.inspectOpts
-    ? Boolean(exports.inspectOpts.colors)
-    : tty__default["default"].isatty(fd);
-}
-
-/**
- * Map %o to `util.inspect()`, all on a single line.
- */
-
-exports.formatters.o = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util__default["default"].inspect(v, this.inspectOpts)
-    .split('\n').map(function(str) {
-      return str.trim()
-    }).join(' ');
-};
-
-/**
- * Map %o to `util.inspect()`, allowing multiple lines if needed.
- */
-
-exports.formatters.O = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util__default["default"].inspect(v, this.inspectOpts);
-};
-
-/**
- * Adds ANSI color escape codes if enabled.
- *
- * @api public
- */
-
-function formatArgs(args) {
-  var name = this.namespace;
-  var useColors = this.useColors;
-
-  if (useColors) {
-    var c = this.color;
-    var prefix = '  \u001b[3' + c + ';1m' + name + ' ' + '\u001b[0m';
-
-    args[0] = prefix + args[0].split('\n').join('\n' + prefix);
-    args.push('\u001b[3' + c + 'm+' + exports.humanize(this.diff) + '\u001b[0m');
-  } else {
-    args[0] = new Date().toUTCString()
-      + ' ' + name + ' ' + args[0];
-  }
-}
-
-/**
- * Invokes `util.format()` with the specified arguments and writes to `stream`.
- */
-
-function log() {
-  return stream.write(util__default["default"].format.apply(util__default["default"], arguments) + '\n');
-}
-
-/**
- * Save `namespaces`.
- *
- * @param {String} namespaces
- * @api private
- */
-
-function save(namespaces) {
-  if (null == namespaces) {
-    // If you set a process.env field to null or undefined, it gets cast to the
-    // string 'null' or 'undefined'. Just delete instead.
-    delete process.env.DEBUG;
-  } else {
-    process.env.DEBUG = namespaces;
-  }
-}
-
-/**
- * Load `namespaces`.
- *
- * @return {String} returns the previously persisted debug modes
- * @api private
- */
-
-function load() {
-  return process.env.DEBUG;
-}
-
-/**
- * Copied from `node/src/node.js`.
- *
- * XXX: It's lame that node doesn't expose this API out-of-the-box. It also
- * relies on the undocumented `tty_wrap.guessHandleType()` which is also lame.
- */
-
-function createWritableStdioStream (fd) {
-  var stream;
-  var tty_wrap = process.binding('tty_wrap');
-
-  // Note stream._type is used for test-module-load-list.js
-
-  switch (tty_wrap.guessHandleType(fd)) {
-    case 'TTY':
-      stream = new tty__default["default"].WriteStream(fd);
-      stream._type = 'tty';
-
-      // Hack to have stream not keep the event loop alive.
-      // See https://github.com/joyent/node/issues/1726
-      if (stream._handle && stream._handle.unref) {
-        stream._handle.unref();
-      }
-      break;
-
-    case 'FILE':
-      var fs = fs__default["default"];
-      stream = new fs.SyncWriteStream(fd, { autoClose: false });
-      stream._type = 'fs';
-      break;
-
-    case 'PIPE':
-    case 'TCP':
-      var net = require$$2__default["default"];
-      stream = new net.Socket({
-        fd: fd,
-        readable: false,
-        writable: true
-      });
-
-      // FIXME Should probably have an option in net.Socket to create a
-      // stream from an existing fd which is writable only. But for now
-      // we'll just add this hack and set the `readable` member to false.
-      // Test: ./node test/fixtures/echo.js < /etc/passwd
-      stream.readable = false;
-      stream.read = null;
-      stream._type = 'pipe';
-
-      // FIXME Hack to have stream not keep the event loop alive.
-      // See https://github.com/joyent/node/issues/1726
-      if (stream._handle && stream._handle.unref) {
-        stream._handle.unref();
-      }
-      break;
-
-    default:
-      // Probably an error on in uv_guess_handle()
-      throw new Error('Implement me. Unknown stream file type!');
-  }
-
-  // For supporting legacy API we put the FD here.
-  stream.fd = fd;
-
-  stream._isStdio = true;
-
-  return stream;
-}
-
-/**
- * Init logic for `debug` instances.
- *
- * Create a new `inspectOpts` object in case `useColors` is set
- * differently for a particular `debug` instance.
- */
-
-function init (debug) {
-  debug.inspectOpts = {};
-
-  var keys = Object.keys(exports.inspectOpts);
-  for (var i = 0; i < keys.length; i++) {
-    debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
-  }
-}
-
-/**
- * Enable namespaces listed in `process.env.DEBUG` initially.
- */
-
-exports.enable(load());
-});
-
-/**
- * Detect Electron renderer process, which is node, but we should
- * treat as a browser.
- */
-
-var src = createCommonjsModule(function (module) {
-if (typeof process !== 'undefined' && process.type === 'renderer') {
-  module.exports = browser$4;
-} else {
-  module.exports = node;
-}
-});
-
-/*!
- * destroy
- * Copyright(c) 2014 Jonathan Ong
- * MIT Licensed
- */
-
-/**
- * Module dependencies.
- * @private
- */
-
-var ReadStream = fs__default["default"].ReadStream;
-
-
-/**
- * Module exports.
- * @public
- */
-
-var destroy_1 = destroy;
-
-/**
- * Destroy a stream.
- *
- * @param {object} stream
- * @public
- */
-
-function destroy(stream) {
-  if (stream instanceof ReadStream) {
-    return destroyReadStream(stream)
-  }
-
-  if (!(stream instanceof Stream__default["default"])) {
-    return stream
-  }
-
-  if (typeof stream.destroy === 'function') {
-    stream.destroy();
-  }
-
-  return stream
-}
-
-/**
- * Destroy a ReadStream.
- *
- * @param {object} stream
- * @private
- */
-
-function destroyReadStream(stream) {
-  stream.destroy();
-
-  if (typeof stream.close === 'function') {
-    // node.js core bug work-around
-    stream.on('open', onOpenClose);
-  }
-
-  return stream
-}
-
-/**
- * On open handler to close stream.
- * @private
- */
-
-function onOpenClose() {
-  if (typeof this.fd === 'number') {
-    // actually close down the fd
-    this.close();
-  }
-}
-
-/*!
- * encodeurl
- * Copyright(c) 2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var encodeurl = encodeUrl;
-
-/**
- * RegExp to match non-URL code points, *after* encoding (i.e. not including "%")
- * and including invalid escape sequences.
- * @private
- */
-
-var ENCODE_CHARS_REGEXP = /(?:[^\x21\x25\x26-\x3B\x3D\x3F-\x5B\x5D\x5F\x61-\x7A\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
-
-/**
- * RegExp to match unmatched surrogate pair.
- * @private
- */
-
-var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
-
-/**
- * String to replace unmatched surrogate pair with.
- * @private
- */
-
-var UNMATCHED_SURROGATE_PAIR_REPLACE = '$1\uFFFD$2';
-
-/**
- * Encode a URL to a percent-encoded form, excluding already-encoded sequences.
- *
- * This function will take an already-encoded URL and encode all the non-URL
- * code points. This function will not encode the "%" character unless it is
- * not part of a valid sequence (`%20` will be left as-is, but `%foo` will
- * be encoded as `%25foo`).
- *
- * This encode is meant to be "safe" and does not throw errors. It will try as
- * hard as it can to properly encode the given URL, including replacing any raw,
- * unpaired surrogate pairs with the Unicode replacement character prior to
- * encoding.
- *
- * @param {string} url
- * @return {string}
- * @public
- */
-
-function encodeUrl (url) {
-  return String(url)
-    .replace(UNMATCHED_SURROGATE_PAIR_REGEXP, UNMATCHED_SURROGATE_PAIR_REPLACE)
-    .replace(ENCODE_CHARS_REGEXP, encodeURI)
-}
-
-/*!
- * escape-html
- * Copyright(c) 2012-2013 TJ Holowaychuk
- * Copyright(c) 2015 Andreas Lubbe
- * Copyright(c) 2015 Tiancheng "Timothy" Gu
- * MIT Licensed
- */
-
-/**
- * Module variables.
- * @private
- */
-
-var matchHtmlRegExp = /["'&<>]/;
-
-/**
- * Module exports.
- * @public
- */
-
-var escapeHtml_1 = escapeHtml;
-
-/**
- * Escape special characters in the given string of html.
- *
- * @param  {string} string The string to escape for inserting into HTML
- * @return {string}
- * @public
- */
-
-function escapeHtml(string) {
-  var str = '' + string;
-  var match = matchHtmlRegExp.exec(str);
-
-  if (!match) {
-    return str;
-  }
-
-  var escape;
-  var html = '';
-  var index = 0;
-  var lastIndex = 0;
-
-  for (index = match.index; index < str.length; index++) {
-    switch (str.charCodeAt(index)) {
-      case 34: // "
-        escape = '&quot;';
-        break;
-      case 38: // &
-        escape = '&amp;';
-        break;
-      case 39: // '
-        escape = '&#39;';
-        break;
-      case 60: // <
-        escape = '&lt;';
-        break;
-      case 62: // >
-        escape = '&gt;';
-        break;
-      default:
-        continue;
-    }
-
-    if (lastIndex !== index) {
-      html += str.substring(lastIndex, index);
-    }
-
-    lastIndex = index + 1;
-    html += escape;
-  }
-
-  return lastIndex !== index
-    ? html + str.substring(lastIndex, index)
-    : html;
-}
-
-/*!
- * etag
- * Copyright(c) 2014-2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var etag_1 = etag;
-
-/**
- * Module dependencies.
- * @private
- */
-
-
-var Stats = fs__default["default"].Stats;
-
-/**
- * Module variables.
- * @private
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Generate an entity tag.
- *
- * @param {Buffer|string} entity
- * @return {string}
- * @private
- */
-
-function entitytag (entity) {
-  if (entity.length === 0) {
-    // fast-path empty
-    return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"'
-  }
-
-  // compute hash of entity
-  var hash = crypto__default["default"]
-    .createHash('sha1')
-    .update(entity, 'utf8')
-    .digest('base64')
-    .substring(0, 27);
-
-  // compute length of entity
-  var len = typeof entity === 'string'
-    ? Buffer.byteLength(entity, 'utf8')
-    : entity.length;
-
-  return '"' + len.toString(16) + '-' + hash + '"'
-}
-
-/**
- * Create a simple ETag.
- *
- * @param {string|Buffer|Stats} entity
- * @param {object} [options]
- * @param {boolean} [options.weak]
- * @return {String}
- * @public
- */
-
-function etag (entity, options) {
-  if (entity == null) {
-    throw new TypeError('argument entity is required')
-  }
-
-  // support fs.Stats object
-  var isStats = isstats(entity);
-  var weak = options && typeof options.weak === 'boolean'
-    ? options.weak
-    : isStats;
-
-  // validate argument
-  if (!isStats && typeof entity !== 'string' && !Buffer.isBuffer(entity)) {
-    throw new TypeError('argument entity must be string, Buffer, or fs.Stats')
-  }
-
-  // generate entity tag
-  var tag = isStats
-    ? stattag(entity)
-    : entitytag(entity);
-
-  return weak
-    ? 'W/' + tag
-    : tag
-}
-
-/**
- * Determine if object is a Stats object.
- *
- * @param {object} obj
- * @return {boolean}
- * @api private
- */
-
-function isstats (obj) {
-  // genuine fs.Stats
-  if (typeof Stats === 'function' && obj instanceof Stats) {
-    return true
-  }
-
-  // quack quack
-  return obj && typeof obj === 'object' &&
-    'ctime' in obj && toString.call(obj.ctime) === '[object Date]' &&
-    'mtime' in obj && toString.call(obj.mtime) === '[object Date]' &&
-    'ino' in obj && typeof obj.ino === 'number' &&
-    'size' in obj && typeof obj.size === 'number'
-}
-
-/**
- * Generate a tag for a stat.
- *
- * @param {object} stat
- * @return {string}
- * @private
- */
-
-function stattag (stat) {
-  var mtime = stat.mtime.getTime().toString(16);
-  var size = stat.size.toString(16);
-
-  return '"' + size + '-' + mtime + '"'
-}
-
-/*!
- * fresh
- * Copyright(c) 2012 TJ Holowaychuk
- * Copyright(c) 2016-2017 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * RegExp to check for no-cache token in Cache-Control.
- * @private
- */
-
-var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
-
-/**
- * Module exports.
- * @public
- */
-
-var fresh_1 = fresh;
-
-/**
- * Check freshness of the response using request and response headers.
- *
- * @param {Object} reqHeaders
- * @param {Object} resHeaders
- * @return {Boolean}
- * @public
- */
-
-function fresh (reqHeaders, resHeaders) {
-  // fields
-  var modifiedSince = reqHeaders['if-modified-since'];
-  var noneMatch = reqHeaders['if-none-match'];
-
-  // unconditional request
-  if (!modifiedSince && !noneMatch) {
-    return false
-  }
-
-  // Always return stale when Cache-Control: no-cache
-  // to support end-to-end reload requests
-  // https://tools.ietf.org/html/rfc2616#section-14.9.4
-  var cacheControl = reqHeaders['cache-control'];
-  if (cacheControl && CACHE_CONTROL_NO_CACHE_REGEXP.test(cacheControl)) {
-    return false
-  }
-
-  // if-none-match
-  if (noneMatch && noneMatch !== '*') {
-    var etag = resHeaders['etag'];
-
-    if (!etag) {
-      return false
-    }
-
-    var etagStale = true;
-    var matches = parseTokenList$1(noneMatch);
-    for (var i = 0; i < matches.length; i++) {
-      var match = matches[i];
-      if (match === etag || match === 'W/' + etag || 'W/' + match === etag) {
-        etagStale = false;
-        break
-      }
-    }
-
-    if (etagStale) {
-      return false
-    }
-  }
-
-  // if-modified-since
-  if (modifiedSince) {
-    var lastModified = resHeaders['last-modified'];
-    var modifiedStale = !lastModified || !(parseHttpDate$1(lastModified) <= parseHttpDate$1(modifiedSince));
-
-    if (modifiedStale) {
-      return false
-    }
-  }
-
-  return true
-}
-
-/**
- * Parse an HTTP Date into a number.
- *
- * @param {string} date
- * @private
- */
-
-function parseHttpDate$1 (date) {
-  var timestamp = date && Date.parse(date);
-
-  // istanbul ignore next: guard against date.js Date.parse patching
-  return typeof timestamp === 'number'
-    ? timestamp
-    : NaN
-}
-
-/**
- * Parse a HTTP token list.
- *
- * @param {string} str
- * @private
- */
-
-function parseTokenList$1 (str) {
-  var end = 0;
-  var list = [];
-  var start = 0;
-
-  // gather tokens
-  for (var i = 0, len = str.length; i < len; i++) {
-    switch (str.charCodeAt(i)) {
-      case 0x20: /*   */
-        if (start === end) {
-          start = end = i + 1;
-        }
-        break
-      case 0x2c: /* , */
-        list.push(str.substring(start, end));
-        start = end = i + 1;
-        break
-      default:
-        end = i + 1;
-        break
-    }
-  }
-
-  // final token
-  list.push(str.substring(start, end));
-
-  return list
-}
-
-var require$$0$2 = {
-	"application/andrew-inset": [
-	"ez"
-],
-	"application/applixware": [
-	"aw"
-],
-	"application/atom+xml": [
-	"atom"
-],
-	"application/atomcat+xml": [
-	"atomcat"
-],
-	"application/atomsvc+xml": [
-	"atomsvc"
-],
-	"application/bdoc": [
-	"bdoc"
-],
-	"application/ccxml+xml": [
-	"ccxml"
-],
-	"application/cdmi-capability": [
-	"cdmia"
-],
-	"application/cdmi-container": [
-	"cdmic"
-],
-	"application/cdmi-domain": [
-	"cdmid"
-],
-	"application/cdmi-object": [
-	"cdmio"
-],
-	"application/cdmi-queue": [
-	"cdmiq"
-],
-	"application/cu-seeme": [
-	"cu"
-],
-	"application/dash+xml": [
-	"mpd"
-],
-	"application/davmount+xml": [
-	"davmount"
-],
-	"application/docbook+xml": [
-	"dbk"
-],
-	"application/dssc+der": [
-	"dssc"
-],
-	"application/dssc+xml": [
-	"xdssc"
-],
-	"application/ecmascript": [
-	"ecma"
-],
-	"application/emma+xml": [
-	"emma"
-],
-	"application/epub+zip": [
-	"epub"
-],
-	"application/exi": [
-	"exi"
-],
-	"application/font-tdpfr": [
-	"pfr"
-],
-	"application/font-woff": [
-],
-	"application/font-woff2": [
-],
-	"application/geo+json": [
-	"geojson"
-],
-	"application/gml+xml": [
-	"gml"
-],
-	"application/gpx+xml": [
-	"gpx"
-],
-	"application/gxf": [
-	"gxf"
-],
-	"application/gzip": [
-	"gz"
-],
-	"application/hyperstudio": [
-	"stk"
-],
-	"application/inkml+xml": [
-	"ink",
-	"inkml"
-],
-	"application/ipfix": [
-	"ipfix"
-],
-	"application/java-archive": [
-	"jar",
-	"war",
-	"ear"
-],
-	"application/java-serialized-object": [
-	"ser"
-],
-	"application/java-vm": [
-	"class"
-],
-	"application/javascript": [
-	"js",
-	"mjs"
-],
-	"application/json": [
-	"json",
-	"map"
-],
-	"application/json5": [
-	"json5"
-],
-	"application/jsonml+json": [
-	"jsonml"
-],
-	"application/ld+json": [
-	"jsonld"
-],
-	"application/lost+xml": [
-	"lostxml"
-],
-	"application/mac-binhex40": [
-	"hqx"
-],
-	"application/mac-compactpro": [
-	"cpt"
-],
-	"application/mads+xml": [
-	"mads"
-],
-	"application/manifest+json": [
-	"webmanifest"
-],
-	"application/marc": [
-	"mrc"
-],
-	"application/marcxml+xml": [
-	"mrcx"
-],
-	"application/mathematica": [
-	"ma",
-	"nb",
-	"mb"
-],
-	"application/mathml+xml": [
-	"mathml"
-],
-	"application/mbox": [
-	"mbox"
-],
-	"application/mediaservercontrol+xml": [
-	"mscml"
-],
-	"application/metalink+xml": [
-	"metalink"
-],
-	"application/metalink4+xml": [
-	"meta4"
-],
-	"application/mets+xml": [
-	"mets"
-],
-	"application/mods+xml": [
-	"mods"
-],
-	"application/mp21": [
-	"m21",
-	"mp21"
-],
-	"application/mp4": [
-	"mp4s",
-	"m4p"
-],
-	"application/msword": [
-	"doc",
-	"dot"
-],
-	"application/mxf": [
-	"mxf"
-],
-	"application/octet-stream": [
-	"bin",
-	"dms",
-	"lrf",
-	"mar",
-	"so",
-	"dist",
-	"distz",
-	"pkg",
-	"bpk",
-	"dump",
-	"elc",
-	"deploy",
-	"exe",
-	"dll",
-	"deb",
-	"dmg",
-	"iso",
-	"img",
-	"msi",
-	"msp",
-	"msm",
-	"buffer"
-],
-	"application/oda": [
-	"oda"
-],
-	"application/oebps-package+xml": [
-	"opf"
-],
-	"application/ogg": [
-	"ogx"
-],
-	"application/omdoc+xml": [
-	"omdoc"
-],
-	"application/onenote": [
-	"onetoc",
-	"onetoc2",
-	"onetmp",
-	"onepkg"
-],
-	"application/oxps": [
-	"oxps"
-],
-	"application/patch-ops-error+xml": [
-	"xer"
-],
-	"application/pdf": [
-	"pdf"
-],
-	"application/pgp-encrypted": [
-	"pgp"
-],
-	"application/pgp-signature": [
-	"asc",
-	"sig"
-],
-	"application/pics-rules": [
-	"prf"
-],
-	"application/pkcs10": [
-	"p10"
-],
-	"application/pkcs7-mime": [
-	"p7m",
-	"p7c"
-],
-	"application/pkcs7-signature": [
-	"p7s"
-],
-	"application/pkcs8": [
-	"p8"
-],
-	"application/pkix-attr-cert": [
-	"ac"
-],
-	"application/pkix-cert": [
-	"cer"
-],
-	"application/pkix-crl": [
-	"crl"
-],
-	"application/pkix-pkipath": [
-	"pkipath"
-],
-	"application/pkixcmp": [
-	"pki"
-],
-	"application/pls+xml": [
-	"pls"
-],
-	"application/postscript": [
-	"ai",
-	"eps",
-	"ps"
-],
-	"application/prs.cww": [
-	"cww"
-],
-	"application/pskc+xml": [
-	"pskcxml"
-],
-	"application/raml+yaml": [
-	"raml"
-],
-	"application/rdf+xml": [
-	"rdf"
-],
-	"application/reginfo+xml": [
-	"rif"
-],
-	"application/relax-ng-compact-syntax": [
-	"rnc"
-],
-	"application/resource-lists+xml": [
-	"rl"
-],
-	"application/resource-lists-diff+xml": [
-	"rld"
-],
-	"application/rls-services+xml": [
-	"rs"
-],
-	"application/rpki-ghostbusters": [
-	"gbr"
-],
-	"application/rpki-manifest": [
-	"mft"
-],
-	"application/rpki-roa": [
-	"roa"
-],
-	"application/rsd+xml": [
-	"rsd"
-],
-	"application/rss+xml": [
-	"rss"
-],
-	"application/rtf": [
-	"rtf"
-],
-	"application/sbml+xml": [
-	"sbml"
-],
-	"application/scvp-cv-request": [
-	"scq"
-],
-	"application/scvp-cv-response": [
-	"scs"
-],
-	"application/scvp-vp-request": [
-	"spq"
-],
-	"application/scvp-vp-response": [
-	"spp"
-],
-	"application/sdp": [
-	"sdp"
-],
-	"application/set-payment-initiation": [
-	"setpay"
-],
-	"application/set-registration-initiation": [
-	"setreg"
-],
-	"application/shf+xml": [
-	"shf"
-],
-	"application/smil+xml": [
-	"smi",
-	"smil"
-],
-	"application/sparql-query": [
-	"rq"
-],
-	"application/sparql-results+xml": [
-	"srx"
-],
-	"application/srgs": [
-	"gram"
-],
-	"application/srgs+xml": [
-	"grxml"
-],
-	"application/sru+xml": [
-	"sru"
-],
-	"application/ssdl+xml": [
-	"ssdl"
-],
-	"application/ssml+xml": [
-	"ssml"
-],
-	"application/tei+xml": [
-	"tei",
-	"teicorpus"
-],
-	"application/thraud+xml": [
-	"tfi"
-],
-	"application/timestamped-data": [
-	"tsd"
-],
-	"application/vnd.3gpp.pic-bw-large": [
-	"plb"
-],
-	"application/vnd.3gpp.pic-bw-small": [
-	"psb"
-],
-	"application/vnd.3gpp.pic-bw-var": [
-	"pvb"
-],
-	"application/vnd.3gpp2.tcap": [
-	"tcap"
-],
-	"application/vnd.3m.post-it-notes": [
-	"pwn"
-],
-	"application/vnd.accpac.simply.aso": [
-	"aso"
-],
-	"application/vnd.accpac.simply.imp": [
-	"imp"
-],
-	"application/vnd.acucobol": [
-	"acu"
-],
-	"application/vnd.acucorp": [
-	"atc",
-	"acutc"
-],
-	"application/vnd.adobe.air-application-installer-package+zip": [
-	"air"
-],
-	"application/vnd.adobe.formscentral.fcdt": [
-	"fcdt"
-],
-	"application/vnd.adobe.fxp": [
-	"fxp",
-	"fxpl"
-],
-	"application/vnd.adobe.xdp+xml": [
-	"xdp"
-],
-	"application/vnd.adobe.xfdf": [
-	"xfdf"
-],
-	"application/vnd.ahead.space": [
-	"ahead"
-],
-	"application/vnd.airzip.filesecure.azf": [
-	"azf"
-],
-	"application/vnd.airzip.filesecure.azs": [
-	"azs"
-],
-	"application/vnd.amazon.ebook": [
-	"azw"
-],
-	"application/vnd.americandynamics.acc": [
-	"acc"
-],
-	"application/vnd.amiga.ami": [
-	"ami"
-],
-	"application/vnd.android.package-archive": [
-	"apk"
-],
-	"application/vnd.anser-web-certificate-issue-initiation": [
-	"cii"
-],
-	"application/vnd.anser-web-funds-transfer-initiation": [
-	"fti"
-],
-	"application/vnd.antix.game-component": [
-	"atx"
-],
-	"application/vnd.apple.installer+xml": [
-	"mpkg"
-],
-	"application/vnd.apple.mpegurl": [
-	"m3u8"
-],
-	"application/vnd.apple.pkpass": [
-	"pkpass"
-],
-	"application/vnd.aristanetworks.swi": [
-	"swi"
-],
-	"application/vnd.astraea-software.iota": [
-	"iota"
-],
-	"application/vnd.audiograph": [
-	"aep"
-],
-	"application/vnd.blueice.multipass": [
-	"mpm"
-],
-	"application/vnd.bmi": [
-	"bmi"
-],
-	"application/vnd.businessobjects": [
-	"rep"
-],
-	"application/vnd.chemdraw+xml": [
-	"cdxml"
-],
-	"application/vnd.chipnuts.karaoke-mmd": [
-	"mmd"
-],
-	"application/vnd.cinderella": [
-	"cdy"
-],
-	"application/vnd.claymore": [
-	"cla"
-],
-	"application/vnd.cloanto.rp9": [
-	"rp9"
-],
-	"application/vnd.clonk.c4group": [
-	"c4g",
-	"c4d",
-	"c4f",
-	"c4p",
-	"c4u"
-],
-	"application/vnd.cluetrust.cartomobile-config": [
-	"c11amc"
-],
-	"application/vnd.cluetrust.cartomobile-config-pkg": [
-	"c11amz"
-],
-	"application/vnd.commonspace": [
-	"csp"
-],
-	"application/vnd.contact.cmsg": [
-	"cdbcmsg"
-],
-	"application/vnd.cosmocaller": [
-	"cmc"
-],
-	"application/vnd.crick.clicker": [
-	"clkx"
-],
-	"application/vnd.crick.clicker.keyboard": [
-	"clkk"
-],
-	"application/vnd.crick.clicker.palette": [
-	"clkp"
-],
-	"application/vnd.crick.clicker.template": [
-	"clkt"
-],
-	"application/vnd.crick.clicker.wordbank": [
-	"clkw"
-],
-	"application/vnd.criticaltools.wbs+xml": [
-	"wbs"
-],
-	"application/vnd.ctc-posml": [
-	"pml"
-],
-	"application/vnd.cups-ppd": [
-	"ppd"
-],
-	"application/vnd.curl.car": [
-	"car"
-],
-	"application/vnd.curl.pcurl": [
-	"pcurl"
-],
-	"application/vnd.dart": [
-	"dart"
-],
-	"application/vnd.data-vision.rdz": [
-	"rdz"
-],
-	"application/vnd.dece.data": [
-	"uvf",
-	"uvvf",
-	"uvd",
-	"uvvd"
-],
-	"application/vnd.dece.ttml+xml": [
-	"uvt",
-	"uvvt"
-],
-	"application/vnd.dece.unspecified": [
-	"uvx",
-	"uvvx"
-],
-	"application/vnd.dece.zip": [
-	"uvz",
-	"uvvz"
-],
-	"application/vnd.denovo.fcselayout-link": [
-	"fe_launch"
-],
-	"application/vnd.dna": [
-	"dna"
-],
-	"application/vnd.dolby.mlp": [
-	"mlp"
-],
-	"application/vnd.dpgraph": [
-	"dpg"
-],
-	"application/vnd.dreamfactory": [
-	"dfac"
-],
-	"application/vnd.ds-keypoint": [
-	"kpxx"
-],
-	"application/vnd.dvb.ait": [
-	"ait"
-],
-	"application/vnd.dvb.service": [
-	"svc"
-],
-	"application/vnd.dynageo": [
-	"geo"
-],
-	"application/vnd.ecowin.chart": [
-	"mag"
-],
-	"application/vnd.enliven": [
-	"nml"
-],
-	"application/vnd.epson.esf": [
-	"esf"
-],
-	"application/vnd.epson.msf": [
-	"msf"
-],
-	"application/vnd.epson.quickanime": [
-	"qam"
-],
-	"application/vnd.epson.salt": [
-	"slt"
-],
-	"application/vnd.epson.ssf": [
-	"ssf"
-],
-	"application/vnd.eszigno3+xml": [
-	"es3",
-	"et3"
-],
-	"application/vnd.ezpix-album": [
-	"ez2"
-],
-	"application/vnd.ezpix-package": [
-	"ez3"
-],
-	"application/vnd.fdf": [
-	"fdf"
-],
-	"application/vnd.fdsn.mseed": [
-	"mseed"
-],
-	"application/vnd.fdsn.seed": [
-	"seed",
-	"dataless"
-],
-	"application/vnd.flographit": [
-	"gph"
-],
-	"application/vnd.fluxtime.clip": [
-	"ftc"
-],
-	"application/vnd.framemaker": [
-	"fm",
-	"frame",
-	"maker",
-	"book"
-],
-	"application/vnd.frogans.fnc": [
-	"fnc"
-],
-	"application/vnd.frogans.ltf": [
-	"ltf"
-],
-	"application/vnd.fsc.weblaunch": [
-	"fsc"
-],
-	"application/vnd.fujitsu.oasys": [
-	"oas"
-],
-	"application/vnd.fujitsu.oasys2": [
-	"oa2"
-],
-	"application/vnd.fujitsu.oasys3": [
-	"oa3"
-],
-	"application/vnd.fujitsu.oasysgp": [
-	"fg5"
-],
-	"application/vnd.fujitsu.oasysprs": [
-	"bh2"
-],
-	"application/vnd.fujixerox.ddd": [
-	"ddd"
-],
-	"application/vnd.fujixerox.docuworks": [
-	"xdw"
-],
-	"application/vnd.fujixerox.docuworks.binder": [
-	"xbd"
-],
-	"application/vnd.fuzzysheet": [
-	"fzs"
-],
-	"application/vnd.genomatix.tuxedo": [
-	"txd"
-],
-	"application/vnd.geogebra.file": [
-	"ggb"
-],
-	"application/vnd.geogebra.tool": [
-	"ggt"
-],
-	"application/vnd.geometry-explorer": [
-	"gex",
-	"gre"
-],
-	"application/vnd.geonext": [
-	"gxt"
-],
-	"application/vnd.geoplan": [
-	"g2w"
-],
-	"application/vnd.geospace": [
-	"g3w"
-],
-	"application/vnd.gmx": [
-	"gmx"
-],
-	"application/vnd.google-apps.document": [
-	"gdoc"
-],
-	"application/vnd.google-apps.presentation": [
-	"gslides"
-],
-	"application/vnd.google-apps.spreadsheet": [
-	"gsheet"
-],
-	"application/vnd.google-earth.kml+xml": [
-	"kml"
-],
-	"application/vnd.google-earth.kmz": [
-	"kmz"
-],
-	"application/vnd.grafeq": [
-	"gqf",
-	"gqs"
-],
-	"application/vnd.groove-account": [
-	"gac"
-],
-	"application/vnd.groove-help": [
-	"ghf"
-],
-	"application/vnd.groove-identity-message": [
-	"gim"
-],
-	"application/vnd.groove-injector": [
-	"grv"
-],
-	"application/vnd.groove-tool-message": [
-	"gtm"
-],
-	"application/vnd.groove-tool-template": [
-	"tpl"
-],
-	"application/vnd.groove-vcard": [
-	"vcg"
-],
-	"application/vnd.hal+xml": [
-	"hal"
-],
-	"application/vnd.handheld-entertainment+xml": [
-	"zmm"
-],
-	"application/vnd.hbci": [
-	"hbci"
-],
-	"application/vnd.hhe.lesson-player": [
-	"les"
-],
-	"application/vnd.hp-hpgl": [
-	"hpgl"
-],
-	"application/vnd.hp-hpid": [
-	"hpid"
-],
-	"application/vnd.hp-hps": [
-	"hps"
-],
-	"application/vnd.hp-jlyt": [
-	"jlt"
-],
-	"application/vnd.hp-pcl": [
-	"pcl"
-],
-	"application/vnd.hp-pclxl": [
-	"pclxl"
-],
-	"application/vnd.hydrostatix.sof-data": [
-	"sfd-hdstx"
-],
-	"application/vnd.ibm.minipay": [
-	"mpy"
-],
-	"application/vnd.ibm.modcap": [
-	"afp",
-	"listafp",
-	"list3820"
-],
-	"application/vnd.ibm.rights-management": [
-	"irm"
-],
-	"application/vnd.ibm.secure-container": [
-	"sc"
-],
-	"application/vnd.iccprofile": [
-	"icc",
-	"icm"
-],
-	"application/vnd.igloader": [
-	"igl"
-],
-	"application/vnd.immervision-ivp": [
-	"ivp"
-],
-	"application/vnd.immervision-ivu": [
-	"ivu"
-],
-	"application/vnd.insors.igm": [
-	"igm"
-],
-	"application/vnd.intercon.formnet": [
-	"xpw",
-	"xpx"
-],
-	"application/vnd.intergeo": [
-	"i2g"
-],
-	"application/vnd.intu.qbo": [
-	"qbo"
-],
-	"application/vnd.intu.qfx": [
-	"qfx"
-],
-	"application/vnd.ipunplugged.rcprofile": [
-	"rcprofile"
-],
-	"application/vnd.irepository.package+xml": [
-	"irp"
-],
-	"application/vnd.is-xpr": [
-	"xpr"
-],
-	"application/vnd.isac.fcs": [
-	"fcs"
-],
-	"application/vnd.jam": [
-	"jam"
-],
-	"application/vnd.jcp.javame.midlet-rms": [
-	"rms"
-],
-	"application/vnd.jisp": [
-	"jisp"
-],
-	"application/vnd.joost.joda-archive": [
-	"joda"
-],
-	"application/vnd.kahootz": [
-	"ktz",
-	"ktr"
-],
-	"application/vnd.kde.karbon": [
-	"karbon"
-],
-	"application/vnd.kde.kchart": [
-	"chrt"
-],
-	"application/vnd.kde.kformula": [
-	"kfo"
-],
-	"application/vnd.kde.kivio": [
-	"flw"
-],
-	"application/vnd.kde.kontour": [
-	"kon"
-],
-	"application/vnd.kde.kpresenter": [
-	"kpr",
-	"kpt"
-],
-	"application/vnd.kde.kspread": [
-	"ksp"
-],
-	"application/vnd.kde.kword": [
-	"kwd",
-	"kwt"
-],
-	"application/vnd.kenameaapp": [
-	"htke"
-],
-	"application/vnd.kidspiration": [
-	"kia"
-],
-	"application/vnd.kinar": [
-	"kne",
-	"knp"
-],
-	"application/vnd.koan": [
-	"skp",
-	"skd",
-	"skt",
-	"skm"
-],
-	"application/vnd.kodak-descriptor": [
-	"sse"
-],
-	"application/vnd.las.las+xml": [
-	"lasxml"
-],
-	"application/vnd.llamagraphics.life-balance.desktop": [
-	"lbd"
-],
-	"application/vnd.llamagraphics.life-balance.exchange+xml": [
-	"lbe"
-],
-	"application/vnd.lotus-1-2-3": [
-	"123"
-],
-	"application/vnd.lotus-approach": [
-	"apr"
-],
-	"application/vnd.lotus-freelance": [
-	"pre"
-],
-	"application/vnd.lotus-notes": [
-	"nsf"
-],
-	"application/vnd.lotus-organizer": [
-	"org"
-],
-	"application/vnd.lotus-screencam": [
-	"scm"
-],
-	"application/vnd.lotus-wordpro": [
-	"lwp"
-],
-	"application/vnd.macports.portpkg": [
-	"portpkg"
-],
-	"application/vnd.mcd": [
-	"mcd"
-],
-	"application/vnd.medcalcdata": [
-	"mc1"
-],
-	"application/vnd.mediastation.cdkey": [
-	"cdkey"
-],
-	"application/vnd.mfer": [
-	"mwf"
-],
-	"application/vnd.mfmp": [
-	"mfm"
-],
-	"application/vnd.micrografx.flo": [
-	"flo"
-],
-	"application/vnd.micrografx.igx": [
-	"igx"
-],
-	"application/vnd.mif": [
-	"mif"
-],
-	"application/vnd.mobius.daf": [
-	"daf"
-],
-	"application/vnd.mobius.dis": [
-	"dis"
-],
-	"application/vnd.mobius.mbk": [
-	"mbk"
-],
-	"application/vnd.mobius.mqy": [
-	"mqy"
-],
-	"application/vnd.mobius.msl": [
-	"msl"
-],
-	"application/vnd.mobius.plc": [
-	"plc"
-],
-	"application/vnd.mobius.txf": [
-	"txf"
-],
-	"application/vnd.mophun.application": [
-	"mpn"
-],
-	"application/vnd.mophun.certificate": [
-	"mpc"
-],
-	"application/vnd.mozilla.xul+xml": [
-	"xul"
-],
-	"application/vnd.ms-artgalry": [
-	"cil"
-],
-	"application/vnd.ms-cab-compressed": [
-	"cab"
-],
-	"application/vnd.ms-excel": [
-	"xls",
-	"xlm",
-	"xla",
-	"xlc",
-	"xlt",
-	"xlw"
-],
-	"application/vnd.ms-excel.addin.macroenabled.12": [
-	"xlam"
-],
-	"application/vnd.ms-excel.sheet.binary.macroenabled.12": [
-	"xlsb"
-],
-	"application/vnd.ms-excel.sheet.macroenabled.12": [
-	"xlsm"
-],
-	"application/vnd.ms-excel.template.macroenabled.12": [
-	"xltm"
-],
-	"application/vnd.ms-fontobject": [
-	"eot"
-],
-	"application/vnd.ms-htmlhelp": [
-	"chm"
-],
-	"application/vnd.ms-ims": [
-	"ims"
-],
-	"application/vnd.ms-lrm": [
-	"lrm"
-],
-	"application/vnd.ms-officetheme": [
-	"thmx"
-],
-	"application/vnd.ms-outlook": [
-	"msg"
-],
-	"application/vnd.ms-pki.seccat": [
-	"cat"
-],
-	"application/vnd.ms-pki.stl": [
-	"stl"
-],
-	"application/vnd.ms-powerpoint": [
-	"ppt",
-	"pps",
-	"pot"
-],
-	"application/vnd.ms-powerpoint.addin.macroenabled.12": [
-	"ppam"
-],
-	"application/vnd.ms-powerpoint.presentation.macroenabled.12": [
-	"pptm"
-],
-	"application/vnd.ms-powerpoint.slide.macroenabled.12": [
-	"sldm"
-],
-	"application/vnd.ms-powerpoint.slideshow.macroenabled.12": [
-	"ppsm"
-],
-	"application/vnd.ms-powerpoint.template.macroenabled.12": [
-	"potm"
-],
-	"application/vnd.ms-project": [
-	"mpp",
-	"mpt"
-],
-	"application/vnd.ms-word.document.macroenabled.12": [
-	"docm"
-],
-	"application/vnd.ms-word.template.macroenabled.12": [
-	"dotm"
-],
-	"application/vnd.ms-works": [
-	"wps",
-	"wks",
-	"wcm",
-	"wdb"
-],
-	"application/vnd.ms-wpl": [
-	"wpl"
-],
-	"application/vnd.ms-xpsdocument": [
-	"xps"
-],
-	"application/vnd.mseq": [
-	"mseq"
-],
-	"application/vnd.musician": [
-	"mus"
-],
-	"application/vnd.muvee.style": [
-	"msty"
-],
-	"application/vnd.mynfc": [
-	"taglet"
-],
-	"application/vnd.neurolanguage.nlu": [
-	"nlu"
-],
-	"application/vnd.nitf": [
-	"ntf",
-	"nitf"
-],
-	"application/vnd.noblenet-directory": [
-	"nnd"
-],
-	"application/vnd.noblenet-sealer": [
-	"nns"
-],
-	"application/vnd.noblenet-web": [
-	"nnw"
-],
-	"application/vnd.nokia.n-gage.data": [
-	"ngdat"
-],
-	"application/vnd.nokia.n-gage.symbian.install": [
-	"n-gage"
-],
-	"application/vnd.nokia.radio-preset": [
-	"rpst"
-],
-	"application/vnd.nokia.radio-presets": [
-	"rpss"
-],
-	"application/vnd.novadigm.edm": [
-	"edm"
-],
-	"application/vnd.novadigm.edx": [
-	"edx"
-],
-	"application/vnd.novadigm.ext": [
-	"ext"
-],
-	"application/vnd.oasis.opendocument.chart": [
-	"odc"
-],
-	"application/vnd.oasis.opendocument.chart-template": [
-	"otc"
-],
-	"application/vnd.oasis.opendocument.database": [
-	"odb"
-],
-	"application/vnd.oasis.opendocument.formula": [
-	"odf"
-],
-	"application/vnd.oasis.opendocument.formula-template": [
-	"odft"
-],
-	"application/vnd.oasis.opendocument.graphics": [
-	"odg"
-],
-	"application/vnd.oasis.opendocument.graphics-template": [
-	"otg"
-],
-	"application/vnd.oasis.opendocument.image": [
-	"odi"
-],
-	"application/vnd.oasis.opendocument.image-template": [
-	"oti"
-],
-	"application/vnd.oasis.opendocument.presentation": [
-	"odp"
-],
-	"application/vnd.oasis.opendocument.presentation-template": [
-	"otp"
-],
-	"application/vnd.oasis.opendocument.spreadsheet": [
-	"ods"
-],
-	"application/vnd.oasis.opendocument.spreadsheet-template": [
-	"ots"
-],
-	"application/vnd.oasis.opendocument.text": [
-	"odt"
-],
-	"application/vnd.oasis.opendocument.text-master": [
-	"odm"
-],
-	"application/vnd.oasis.opendocument.text-template": [
-	"ott"
-],
-	"application/vnd.oasis.opendocument.text-web": [
-	"oth"
-],
-	"application/vnd.olpc-sugar": [
-	"xo"
-],
-	"application/vnd.oma.dd2+xml": [
-	"dd2"
-],
-	"application/vnd.openofficeorg.extension": [
-	"oxt"
-],
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": [
-	"pptx"
-],
-	"application/vnd.openxmlformats-officedocument.presentationml.slide": [
-	"sldx"
-],
-	"application/vnd.openxmlformats-officedocument.presentationml.slideshow": [
-	"ppsx"
-],
-	"application/vnd.openxmlformats-officedocument.presentationml.template": [
-	"potx"
-],
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-	"xlsx"
-],
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.template": [
-	"xltx"
-],
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
-	"docx"
-],
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.template": [
-	"dotx"
-],
-	"application/vnd.osgeo.mapguide.package": [
-	"mgp"
-],
-	"application/vnd.osgi.dp": [
-	"dp"
-],
-	"application/vnd.osgi.subsystem": [
-	"esa"
-],
-	"application/vnd.palm": [
-	"pdb",
-	"pqa",
-	"oprc"
-],
-	"application/vnd.pawaafile": [
-	"paw"
-],
-	"application/vnd.pg.format": [
-	"str"
-],
-	"application/vnd.pg.osasli": [
-	"ei6"
-],
-	"application/vnd.picsel": [
-	"efif"
-],
-	"application/vnd.pmi.widget": [
-	"wg"
-],
-	"application/vnd.pocketlearn": [
-	"plf"
-],
-	"application/vnd.powerbuilder6": [
-	"pbd"
-],
-	"application/vnd.previewsystems.box": [
-	"box"
-],
-	"application/vnd.proteus.magazine": [
-	"mgz"
-],
-	"application/vnd.publishare-delta-tree": [
-	"qps"
-],
-	"application/vnd.pvi.ptid1": [
-	"ptid"
-],
-	"application/vnd.quark.quarkxpress": [
-	"qxd",
-	"qxt",
-	"qwd",
-	"qwt",
-	"qxl",
-	"qxb"
-],
-	"application/vnd.realvnc.bed": [
-	"bed"
-],
-	"application/vnd.recordare.musicxml": [
-	"mxl"
-],
-	"application/vnd.recordare.musicxml+xml": [
-	"musicxml"
-],
-	"application/vnd.rig.cryptonote": [
-	"cryptonote"
-],
-	"application/vnd.rim.cod": [
-	"cod"
-],
-	"application/vnd.rn-realmedia": [
-	"rm"
-],
-	"application/vnd.rn-realmedia-vbr": [
-	"rmvb"
-],
-	"application/vnd.route66.link66+xml": [
-	"link66"
-],
-	"application/vnd.sailingtracker.track": [
-	"st"
-],
-	"application/vnd.seemail": [
-	"see"
-],
-	"application/vnd.sema": [
-	"sema"
-],
-	"application/vnd.semd": [
-	"semd"
-],
-	"application/vnd.semf": [
-	"semf"
-],
-	"application/vnd.shana.informed.formdata": [
-	"ifm"
-],
-	"application/vnd.shana.informed.formtemplate": [
-	"itp"
-],
-	"application/vnd.shana.informed.interchange": [
-	"iif"
-],
-	"application/vnd.shana.informed.package": [
-	"ipk"
-],
-	"application/vnd.simtech-mindmapper": [
-	"twd",
-	"twds"
-],
-	"application/vnd.smaf": [
-	"mmf"
-],
-	"application/vnd.smart.teacher": [
-	"teacher"
-],
-	"application/vnd.solent.sdkm+xml": [
-	"sdkm",
-	"sdkd"
-],
-	"application/vnd.spotfire.dxp": [
-	"dxp"
-],
-	"application/vnd.spotfire.sfs": [
-	"sfs"
-],
-	"application/vnd.stardivision.calc": [
-	"sdc"
-],
-	"application/vnd.stardivision.draw": [
-	"sda"
-],
-	"application/vnd.stardivision.impress": [
-	"sdd"
-],
-	"application/vnd.stardivision.math": [
-	"smf"
-],
-	"application/vnd.stardivision.writer": [
-	"sdw",
-	"vor"
-],
-	"application/vnd.stardivision.writer-global": [
-	"sgl"
-],
-	"application/vnd.stepmania.package": [
-	"smzip"
-],
-	"application/vnd.stepmania.stepchart": [
-	"sm"
-],
-	"application/vnd.sun.wadl+xml": [
-	"wadl"
-],
-	"application/vnd.sun.xml.calc": [
-	"sxc"
-],
-	"application/vnd.sun.xml.calc.template": [
-	"stc"
-],
-	"application/vnd.sun.xml.draw": [
-	"sxd"
-],
-	"application/vnd.sun.xml.draw.template": [
-	"std"
-],
-	"application/vnd.sun.xml.impress": [
-	"sxi"
-],
-	"application/vnd.sun.xml.impress.template": [
-	"sti"
-],
-	"application/vnd.sun.xml.math": [
-	"sxm"
-],
-	"application/vnd.sun.xml.writer": [
-	"sxw"
-],
-	"application/vnd.sun.xml.writer.global": [
-	"sxg"
-],
-	"application/vnd.sun.xml.writer.template": [
-	"stw"
-],
-	"application/vnd.sus-calendar": [
-	"sus",
-	"susp"
-],
-	"application/vnd.svd": [
-	"svd"
-],
-	"application/vnd.symbian.install": [
-	"sis",
-	"sisx"
-],
-	"application/vnd.syncml+xml": [
-	"xsm"
-],
-	"application/vnd.syncml.dm+wbxml": [
-	"bdm"
-],
-	"application/vnd.syncml.dm+xml": [
-	"xdm"
-],
-	"application/vnd.tao.intent-module-archive": [
-	"tao"
-],
-	"application/vnd.tcpdump.pcap": [
-	"pcap",
-	"cap",
-	"dmp"
-],
-	"application/vnd.tmobile-livetv": [
-	"tmo"
-],
-	"application/vnd.trid.tpt": [
-	"tpt"
-],
-	"application/vnd.triscape.mxs": [
-	"mxs"
-],
-	"application/vnd.trueapp": [
-	"tra"
-],
-	"application/vnd.ufdl": [
-	"ufd",
-	"ufdl"
-],
-	"application/vnd.uiq.theme": [
-	"utz"
-],
-	"application/vnd.umajin": [
-	"umj"
-],
-	"application/vnd.unity": [
-	"unityweb"
-],
-	"application/vnd.uoml+xml": [
-	"uoml"
-],
-	"application/vnd.vcx": [
-	"vcx"
-],
-	"application/vnd.visio": [
-	"vsd",
-	"vst",
-	"vss",
-	"vsw"
-],
-	"application/vnd.visionary": [
-	"vis"
-],
-	"application/vnd.vsf": [
-	"vsf"
-],
-	"application/vnd.wap.wbxml": [
-	"wbxml"
-],
-	"application/vnd.wap.wmlc": [
-	"wmlc"
-],
-	"application/vnd.wap.wmlscriptc": [
-	"wmlsc"
-],
-	"application/vnd.webturbo": [
-	"wtb"
-],
-	"application/vnd.wolfram.player": [
-	"nbp"
-],
-	"application/vnd.wordperfect": [
-	"wpd"
-],
-	"application/vnd.wqd": [
-	"wqd"
-],
-	"application/vnd.wt.stf": [
-	"stf"
-],
-	"application/vnd.xara": [
-	"xar"
-],
-	"application/vnd.xfdl": [
-	"xfdl"
-],
-	"application/vnd.yamaha.hv-dic": [
-	"hvd"
-],
-	"application/vnd.yamaha.hv-script": [
-	"hvs"
-],
-	"application/vnd.yamaha.hv-voice": [
-	"hvp"
-],
-	"application/vnd.yamaha.openscoreformat": [
-	"osf"
-],
-	"application/vnd.yamaha.openscoreformat.osfpvg+xml": [
-	"osfpvg"
-],
-	"application/vnd.yamaha.smaf-audio": [
-	"saf"
-],
-	"application/vnd.yamaha.smaf-phrase": [
-	"spf"
-],
-	"application/vnd.yellowriver-custom-menu": [
-	"cmp"
-],
-	"application/vnd.zul": [
-	"zir",
-	"zirz"
-],
-	"application/vnd.zzazz.deck+xml": [
-	"zaz"
-],
-	"application/voicexml+xml": [
-	"vxml"
-],
-	"application/wasm": [
-	"wasm"
-],
-	"application/widget": [
-	"wgt"
-],
-	"application/winhlp": [
-	"hlp"
-],
-	"application/wsdl+xml": [
-	"wsdl"
-],
-	"application/wspolicy+xml": [
-	"wspolicy"
-],
-	"application/x-7z-compressed": [
-	"7z"
-],
-	"application/x-abiword": [
-	"abw"
-],
-	"application/x-ace-compressed": [
-	"ace"
-],
-	"application/x-apple-diskimage": [
-],
-	"application/x-arj": [
-	"arj"
-],
-	"application/x-authorware-bin": [
-	"aab",
-	"x32",
-	"u32",
-	"vox"
-],
-	"application/x-authorware-map": [
-	"aam"
-],
-	"application/x-authorware-seg": [
-	"aas"
-],
-	"application/x-bcpio": [
-	"bcpio"
-],
-	"application/x-bdoc": [
-],
-	"application/x-bittorrent": [
-	"torrent"
-],
-	"application/x-blorb": [
-	"blb",
-	"blorb"
-],
-	"application/x-bzip": [
-	"bz"
-],
-	"application/x-bzip2": [
-	"bz2",
-	"boz"
-],
-	"application/x-cbr": [
-	"cbr",
-	"cba",
-	"cbt",
-	"cbz",
-	"cb7"
-],
-	"application/x-cdlink": [
-	"vcd"
-],
-	"application/x-cfs-compressed": [
-	"cfs"
-],
-	"application/x-chat": [
-	"chat"
-],
-	"application/x-chess-pgn": [
-	"pgn"
-],
-	"application/x-chrome-extension": [
-	"crx"
-],
-	"application/x-cocoa": [
-	"cco"
-],
-	"application/x-conference": [
-	"nsc"
-],
-	"application/x-cpio": [
-	"cpio"
-],
-	"application/x-csh": [
-	"csh"
-],
-	"application/x-debian-package": [
-	"udeb"
-],
-	"application/x-dgc-compressed": [
-	"dgc"
-],
-	"application/x-director": [
-	"dir",
-	"dcr",
-	"dxr",
-	"cst",
-	"cct",
-	"cxt",
-	"w3d",
-	"fgd",
-	"swa"
-],
-	"application/x-doom": [
-	"wad"
-],
-	"application/x-dtbncx+xml": [
-	"ncx"
-],
-	"application/x-dtbook+xml": [
-	"dtb"
-],
-	"application/x-dtbresource+xml": [
-	"res"
-],
-	"application/x-dvi": [
-	"dvi"
-],
-	"application/x-envoy": [
-	"evy"
-],
-	"application/x-eva": [
-	"eva"
-],
-	"application/x-font-bdf": [
-	"bdf"
-],
-	"application/x-font-ghostscript": [
-	"gsf"
-],
-	"application/x-font-linux-psf": [
-	"psf"
-],
-	"application/x-font-pcf": [
-	"pcf"
-],
-	"application/x-font-snf": [
-	"snf"
-],
-	"application/x-font-type1": [
-	"pfa",
-	"pfb",
-	"pfm",
-	"afm"
-],
-	"application/x-freearc": [
-	"arc"
-],
-	"application/x-futuresplash": [
-	"spl"
-],
-	"application/x-gca-compressed": [
-	"gca"
-],
-	"application/x-glulx": [
-	"ulx"
-],
-	"application/x-gnumeric": [
-	"gnumeric"
-],
-	"application/x-gramps-xml": [
-	"gramps"
-],
-	"application/x-gtar": [
-	"gtar"
-],
-	"application/x-hdf": [
-	"hdf"
-],
-	"application/x-httpd-php": [
-	"php"
-],
-	"application/x-install-instructions": [
-	"install"
-],
-	"application/x-iso9660-image": [
-],
-	"application/x-java-archive-diff": [
-	"jardiff"
-],
-	"application/x-java-jnlp-file": [
-	"jnlp"
-],
-	"application/x-latex": [
-	"latex"
-],
-	"application/x-lua-bytecode": [
-	"luac"
-],
-	"application/x-lzh-compressed": [
-	"lzh",
-	"lha"
-],
-	"application/x-makeself": [
-	"run"
-],
-	"application/x-mie": [
-	"mie"
-],
-	"application/x-mobipocket-ebook": [
-	"prc",
-	"mobi"
-],
-	"application/x-ms-application": [
-	"application"
-],
-	"application/x-ms-shortcut": [
-	"lnk"
-],
-	"application/x-ms-wmd": [
-	"wmd"
-],
-	"application/x-ms-wmz": [
-	"wmz"
-],
-	"application/x-ms-xbap": [
-	"xbap"
-],
-	"application/x-msaccess": [
-	"mdb"
-],
-	"application/x-msbinder": [
-	"obd"
-],
-	"application/x-mscardfile": [
-	"crd"
-],
-	"application/x-msclip": [
-	"clp"
-],
-	"application/x-msdos-program": [
-],
-	"application/x-msdownload": [
-	"com",
-	"bat"
-],
-	"application/x-msmediaview": [
-	"mvb",
-	"m13",
-	"m14"
-],
-	"application/x-msmetafile": [
-	"wmf",
-	"emf",
-	"emz"
-],
-	"application/x-msmoney": [
-	"mny"
-],
-	"application/x-mspublisher": [
-	"pub"
-],
-	"application/x-msschedule": [
-	"scd"
-],
-	"application/x-msterminal": [
-	"trm"
-],
-	"application/x-mswrite": [
-	"wri"
-],
-	"application/x-netcdf": [
-	"nc",
-	"cdf"
-],
-	"application/x-ns-proxy-autoconfig": [
-	"pac"
-],
-	"application/x-nzb": [
-	"nzb"
-],
-	"application/x-perl": [
-	"pl",
-	"pm"
-],
-	"application/x-pilot": [
-],
-	"application/x-pkcs12": [
-	"p12",
-	"pfx"
-],
-	"application/x-pkcs7-certificates": [
-	"p7b",
-	"spc"
-],
-	"application/x-pkcs7-certreqresp": [
-	"p7r"
-],
-	"application/x-rar-compressed": [
-	"rar"
-],
-	"application/x-redhat-package-manager": [
-	"rpm"
-],
-	"application/x-research-info-systems": [
-	"ris"
-],
-	"application/x-sea": [
-	"sea"
-],
-	"application/x-sh": [
-	"sh"
-],
-	"application/x-shar": [
-	"shar"
-],
-	"application/x-shockwave-flash": [
-	"swf"
-],
-	"application/x-silverlight-app": [
-	"xap"
-],
-	"application/x-sql": [
-	"sql"
-],
-	"application/x-stuffit": [
-	"sit"
-],
-	"application/x-stuffitx": [
-	"sitx"
-],
-	"application/x-subrip": [
-	"srt"
-],
-	"application/x-sv4cpio": [
-	"sv4cpio"
-],
-	"application/x-sv4crc": [
-	"sv4crc"
-],
-	"application/x-t3vm-image": [
-	"t3"
-],
-	"application/x-tads": [
-	"gam"
-],
-	"application/x-tar": [
-	"tar"
-],
-	"application/x-tcl": [
-	"tcl",
-	"tk"
-],
-	"application/x-tex": [
-	"tex"
-],
-	"application/x-tex-tfm": [
-	"tfm"
-],
-	"application/x-texinfo": [
-	"texinfo",
-	"texi"
-],
-	"application/x-tgif": [
-	"obj"
-],
-	"application/x-ustar": [
-	"ustar"
-],
-	"application/x-virtualbox-hdd": [
-	"hdd"
-],
-	"application/x-virtualbox-ova": [
-	"ova"
-],
-	"application/x-virtualbox-ovf": [
-	"ovf"
-],
-	"application/x-virtualbox-vbox": [
-	"vbox"
-],
-	"application/x-virtualbox-vbox-extpack": [
-	"vbox-extpack"
-],
-	"application/x-virtualbox-vdi": [
-	"vdi"
-],
-	"application/x-virtualbox-vhd": [
-	"vhd"
-],
-	"application/x-virtualbox-vmdk": [
-	"vmdk"
-],
-	"application/x-wais-source": [
-	"src"
-],
-	"application/x-web-app-manifest+json": [
-	"webapp"
-],
-	"application/x-x509-ca-cert": [
-	"der",
-	"crt",
-	"pem"
-],
-	"application/x-xfig": [
-	"fig"
-],
-	"application/x-xliff+xml": [
-	"xlf"
-],
-	"application/x-xpinstall": [
-	"xpi"
-],
-	"application/x-xz": [
-	"xz"
-],
-	"application/x-zmachine": [
-	"z1",
-	"z2",
-	"z3",
-	"z4",
-	"z5",
-	"z6",
-	"z7",
-	"z8"
-],
-	"application/xaml+xml": [
-	"xaml"
-],
-	"application/xcap-diff+xml": [
-	"xdf"
-],
-	"application/xenc+xml": [
-	"xenc"
-],
-	"application/xhtml+xml": [
-	"xhtml",
-	"xht"
-],
-	"application/xml": [
-	"xml",
-	"xsl",
-	"xsd",
-	"rng"
-],
-	"application/xml-dtd": [
-	"dtd"
-],
-	"application/xop+xml": [
-	"xop"
-],
-	"application/xproc+xml": [
-	"xpl"
-],
-	"application/xslt+xml": [
-	"xslt"
-],
-	"application/xspf+xml": [
-	"xspf"
-],
-	"application/xv+xml": [
-	"mxml",
-	"xhvml",
-	"xvml",
-	"xvm"
-],
-	"application/yang": [
-	"yang"
-],
-	"application/yin+xml": [
-	"yin"
-],
-	"application/zip": [
-	"zip"
-],
-	"audio/3gpp": [
-],
-	"audio/adpcm": [
-	"adp"
-],
-	"audio/basic": [
-	"au",
-	"snd"
-],
-	"audio/midi": [
-	"mid",
-	"midi",
-	"kar",
-	"rmi"
-],
-	"audio/mp3": [
-],
-	"audio/mp4": [
-	"m4a",
-	"mp4a"
-],
-	"audio/mpeg": [
-	"mpga",
-	"mp2",
-	"mp2a",
-	"mp3",
-	"m2a",
-	"m3a"
-],
-	"audio/ogg": [
-	"oga",
-	"ogg",
-	"spx"
-],
-	"audio/s3m": [
-	"s3m"
-],
-	"audio/silk": [
-	"sil"
-],
-	"audio/vnd.dece.audio": [
-	"uva",
-	"uvva"
-],
-	"audio/vnd.digital-winds": [
-	"eol"
-],
-	"audio/vnd.dra": [
-	"dra"
-],
-	"audio/vnd.dts": [
-	"dts"
-],
-	"audio/vnd.dts.hd": [
-	"dtshd"
-],
-	"audio/vnd.lucent.voice": [
-	"lvp"
-],
-	"audio/vnd.ms-playready.media.pya": [
-	"pya"
-],
-	"audio/vnd.nuera.ecelp4800": [
-	"ecelp4800"
-],
-	"audio/vnd.nuera.ecelp7470": [
-	"ecelp7470"
-],
-	"audio/vnd.nuera.ecelp9600": [
-	"ecelp9600"
-],
-	"audio/vnd.rip": [
-	"rip"
-],
-	"audio/wav": [
-	"wav"
-],
-	"audio/wave": [
-],
-	"audio/webm": [
-	"weba"
-],
-	"audio/x-aac": [
-	"aac"
-],
-	"audio/x-aiff": [
-	"aif",
-	"aiff",
-	"aifc"
-],
-	"audio/x-caf": [
-	"caf"
-],
-	"audio/x-flac": [
-	"flac"
-],
-	"audio/x-m4a": [
-],
-	"audio/x-matroska": [
-	"mka"
-],
-	"audio/x-mpegurl": [
-	"m3u"
-],
-	"audio/x-ms-wax": [
-	"wax"
-],
-	"audio/x-ms-wma": [
-	"wma"
-],
-	"audio/x-pn-realaudio": [
-	"ram",
-	"ra"
-],
-	"audio/x-pn-realaudio-plugin": [
-	"rmp"
-],
-	"audio/x-realaudio": [
-],
-	"audio/x-wav": [
-],
-	"audio/xm": [
-	"xm"
-],
-	"chemical/x-cdx": [
-	"cdx"
-],
-	"chemical/x-cif": [
-	"cif"
-],
-	"chemical/x-cmdf": [
-	"cmdf"
-],
-	"chemical/x-cml": [
-	"cml"
-],
-	"chemical/x-csml": [
-	"csml"
-],
-	"chemical/x-xyz": [
-	"xyz"
-],
-	"font/collection": [
-	"ttc"
-],
-	"font/otf": [
-	"otf"
-],
-	"font/ttf": [
-	"ttf"
-],
-	"font/woff": [
-	"woff"
-],
-	"font/woff2": [
-	"woff2"
-],
-	"image/apng": [
-	"apng"
-],
-	"image/bmp": [
-	"bmp"
-],
-	"image/cgm": [
-	"cgm"
-],
-	"image/g3fax": [
-	"g3"
-],
-	"image/gif": [
-	"gif"
-],
-	"image/ief": [
-	"ief"
-],
-	"image/jp2": [
-	"jp2",
-	"jpg2"
-],
-	"image/jpeg": [
-	"jpeg",
-	"jpg",
-	"jpe"
-],
-	"image/jpm": [
-	"jpm"
-],
-	"image/jpx": [
-	"jpx",
-	"jpf"
-],
-	"image/ktx": [
-	"ktx"
-],
-	"image/png": [
-	"png"
-],
-	"image/prs.btif": [
-	"btif"
-],
-	"image/sgi": [
-	"sgi"
-],
-	"image/svg+xml": [
-	"svg",
-	"svgz"
-],
-	"image/tiff": [
-	"tiff",
-	"tif"
-],
-	"image/vnd.adobe.photoshop": [
-	"psd"
-],
-	"image/vnd.dece.graphic": [
-	"uvi",
-	"uvvi",
-	"uvg",
-	"uvvg"
-],
-	"image/vnd.djvu": [
-	"djvu",
-	"djv"
-],
-	"image/vnd.dvb.subtitle": [
-],
-	"image/vnd.dwg": [
-	"dwg"
-],
-	"image/vnd.dxf": [
-	"dxf"
-],
-	"image/vnd.fastbidsheet": [
-	"fbs"
-],
-	"image/vnd.fpx": [
-	"fpx"
-],
-	"image/vnd.fst": [
-	"fst"
-],
-	"image/vnd.fujixerox.edmics-mmr": [
-	"mmr"
-],
-	"image/vnd.fujixerox.edmics-rlc": [
-	"rlc"
-],
-	"image/vnd.ms-modi": [
-	"mdi"
-],
-	"image/vnd.ms-photo": [
-	"wdp"
-],
-	"image/vnd.net-fpx": [
-	"npx"
-],
-	"image/vnd.wap.wbmp": [
-	"wbmp"
-],
-	"image/vnd.xiff": [
-	"xif"
-],
-	"image/webp": [
-	"webp"
-],
-	"image/x-3ds": [
-	"3ds"
-],
-	"image/x-cmu-raster": [
-	"ras"
-],
-	"image/x-cmx": [
-	"cmx"
-],
-	"image/x-freehand": [
-	"fh",
-	"fhc",
-	"fh4",
-	"fh5",
-	"fh7"
-],
-	"image/x-icon": [
-	"ico"
-],
-	"image/x-jng": [
-	"jng"
-],
-	"image/x-mrsid-image": [
-	"sid"
-],
-	"image/x-ms-bmp": [
-],
-	"image/x-pcx": [
-	"pcx"
-],
-	"image/x-pict": [
-	"pic",
-	"pct"
-],
-	"image/x-portable-anymap": [
-	"pnm"
-],
-	"image/x-portable-bitmap": [
-	"pbm"
-],
-	"image/x-portable-graymap": [
-	"pgm"
-],
-	"image/x-portable-pixmap": [
-	"ppm"
-],
-	"image/x-rgb": [
-	"rgb"
-],
-	"image/x-tga": [
-	"tga"
-],
-	"image/x-xbitmap": [
-	"xbm"
-],
-	"image/x-xpixmap": [
-	"xpm"
-],
-	"image/x-xwindowdump": [
-	"xwd"
-],
-	"message/rfc822": [
-	"eml",
-	"mime"
-],
-	"model/gltf+json": [
-	"gltf"
-],
-	"model/gltf-binary": [
-	"glb"
-],
-	"model/iges": [
-	"igs",
-	"iges"
-],
-	"model/mesh": [
-	"msh",
-	"mesh",
-	"silo"
-],
-	"model/vnd.collada+xml": [
-	"dae"
-],
-	"model/vnd.dwf": [
-	"dwf"
-],
-	"model/vnd.gdl": [
-	"gdl"
-],
-	"model/vnd.gtw": [
-	"gtw"
-],
-	"model/vnd.mts": [
-	"mts"
-],
-	"model/vnd.vtu": [
-	"vtu"
-],
-	"model/vrml": [
-	"wrl",
-	"vrml"
-],
-	"model/x3d+binary": [
-	"x3db",
-	"x3dbz"
-],
-	"model/x3d+vrml": [
-	"x3dv",
-	"x3dvz"
-],
-	"model/x3d+xml": [
-	"x3d",
-	"x3dz"
-],
-	"text/cache-manifest": [
-	"appcache",
-	"manifest"
-],
-	"text/calendar": [
-	"ics",
-	"ifb"
-],
-	"text/coffeescript": [
-	"coffee",
-	"litcoffee"
-],
-	"text/css": [
-	"css"
-],
-	"text/csv": [
-	"csv"
-],
-	"text/hjson": [
-	"hjson"
-],
-	"text/html": [
-	"html",
-	"htm",
-	"shtml"
-],
-	"text/jade": [
-	"jade"
-],
-	"text/jsx": [
-	"jsx"
-],
-	"text/less": [
-	"less"
-],
-	"text/markdown": [
-	"markdown",
-	"md"
-],
-	"text/mathml": [
-	"mml"
-],
-	"text/n3": [
-	"n3"
-],
-	"text/plain": [
-	"txt",
-	"text",
-	"conf",
-	"def",
-	"list",
-	"log",
-	"in",
-	"ini"
-],
-	"text/prs.lines.tag": [
-	"dsc"
-],
-	"text/richtext": [
-	"rtx"
-],
-	"text/rtf": [
-],
-	"text/sgml": [
-	"sgml",
-	"sgm"
-],
-	"text/slim": [
-	"slim",
-	"slm"
-],
-	"text/stylus": [
-	"stylus",
-	"styl"
-],
-	"text/tab-separated-values": [
-	"tsv"
-],
-	"text/troff": [
-	"t",
-	"tr",
-	"roff",
-	"man",
-	"me",
-	"ms"
-],
-	"text/turtle": [
-	"ttl"
-],
-	"text/uri-list": [
-	"uri",
-	"uris",
-	"urls"
-],
-	"text/vcard": [
-	"vcard"
-],
-	"text/vnd.curl": [
-	"curl"
-],
-	"text/vnd.curl.dcurl": [
-	"dcurl"
-],
-	"text/vnd.curl.mcurl": [
-	"mcurl"
-],
-	"text/vnd.curl.scurl": [
-	"scurl"
-],
-	"text/vnd.dvb.subtitle": [
-	"sub"
-],
-	"text/vnd.fly": [
-	"fly"
-],
-	"text/vnd.fmi.flexstor": [
-	"flx"
-],
-	"text/vnd.graphviz": [
-	"gv"
-],
-	"text/vnd.in3d.3dml": [
-	"3dml"
-],
-	"text/vnd.in3d.spot": [
-	"spot"
-],
-	"text/vnd.sun.j2me.app-descriptor": [
-	"jad"
-],
-	"text/vnd.wap.wml": [
-	"wml"
-],
-	"text/vnd.wap.wmlscript": [
-	"wmls"
-],
-	"text/vtt": [
-	"vtt"
-],
-	"text/x-asm": [
-	"s",
-	"asm"
-],
-	"text/x-c": [
-	"c",
-	"cc",
-	"cxx",
-	"cpp",
-	"h",
-	"hh",
-	"dic"
-],
-	"text/x-component": [
-	"htc"
-],
-	"text/x-fortran": [
-	"f",
-	"for",
-	"f77",
-	"f90"
-],
-	"text/x-handlebars-template": [
-	"hbs"
-],
-	"text/x-java-source": [
-	"java"
-],
-	"text/x-lua": [
-	"lua"
-],
-	"text/x-markdown": [
-	"mkd"
-],
-	"text/x-nfo": [
-	"nfo"
-],
-	"text/x-opml": [
-	"opml"
-],
-	"text/x-org": [
-],
-	"text/x-pascal": [
-	"p",
-	"pas"
-],
-	"text/x-processing": [
-	"pde"
-],
-	"text/x-sass": [
-	"sass"
-],
-	"text/x-scss": [
-	"scss"
-],
-	"text/x-setext": [
-	"etx"
-],
-	"text/x-sfv": [
-	"sfv"
-],
-	"text/x-suse-ymp": [
-	"ymp"
-],
-	"text/x-uuencode": [
-	"uu"
-],
-	"text/x-vcalendar": [
-	"vcs"
-],
-	"text/x-vcard": [
-	"vcf"
-],
-	"text/xml": [
-],
-	"text/yaml": [
-	"yaml",
-	"yml"
-],
-	"video/3gpp": [
-	"3gp",
-	"3gpp"
-],
-	"video/3gpp2": [
-	"3g2"
-],
-	"video/h261": [
-	"h261"
-],
-	"video/h263": [
-	"h263"
-],
-	"video/h264": [
-	"h264"
-],
-	"video/jpeg": [
-	"jpgv"
-],
-	"video/jpm": [
-	"jpgm"
-],
-	"video/mj2": [
-	"mj2",
-	"mjp2"
-],
-	"video/mp2t": [
-	"ts"
-],
-	"video/mp4": [
-	"mp4",
-	"mp4v",
-	"mpg4"
-],
-	"video/mpeg": [
-	"mpeg",
-	"mpg",
-	"mpe",
-	"m1v",
-	"m2v"
-],
-	"video/ogg": [
-	"ogv"
-],
-	"video/quicktime": [
-	"qt",
-	"mov"
-],
-	"video/vnd.dece.hd": [
-	"uvh",
-	"uvvh"
-],
-	"video/vnd.dece.mobile": [
-	"uvm",
-	"uvvm"
-],
-	"video/vnd.dece.pd": [
-	"uvp",
-	"uvvp"
-],
-	"video/vnd.dece.sd": [
-	"uvs",
-	"uvvs"
-],
-	"video/vnd.dece.video": [
-	"uvv",
-	"uvvv"
-],
-	"video/vnd.dvb.file": [
-	"dvb"
-],
-	"video/vnd.fvt": [
-	"fvt"
-],
-	"video/vnd.mpegurl": [
-	"mxu",
-	"m4u"
-],
-	"video/vnd.ms-playready.media.pyv": [
-	"pyv"
-],
-	"video/vnd.uvvu.mp4": [
-	"uvu",
-	"uvvu"
-],
-	"video/vnd.vivo": [
-	"viv"
-],
-	"video/webm": [
-	"webm"
-],
-	"video/x-f4v": [
-	"f4v"
-],
-	"video/x-fli": [
-	"fli"
-],
-	"video/x-flv": [
-	"flv"
-],
-	"video/x-m4v": [
-	"m4v"
-],
-	"video/x-matroska": [
-	"mkv",
-	"mk3d",
-	"mks"
-],
-	"video/x-mng": [
-	"mng"
-],
-	"video/x-ms-asf": [
-	"asf",
-	"asx"
-],
-	"video/x-ms-vob": [
-	"vob"
-],
-	"video/x-ms-wm": [
-	"wm"
-],
-	"video/x-ms-wmv": [
-	"wmv"
-],
-	"video/x-ms-wmx": [
-	"wmx"
-],
-	"video/x-ms-wvx": [
-	"wvx"
-],
-	"video/x-msvideo": [
-	"avi"
-],
-	"video/x-sgi-movie": [
-	"movie"
-],
-	"video/x-smv": [
-	"smv"
-],
-	"x-conference/x-cooltalk": [
-	"ice"
-]
-};
-
-function Mime() {
-  // Map of extension -> mime type
-  this.types = Object.create(null);
-
-  // Map of mime type -> extension
-  this.extensions = Object.create(null);
-}
-
-/**
- * Define mimetype -> extension mappings.  Each key is a mime-type that maps
- * to an array of extensions associated with the type.  The first extension is
- * used as the default extension for the type.
- *
- * e.g. mime.define({'audio/ogg', ['oga', 'ogg', 'spx']});
- *
- * @param map (Object) type definitions
- */
-Mime.prototype.define = function (map) {
-  for (var type in map) {
-    var exts = map[type];
-    for (var i = 0; i < exts.length; i++) {
-      if (process.env.DEBUG_MIME && this.types[exts[i]]) {
-        console.warn((this._loading || "define()").replace(/.*\//, ''), 'changes "' + exts[i] + '" extension type from ' +
-          this.types[exts[i]] + ' to ' + type);
-      }
-
-      this.types[exts[i]] = type;
-    }
-
-    // Default extension is the first one we encounter
-    if (!this.extensions[type]) {
-      this.extensions[type] = exts[0];
-    }
-  }
-};
-
-/**
- * Load an Apache2-style ".types" file
- *
- * This may be called multiple times (it's expected).  Where files declare
- * overlapping types/extensions, the last file wins.
- *
- * @param file (String) path of file to load.
- */
-Mime.prototype.load = function(file) {
-  this._loading = file;
-  // Read file and split into lines
-  var map = {},
-      content = fs__default["default"].readFileSync(file, 'ascii'),
-      lines = content.split(/[\r\n]+/);
-
-  lines.forEach(function(line) {
-    // Clean up whitespace/comments, and split into fields
-    var fields = line.replace(/\s*#.*|^\s*|\s*$/g, '').split(/\s+/);
-    map[fields.shift()] = fields;
-  });
-
-  this.define(map);
-
-  this._loading = null;
-};
-
-/**
- * Lookup a mime type based on extension
- */
-Mime.prototype.lookup = function(path, fallback) {
-  var ext = path.replace(/^.*[\.\/\\]/, '').toLowerCase();
-
-  return this.types[ext] || fallback || this.default_type;
-};
-
-/**
- * Return file extension associated with a mime type
- */
-Mime.prototype.extension = function(mimeType) {
-  var type = mimeType.match(/^\s*([^;\s]*)(?:;|\s|$)/)[1].toLowerCase();
-  return this.extensions[type];
-};
-
-// Default instance
-var mime = new Mime();
-
-// Define built-in types
-mime.define(require$$0$2);
-
-// Default type
-mime.default_type = mime.lookup('bin');
-
-//
-// Additional API specific to the default instance
-//
-
-mime.Mime = Mime;
-
-/**
- * Lookup a charset based on mime type.
- */
-mime.charsets = {
-  lookup: function(mimeType, fallback) {
-    // Assume text types are utf8
-    return (/^text\/|^application\/(javascript|json)/).test(mimeType) ? 'UTF-8' : fallback;
-  }
-};
-
-var mime_1$1 = mime;
-
-/**
- * Helpers.
- */
-var s = 1000;
-var m = s * 60;
-var h = m * 60;
-var d = h * 24;
-var w = d * 7;
-var y = d * 365.25;
-
-/**
- * Parse or format the given `val`.
- *
- * Options:
- *
- *  - `long` verbose formatting [false]
- *
- * @param {String|Number} val
- * @param {Object} [options]
- * @throws {Error} throw an error if val is not a non-empty string or a number
- * @return {String|Number}
- * @api public
- */
-
-var ms = function(val, options) {
-  options = options || {};
-  var type = typeof val;
-  if (type === 'string' && val.length > 0) {
-    return parse$1(val);
-  } else if (type === 'number' && isNaN(val) === false) {
-    return options.long ? fmtLong(val) : fmtShort(val);
-  }
-  throw new Error(
-    'val is not a non-empty string or a valid number. val=' +
-      JSON.stringify(val)
-  );
-};
-
-/**
- * Parse the given `str` and return milliseconds.
- *
- * @param {String} str
- * @return {Number}
- * @api private
- */
-
-function parse$1(str) {
-  str = String(str);
-  if (str.length > 100) {
-    return;
-  }
-  var match = /^((?:\d+)?\-?\d?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
-    str
-  );
-  if (!match) {
-    return;
-  }
-  var n = parseFloat(match[1]);
-  var type = (match[2] || 'ms').toLowerCase();
-  switch (type) {
-    case 'years':
-    case 'year':
-    case 'yrs':
-    case 'yr':
-    case 'y':
-      return n * y;
-    case 'weeks':
-    case 'week':
-    case 'w':
-      return n * w;
-    case 'days':
-    case 'day':
-    case 'd':
-      return n * d;
-    case 'hours':
-    case 'hour':
-    case 'hrs':
-    case 'hr':
-    case 'h':
-      return n * h;
-    case 'minutes':
-    case 'minute':
-    case 'mins':
-    case 'min':
-    case 'm':
-      return n * m;
-    case 'seconds':
-    case 'second':
-    case 'secs':
-    case 'sec':
-    case 's':
-      return n * s;
-    case 'milliseconds':
-    case 'millisecond':
-    case 'msecs':
-    case 'msec':
-    case 'ms':
-      return n;
-    default:
-      return undefined;
-  }
-}
-
-/**
- * Short format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtShort(ms) {
-  var msAbs = Math.abs(ms);
-  if (msAbs >= d) {
-    return Math.round(ms / d) + 'd';
-  }
-  if (msAbs >= h) {
-    return Math.round(ms / h) + 'h';
-  }
-  if (msAbs >= m) {
-    return Math.round(ms / m) + 'm';
-  }
-  if (msAbs >= s) {
-    return Math.round(ms / s) + 's';
-  }
-  return ms + 'ms';
-}
-
-/**
- * Long format for `ms`.
- *
- * @param {Number} ms
- * @return {String}
- * @api private
- */
-
-function fmtLong(ms) {
-  var msAbs = Math.abs(ms);
-  if (msAbs >= d) {
-    return plural(ms, msAbs, d, 'day');
-  }
-  if (msAbs >= h) {
-    return plural(ms, msAbs, h, 'hour');
-  }
-  if (msAbs >= m) {
-    return plural(ms, msAbs, m, 'minute');
-  }
-  if (msAbs >= s) {
-    return plural(ms, msAbs, s, 'second');
-  }
-  return ms + ' ms';
-}
-
-/**
- * Pluralization helper.
- */
-
-function plural(ms, msAbs, n, name) {
-  var isPlural = msAbs >= n * 1.5;
-  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
-}
-
-/*!
- * ee-first
- * Copyright(c) 2014 Jonathan Ong
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var eeFirst = first;
-
-/**
- * Get the first event in a set of event emitters and event pairs.
- *
- * @param {array} stuff
- * @param {function} done
- * @public
- */
-
-function first(stuff, done) {
-  if (!Array.isArray(stuff))
-    throw new TypeError('arg must be an array of [ee, events...] arrays')
-
-  var cleanups = [];
-
-  for (var i = 0; i < stuff.length; i++) {
-    var arr = stuff[i];
-
-    if (!Array.isArray(arr) || arr.length < 2)
-      throw new TypeError('each array member must be [ee, events...]')
-
-    var ee = arr[0];
-
-    for (var j = 1; j < arr.length; j++) {
-      var event = arr[j];
-      var fn = listener(event, callback);
-
-      // listen to the event
-      ee.on(event, fn);
-      // push this listener to the list of cleanups
-      cleanups.push({
-        ee: ee,
-        event: event,
-        fn: fn,
-      });
-    }
-  }
-
-  function callback() {
-    cleanup();
-    done.apply(null, arguments);
-  }
-
-  function cleanup() {
-    var x;
-    for (var i = 0; i < cleanups.length; i++) {
-      x = cleanups[i];
-      x.ee.removeListener(x.event, x.fn);
-    }
-  }
-
-  function thunk(fn) {
-    done = fn;
-  }
-
-  thunk.cancel = cleanup;
-
-  return thunk
-}
-
-/**
- * Create the event listener.
- * @private
- */
-
-function listener(event, done) {
-  return function onevent(arg1) {
-    var args = new Array(arguments.length);
-    var ee = this;
-    var err = event === 'error'
-      ? arg1
-      : null;
-
-    // copy args to prevent arguments escaping scope
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-
-    done(err, ee, event, args);
-  }
-}
-
-/*!
- * on-finished
- * Copyright(c) 2013 Jonathan Ong
- * Copyright(c) 2014 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var onFinished_1 = onFinished;
-var isFinished_1 = isFinished;
-
-/**
- * Module dependencies.
- * @private
- */
-
-
-
-/**
- * Variables.
- * @private
- */
-
-/* istanbul ignore next */
-var defer = typeof setImmediate === 'function'
-  ? setImmediate
-  : function(fn){ process.nextTick(fn.bind.apply(fn, arguments)); };
-
-/**
- * Invoke callback when the response has finished, useful for
- * cleaning up resources afterwards.
- *
- * @param {object} msg
- * @param {function} listener
- * @return {object}
- * @public
- */
-
-function onFinished(msg, listener) {
-  if (isFinished(msg) !== false) {
-    defer(listener, null, msg);
-    return msg
-  }
-
-  // attach the listener to the message
-  attachListener(msg, listener);
-
-  return msg
-}
-
-/**
- * Determine if message is already finished.
- *
- * @param {object} msg
- * @return {boolean}
- * @public
- */
-
-function isFinished(msg) {
-  var socket = msg.socket;
-
-  if (typeof msg.finished === 'boolean') {
-    // OutgoingMessage
-    return Boolean(msg.finished || (socket && !socket.writable))
-  }
-
-  if (typeof msg.complete === 'boolean') {
-    // IncomingMessage
-    return Boolean(msg.upgrade || !socket || !socket.readable || (msg.complete && !msg.readable))
-  }
-
-  // don't know
-  return undefined
-}
-
-/**
- * Attach a finished listener to the message.
- *
- * @param {object} msg
- * @param {function} callback
- * @private
- */
-
-function attachFinishedListener(msg, callback) {
-  var eeMsg;
-  var eeSocket;
-  var finished = false;
-
-  function onFinish(error) {
-    eeMsg.cancel();
-    eeSocket.cancel();
-
-    finished = true;
-    callback(error);
-  }
-
-  // finished on first message event
-  eeMsg = eeSocket = eeFirst([[msg, 'end', 'finish']], onFinish);
-
-  function onSocket(socket) {
-    // remove listener
-    msg.removeListener('socket', onSocket);
-
-    if (finished) return
-    if (eeMsg !== eeSocket) return
-
-    // finished on first socket event
-    eeSocket = eeFirst([[socket, 'error', 'close']], onFinish);
-  }
-
-  if (msg.socket) {
-    // socket already assigned
-    onSocket(msg.socket);
-    return
-  }
-
-  // wait for socket to be assigned
-  msg.on('socket', onSocket);
-
-  if (msg.socket === undefined) {
-    // node.js 0.8 patch
-    patchAssignSocket(msg, onSocket);
-  }
-}
-
-/**
- * Attach the listener to the message.
- *
- * @param {object} msg
- * @return {function}
- * @private
- */
-
-function attachListener(msg, listener) {
-  var attached = msg.__onFinished;
-
-  // create a private single listener with queue
-  if (!attached || !attached.queue) {
-    attached = msg.__onFinished = createListener(msg);
-    attachFinishedListener(msg, attached);
-  }
-
-  attached.queue.push(listener);
-}
-
-/**
- * Create listener on message.
- *
- * @param {object} msg
- * @return {function}
- * @private
- */
-
-function createListener(msg) {
-  function listener(err) {
-    if (msg.__onFinished === listener) msg.__onFinished = null;
-    if (!listener.queue) return
-
-    var queue = listener.queue;
-    listener.queue = null;
-
-    for (var i = 0; i < queue.length; i++) {
-      queue[i](err, msg);
-    }
-  }
-
-  listener.queue = [];
-
-  return listener
-}
-
-/**
- * Patch ServerResponse.prototype.assignSocket for node.js 0.8.
- *
- * @param {ServerResponse} res
- * @param {function} callback
- * @private
- */
-
-function patchAssignSocket(res, callback) {
-  var assignSocket = res.assignSocket;
-
-  if (typeof assignSocket !== 'function') return
-
-  // res.on('socket', callback) is broken in 0.8
-  res.assignSocket = function _assignSocket(socket) {
-    assignSocket.call(this, socket);
-    callback(socket);
-  };
-}
-onFinished_1.isFinished = isFinished_1;
-
-/*!
- * range-parser
- * Copyright(c) 2012-2014 TJ Holowaychuk
- * Copyright(c) 2015-2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module exports.
- * @public
- */
-
-var rangeParser_1 = rangeParser;
-
-/**
- * Parse "Range" header `str` relative to the given file `size`.
- *
- * @param {Number} size
- * @param {String} str
- * @param {Object} [options]
- * @return {Array}
- * @public
- */
-
-function rangeParser (size, str, options) {
-  if (typeof str !== 'string') {
-    throw new TypeError('argument str must be a string')
-  }
-
-  var index = str.indexOf('=');
-
-  if (index === -1) {
-    return -2
-  }
-
-  // split the range string
-  var arr = str.slice(index + 1).split(',');
-  var ranges = [];
-
-  // add ranges type
-  ranges.type = str.slice(0, index);
-
-  // parse all ranges
-  for (var i = 0; i < arr.length; i++) {
-    var range = arr[i].split('-');
-    var start = parseInt(range[0], 10);
-    var end = parseInt(range[1], 10);
-
-    // -nnn
-    if (isNaN(start)) {
-      start = size - end;
-      end = size - 1;
-    // nnn-
-    } else if (isNaN(end)) {
-      end = size - 1;
-    }
-
-    // limit last-byte-pos to current length
-    if (end > size - 1) {
-      end = size - 1;
-    }
-
-    // invalid or unsatisifiable
-    if (isNaN(start) || isNaN(end) || start > end || start < 0) {
-      continue
-    }
-
-    // add range
-    ranges.push({
-      start: start,
-      end: end
-    });
-  }
-
-  if (ranges.length < 1) {
-    // unsatisifiable
-    return -1
-  }
-
-  return options && options.combine
-    ? combineRanges(ranges)
-    : ranges
-}
-
-/**
- * Combine overlapping & adjacent ranges.
- * @private
- */
-
-function combineRanges (ranges) {
-  var ordered = ranges.map(mapWithIndex).sort(sortByRangeStart);
-
-  for (var j = 0, i = 1; i < ordered.length; i++) {
-    var range = ordered[i];
-    var current = ordered[j];
-
-    if (range.start > current.end + 1) {
-      // next range
-      ordered[++j] = range;
-    } else if (range.end > current.end) {
-      // extend range
-      current.end = range.end;
-      current.index = Math.min(current.index, range.index);
-    }
-  }
-
-  // trim ordered array
-  ordered.length = j + 1;
-
-  // generate combined range
-  var combined = ordered.sort(sortByRangeIndex).map(mapWithoutIndex);
-
-  // copy ranges type
-  combined.type = ranges.type;
-
-  return combined
-}
-
-/**
- * Map function to add index value to ranges.
- * @private
- */
-
-function mapWithIndex (range, index) {
-  return {
-    start: range.start,
-    end: range.end,
-    index: index
-  }
-}
-
-/**
- * Map function to remove index value from ranges.
- * @private
- */
-
-function mapWithoutIndex (range) {
-  return {
-    start: range.start,
-    end: range.end
-  }
-}
-
-/**
- * Sort function to sort ranges by index.
- * @private
- */
-
-function sortByRangeIndex (a, b) {
-  return a.index - b.index
-}
-
-/**
- * Sort function to sort ranges by start position.
- * @private
- */
-
-function sortByRangeStart (a, b) {
-  return a.start - b.start
-}
-
-/*!
- * send
- * Copyright(c) 2012 TJ Holowaychuk
- * Copyright(c) 2014-2016 Douglas Christopher Wilson
- * MIT Licensed
- */
-
-/**
- * Module dependencies.
- * @private
- */
-
-
-var debug = src('send');
-var deprecate = depd_1('send');
-
-
-
-
-
-
-
-
-
-
-var path = require$$1__default["default"];
-
-
-
-
-/**
- * Path function references.
- * @private
- */
-
-var extname = path.extname;
-var join = path.join;
-var normalize = path.normalize;
-var resolve = path.resolve;
-var sep = path.sep;
-
-/**
- * Regular expression for identifying a bytes Range header.
- * @private
- */
-
-var BYTES_RANGE_REGEXP = /^ *bytes=/;
-
-/**
- * Maximum value allowed for the max age.
- * @private
- */
-
-var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1000; // 1 year
-
-/**
- * Regular expression to match a path with a directory up component.
- * @private
- */
-
-var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
-
-/**
- * Module exports.
- * @public
- */
-
-var send_1 = send;
-var mime_1 = mime_1$1;
-
-/**
- * Return a `SendStream` for `req` and `path`.
- *
- * @param {object} req
- * @param {string} path
- * @param {object} [options]
- * @return {SendStream}
- * @public
- */
-
-function send (req, path, options) {
-  return new SendStream(req, path, options)
-}
-
-/**
- * Initialize a `SendStream` with the given `path`.
- *
- * @param {Request} req
- * @param {String} path
- * @param {object} [options]
- * @private
- */
-
-function SendStream (req, path, options) {
-  Stream__default["default"].call(this);
-
-  var opts = options || {};
-
-  this.options = opts;
-  this.path = path;
-  this.req = req;
-
-  this._acceptRanges = opts.acceptRanges !== undefined
-    ? Boolean(opts.acceptRanges)
-    : true;
-
-  this._cacheControl = opts.cacheControl !== undefined
-    ? Boolean(opts.cacheControl)
-    : true;
-
-  this._etag = opts.etag !== undefined
-    ? Boolean(opts.etag)
-    : true;
-
-  this._dotfiles = opts.dotfiles !== undefined
-    ? opts.dotfiles
-    : 'ignore';
-
-  if (this._dotfiles !== 'ignore' && this._dotfiles !== 'allow' && this._dotfiles !== 'deny') {
-    throw new TypeError('dotfiles option must be "allow", "deny", or "ignore"')
-  }
-
-  this._hidden = Boolean(opts.hidden);
-
-  if (opts.hidden !== undefined) {
-    deprecate('hidden: use dotfiles: \'' + (this._hidden ? 'allow' : 'ignore') + '\' instead');
-  }
-
-  // legacy support
-  if (opts.dotfiles === undefined) {
-    this._dotfiles = undefined;
-  }
-
-  this._extensions = opts.extensions !== undefined
-    ? normalizeList(opts.extensions, 'extensions option')
-    : [];
-
-  this._immutable = opts.immutable !== undefined
-    ? Boolean(opts.immutable)
-    : false;
-
-  this._index = opts.index !== undefined
-    ? normalizeList(opts.index, 'index option')
-    : ['index.html'];
-
-  this._lastModified = opts.lastModified !== undefined
-    ? Boolean(opts.lastModified)
-    : true;
-
-  this._maxage = opts.maxAge || opts.maxage;
-  this._maxage = typeof this._maxage === 'string'
-    ? ms(this._maxage)
-    : Number(this._maxage);
-  this._maxage = !isNaN(this._maxage)
-    ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE)
-    : 0;
-
-  this._root = opts.root
-    ? resolve(opts.root)
-    : null;
-
-  if (!this._root && opts.from) {
-    this.from(opts.from);
-  }
-}
-
-/**
- * Inherits from `Stream`.
- */
-
-util__default["default"].inherits(SendStream, Stream__default["default"]);
-
-/**
- * Enable or disable etag generation.
- *
- * @param {Boolean} val
- * @return {SendStream}
- * @api public
- */
-
-SendStream.prototype.etag = deprecate.function(function etag (val) {
-  this._etag = Boolean(val);
-  debug('etag %s', this._etag);
-  return this
-}, 'send.etag: pass etag as option');
-
-/**
- * Enable or disable "hidden" (dot) files.
- *
- * @param {Boolean} path
- * @return {SendStream}
- * @api public
- */
-
-SendStream.prototype.hidden = deprecate.function(function hidden (val) {
-  this._hidden = Boolean(val);
-  this._dotfiles = undefined;
-  debug('hidden %s', this._hidden);
-  return this
-}, 'send.hidden: use dotfiles option');
-
-/**
- * Set index `paths`, set to a falsy
- * value to disable index support.
- *
- * @param {String|Boolean|Array} paths
- * @return {SendStream}
- * @api public
- */
-
-SendStream.prototype.index = deprecate.function(function index (paths) {
-  var index = !paths ? [] : normalizeList(paths, 'paths argument');
-  debug('index %o', paths);
-  this._index = index;
-  return this
-}, 'send.index: pass index as option');
-
-/**
- * Set root `path`.
- *
- * @param {String} path
- * @return {SendStream}
- * @api public
- */
-
-SendStream.prototype.root = function root (path) {
-  this._root = resolve(String(path));
-  debug('root %s', this._root);
-  return this
-};
-
-SendStream.prototype.from = deprecate.function(SendStream.prototype.root,
-  'send.from: pass root as option');
-
-SendStream.prototype.root = deprecate.function(SendStream.prototype.root,
-  'send.root: pass root as option');
-
-/**
- * Set max-age to `maxAge`.
- *
- * @param {Number} maxAge
- * @return {SendStream}
- * @api public
- */
-
-SendStream.prototype.maxage = deprecate.function(function maxage (maxAge) {
-  this._maxage = typeof maxAge === 'string'
-    ? ms(maxAge)
-    : Number(maxAge);
-  this._maxage = !isNaN(this._maxage)
-    ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE)
-    : 0;
-  debug('max-age %d', this._maxage);
-  return this
-}, 'send.maxage: pass maxAge as option');
-
-/**
- * Emit error with `status`.
- *
- * @param {number} status
- * @param {Error} [err]
- * @private
- */
-
-SendStream.prototype.error = function error (status, err) {
-  // emit if listeners instead of responding
-  if (hasListeners(this, 'error')) {
-    return this.emit('error', httpErrors(status, err, {
-      expose: false
-    }))
-  }
-
-  var res = this.res;
-  var msg = statuses[status] || String(status);
-  var doc = createHtmlDocument('Error', escapeHtml_1(msg));
-
-  // clear existing headers
-  clearHeaders(res);
-
-  // add error headers
-  if (err && err.headers) {
-    setHeaders(res, err.headers);
-  }
-
-  // send basic response
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'text/html; charset=UTF-8');
-  res.setHeader('Content-Length', Buffer.byteLength(doc));
-  res.setHeader('Content-Security-Policy', "default-src 'none'");
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.end(doc);
-};
-
-/**
- * Check if the pathname ends with "/".
- *
- * @return {boolean}
- * @private
- */
-
-SendStream.prototype.hasTrailingSlash = function hasTrailingSlash () {
-  return this.path[this.path.length - 1] === '/'
-};
-
-/**
- * Check if this is a conditional GET request.
- *
- * @return {Boolean}
- * @api private
- */
-
-SendStream.prototype.isConditionalGET = function isConditionalGET () {
-  return this.req.headers['if-match'] ||
-    this.req.headers['if-unmodified-since'] ||
-    this.req.headers['if-none-match'] ||
-    this.req.headers['if-modified-since']
-};
-
-/**
- * Check if the request preconditions failed.
- *
- * @return {boolean}
- * @private
- */
-
-SendStream.prototype.isPreconditionFailure = function isPreconditionFailure () {
-  var req = this.req;
-  var res = this.res;
-
-  // if-match
-  var match = req.headers['if-match'];
-  if (match) {
-    var etag = res.getHeader('ETag');
-    return !etag || (match !== '*' && parseTokenList(match).every(function (match) {
-      return match !== etag && match !== 'W/' + etag && 'W/' + match !== etag
-    }))
-  }
-
-  // if-unmodified-since
-  var unmodifiedSince = parseHttpDate(req.headers['if-unmodified-since']);
-  if (!isNaN(unmodifiedSince)) {
-    var lastModified = parseHttpDate(res.getHeader('Last-Modified'));
-    return isNaN(lastModified) || lastModified > unmodifiedSince
-  }
-
-  return false
-};
-
-/**
- * Strip content-* header fields.
- *
- * @private
- */
-
-SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFields () {
-  var res = this.res;
-  var headers = getHeaderNames(res);
-
-  for (var i = 0; i < headers.length; i++) {
-    var header = headers[i];
-    if (header.substr(0, 8) === 'content-' && header !== 'content-location') {
-      res.removeHeader(header);
-    }
-  }
-};
-
-/**
- * Respond with 304 not modified.
- *
- * @api private
- */
-
-SendStream.prototype.notModified = function notModified () {
-  var res = this.res;
-  debug('not modified');
-  this.removeContentHeaderFields();
-  res.statusCode = 304;
-  res.end();
-};
-
-/**
- * Raise error that headers already sent.
- *
- * @api private
- */
-
-SendStream.prototype.headersAlreadySent = function headersAlreadySent () {
-  var err = new Error('Can\'t set headers after they are sent.');
-  debug('headers already sent');
-  this.error(500, err);
-};
-
-/**
- * Check if the request is cacheable, aka
- * responded with 2xx or 304 (see RFC 2616 section 14.2{5,6}).
- *
- * @return {Boolean}
- * @api private
- */
-
-SendStream.prototype.isCachable = function isCachable () {
-  var statusCode = this.res.statusCode;
-  return (statusCode >= 200 && statusCode < 300) ||
-    statusCode === 304
-};
-
-/**
- * Handle stat() error.
- *
- * @param {Error} error
- * @private
- */
-
-SendStream.prototype.onStatError = function onStatError (error) {
-  switch (error.code) {
-    case 'ENAMETOOLONG':
-    case 'ENOENT':
-    case 'ENOTDIR':
-      this.error(404, error);
-      break
-    default:
-      this.error(500, error);
-      break
-  }
-};
-
-/**
- * Check if the cache is fresh.
- *
- * @return {Boolean}
- * @api private
- */
-
-SendStream.prototype.isFresh = function isFresh () {
-  return fresh_1(this.req.headers, {
-    'etag': this.res.getHeader('ETag'),
-    'last-modified': this.res.getHeader('Last-Modified')
-  })
-};
-
-/**
- * Check if the range is fresh.
- *
- * @return {Boolean}
- * @api private
- */
-
-SendStream.prototype.isRangeFresh = function isRangeFresh () {
-  var ifRange = this.req.headers['if-range'];
-
-  if (!ifRange) {
-    return true
-  }
-
-  // if-range as etag
-  if (ifRange.indexOf('"') !== -1) {
-    var etag = this.res.getHeader('ETag');
-    return Boolean(etag && ifRange.indexOf(etag) !== -1)
-  }
-
-  // if-range as modified date
-  var lastModified = this.res.getHeader('Last-Modified');
-  return parseHttpDate(lastModified) <= parseHttpDate(ifRange)
-};
-
-/**
- * Redirect to path.
- *
- * @param {string} path
- * @private
- */
-
-SendStream.prototype.redirect = function redirect (path) {
-  var res = this.res;
-
-  if (hasListeners(this, 'directory')) {
-    this.emit('directory', res, path);
-    return
-  }
-
-  if (this.hasTrailingSlash()) {
-    this.error(403);
-    return
-  }
-
-  var loc = encodeurl(collapseLeadingSlashes(this.path + '/'));
-  var doc = createHtmlDocument('Redirecting', 'Redirecting to <a href="' + escapeHtml_1(loc) + '">' +
-    escapeHtml_1(loc) + '</a>');
-
-  // redirect
-  res.statusCode = 301;
-  res.setHeader('Content-Type', 'text/html; charset=UTF-8');
-  res.setHeader('Content-Length', Buffer.byteLength(doc));
-  res.setHeader('Content-Security-Policy', "default-src 'none'");
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Location', loc);
-  res.end(doc);
-};
-
-/**
- * Pipe to `res.
- *
- * @param {Stream} res
- * @return {Stream} res
- * @api public
- */
-
-SendStream.prototype.pipe = function pipe (res) {
-  // root path
-  var root = this._root;
-
-  // references
-  this.res = res;
-
-  // decode the path
-  var path = decode$1(this.path);
-  if (path === -1) {
-    this.error(400);
-    return res
-  }
-
-  // null byte(s)
-  if (~path.indexOf('\0')) {
-    this.error(400);
-    return res
-  }
-
-  var parts;
-  if (root !== null) {
-    // normalize
-    if (path) {
-      path = normalize('.' + sep + path);
-    }
-
-    // malicious path
-    if (UP_PATH_REGEXP.test(path)) {
-      debug('malicious path "%s"', path);
-      this.error(403);
-      return res
-    }
-
-    // explode path parts
-    parts = path.split(sep);
-
-    // join / normalize from optional root dir
-    path = normalize(join(root, path));
-  } else {
-    // ".." is malicious without "root"
-    if (UP_PATH_REGEXP.test(path)) {
-      debug('malicious path "%s"', path);
-      this.error(403);
-      return res
-    }
-
-    // explode path parts
-    parts = normalize(path).split(sep);
-
-    // resolve the path
-    path = resolve(path);
-  }
-
-  // dotfile handling
-  if (containsDotFile(parts)) {
-    var access = this._dotfiles;
-
-    // legacy support
-    if (access === undefined) {
-      access = parts[parts.length - 1][0] === '.'
-        ? (this._hidden ? 'allow' : 'ignore')
-        : 'allow';
-    }
-
-    debug('%s dotfile "%s"', access, path);
-    switch (access) {
-      case 'allow':
-        break
-      case 'deny':
-        this.error(403);
-        return res
-      case 'ignore':
-      default:
-        this.error(404);
-        return res
-    }
-  }
-
-  // index file support
-  if (this._index.length && this.hasTrailingSlash()) {
-    this.sendIndex(path);
-    return res
-  }
-
-  this.sendFile(path);
-  return res
-};
-
-/**
- * Transfer `path`.
- *
- * @param {String} path
- * @api public
- */
-
-SendStream.prototype.send = function send (path, stat) {
-  var len = stat.size;
-  var options = this.options;
-  var opts = {};
-  var res = this.res;
-  var req = this.req;
-  var ranges = req.headers.range;
-  var offset = options.start || 0;
-
-  if (headersSent(res)) {
-    // impossible to send now
-    this.headersAlreadySent();
-    return
-  }
-
-  debug('pipe "%s"', path);
-
-  // set header fields
-  this.setHeader(path, stat);
-
-  // set content-type
-  this.type(path);
-
-  // conditional GET support
-  if (this.isConditionalGET()) {
-    if (this.isPreconditionFailure()) {
-      this.error(412);
-      return
-    }
-
-    if (this.isCachable() && this.isFresh()) {
-      this.notModified();
-      return
-    }
-  }
-
-  // adjust len to start/end options
-  len = Math.max(0, len - offset);
-  if (options.end !== undefined) {
-    var bytes = options.end - offset + 1;
-    if (len > bytes) len = bytes;
-  }
-
-  // Range support
-  if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges)) {
-    // parse
-    ranges = rangeParser_1(len, ranges, {
-      combine: true
-    });
-
-    // If-Range support
-    if (!this.isRangeFresh()) {
-      debug('range stale');
-      ranges = -2;
-    }
-
-    // unsatisfiable
-    if (ranges === -1) {
-      debug('range unsatisfiable');
-
-      // Content-Range
-      res.setHeader('Content-Range', contentRange('bytes', len));
-
-      // 416 Requested Range Not Satisfiable
-      return this.error(416, {
-        headers: { 'Content-Range': res.getHeader('Content-Range') }
-      })
-    }
-
-    // valid (syntactically invalid/multiple ranges are treated as a regular response)
-    if (ranges !== -2 && ranges.length === 1) {
-      debug('range %j', ranges);
-
-      // Content-Range
-      res.statusCode = 206;
-      res.setHeader('Content-Range', contentRange('bytes', len, ranges[0]));
-
-      // adjust for requested range
-      offset += ranges[0].start;
-      len = ranges[0].end - ranges[0].start + 1;
-    }
-  }
-
-  // clone options
-  for (var prop in options) {
-    opts[prop] = options[prop];
-  }
-
-  // set read options
-  opts.start = offset;
-  opts.end = Math.max(offset, offset + len - 1);
-
-  // content-length
-  res.setHeader('Content-Length', len);
-
-  // HEAD support
-  if (req.method === 'HEAD') {
-    res.end();
-    return
-  }
-
-  this.stream(path, opts);
-};
-
-/**
- * Transfer file for `path`.
- *
- * @param {String} path
- * @api private
- */
-SendStream.prototype.sendFile = function sendFile (path) {
-  var i = 0;
-  var self = this;
-
-  debug('stat "%s"', path);
-  fs__default["default"].stat(path, function onstat (err, stat) {
-    if (err && err.code === 'ENOENT' && !extname(path) && path[path.length - 1] !== sep) {
-      // not found, check extensions
-      return next(err)
-    }
-    if (err) return self.onStatError(err)
-    if (stat.isDirectory()) return self.redirect(path)
-    self.emit('file', path, stat);
-    self.send(path, stat);
-  });
-
-  function next (err) {
-    if (self._extensions.length <= i) {
-      return err
-        ? self.onStatError(err)
-        : self.error(404)
-    }
-
-    var p = path + '.' + self._extensions[i++];
-
-    debug('stat "%s"', p);
-    fs__default["default"].stat(p, function (err, stat) {
-      if (err) return next(err)
-      if (stat.isDirectory()) return next()
-      self.emit('file', p, stat);
-      self.send(p, stat);
-    });
-  }
-};
-
-/**
- * Transfer index for `path`.
- *
- * @param {String} path
- * @api private
- */
-SendStream.prototype.sendIndex = function sendIndex (path) {
-  var i = -1;
-  var self = this;
-
-  function next (err) {
-    if (++i >= self._index.length) {
-      if (err) return self.onStatError(err)
-      return self.error(404)
-    }
-
-    var p = join(path, self._index[i]);
-
-    debug('stat "%s"', p);
-    fs__default["default"].stat(p, function (err, stat) {
-      if (err) return next(err)
-      if (stat.isDirectory()) return next()
-      self.emit('file', p, stat);
-      self.send(p, stat);
-    });
-  }
-
-  next();
-};
-
-/**
- * Stream `path` to the response.
- *
- * @param {String} path
- * @param {Object} options
- * @api private
- */
-
-SendStream.prototype.stream = function stream (path, options) {
-  // TODO: this is all lame, refactor meeee
-  var finished = false;
-  var self = this;
-  var res = this.res;
-
-  // pipe
-  var stream = fs__default["default"].createReadStream(path, options);
-  this.emit('stream', stream);
-  stream.pipe(res);
-
-  // response finished, done with the fd
-  onFinished_1(res, function onfinished () {
-    finished = true;
-    destroy_1(stream);
-  });
-
-  // error handling code-smell
-  stream.on('error', function onerror (err) {
-    // request already finished
-    if (finished) return
-
-    // clean up stream
-    finished = true;
-    destroy_1(stream);
-
-    // error
-    self.onStatError(err);
-  });
-
-  // end
-  stream.on('end', function onend () {
-    self.emit('end');
-  });
-};
-
-/**
- * Set content-type based on `path`
- * if it hasn't been explicitly set.
- *
- * @param {String} path
- * @api private
- */
-
-SendStream.prototype.type = function type (path) {
-  var res = this.res;
-
-  if (res.getHeader('Content-Type')) return
-
-  var type = mime_1$1.lookup(path);
-
-  if (!type) {
-    debug('no content-type');
-    return
-  }
-
-  var charset = mime_1$1.charsets.lookup(type);
-
-  debug('content-type %s', type);
-  res.setHeader('Content-Type', type + (charset ? '; charset=' + charset : ''));
-};
-
-/**
- * Set response header fields, most
- * fields may be pre-defined.
- *
- * @param {String} path
- * @param {Object} stat
- * @api private
- */
-
-SendStream.prototype.setHeader = function setHeader (path, stat) {
-  var res = this.res;
-
-  this.emit('headers', res, path, stat);
-
-  if (this._acceptRanges && !res.getHeader('Accept-Ranges')) {
-    debug('accept ranges');
-    res.setHeader('Accept-Ranges', 'bytes');
-  }
-
-  if (this._cacheControl && !res.getHeader('Cache-Control')) {
-    var cacheControl = 'public, max-age=' + Math.floor(this._maxage / 1000);
-
-    if (this._immutable) {
-      cacheControl += ', immutable';
-    }
-
-    debug('cache-control %s', cacheControl);
-    res.setHeader('Cache-Control', cacheControl);
-  }
-
-  if (this._lastModified && !res.getHeader('Last-Modified')) {
-    var modified = stat.mtime.toUTCString();
-    debug('modified %s', modified);
-    res.setHeader('Last-Modified', modified);
-  }
-
-  if (this._etag && !res.getHeader('ETag')) {
-    var val = etag_1(stat);
-    debug('etag %s', val);
-    res.setHeader('ETag', val);
-  }
-};
-
-/**
- * Clear all headers from a response.
- *
- * @param {object} res
- * @private
- */
-
-function clearHeaders (res) {
-  var headers = getHeaderNames(res);
-
-  for (var i = 0; i < headers.length; i++) {
-    res.removeHeader(headers[i]);
-  }
-}
-
-/**
- * Collapse all leading slashes into a single slash
- *
- * @param {string} str
- * @private
- */
-function collapseLeadingSlashes (str) {
-  for (var i = 0; i < str.length; i++) {
-    if (str[i] !== '/') {
-      break
-    }
-  }
-
-  return i > 1
-    ? '/' + str.substr(i)
-    : str
-}
-
-/**
- * Determine if path parts contain a dotfile.
- *
- * @api private
- */
-
-function containsDotFile (parts) {
-  for (var i = 0; i < parts.length; i++) {
-    var part = parts[i];
-    if (part.length > 1 && part[0] === '.') {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Create a Content-Range header.
- *
- * @param {string} type
- * @param {number} size
- * @param {array} [range]
- */
-
-function contentRange (type, size, range) {
-  return type + ' ' + (range ? range.start + '-' + range.end : '*') + '/' + size
-}
-
-/**
- * Create a minimal HTML document.
- *
- * @param {string} title
- * @param {string} body
- * @private
- */
-
-function createHtmlDocument (title, body) {
-  return '<!DOCTYPE html>\n' +
-    '<html lang="en">\n' +
-    '<head>\n' +
-    '<meta charset="utf-8">\n' +
-    '<title>' + title + '</title>\n' +
-    '</head>\n' +
-    '<body>\n' +
-    '<pre>' + body + '</pre>\n' +
-    '</body>\n' +
-    '</html>\n'
-}
-
-/**
- * decodeURIComponent.
- *
- * Allows V8 to only deoptimize this fn instead of all
- * of send().
- *
- * @param {String} path
- * @api private
- */
-
-function decode$1 (path) {
-  try {
-    return decodeURIComponent(path)
-  } catch (err) {
-    return -1
-  }
-}
-
-/**
- * Get the header names on a respnse.
- *
- * @param {object} res
- * @returns {array[string]}
- * @private
- */
-
-function getHeaderNames (res) {
-  return typeof res.getHeaderNames !== 'function'
-    ? Object.keys(res._headers || {})
-    : res.getHeaderNames()
-}
-
-/**
- * Determine if emitter has listeners of a given type.
- *
- * The way to do this check is done three different ways in Node.js >= 0.8
- * so this consolidates them into a minimal set using instance methods.
- *
- * @param {EventEmitter} emitter
- * @param {string} type
- * @returns {boolean}
- * @private
- */
-
-function hasListeners (emitter, type) {
-  var count = typeof emitter.listenerCount !== 'function'
-    ? emitter.listeners(type).length
-    : emitter.listenerCount(type);
-
-  return count > 0
-}
-
-/**
- * Determine if the response headers have been sent.
- *
- * @param {object} res
- * @returns {boolean}
- * @private
- */
-
-function headersSent (res) {
-  return typeof res.headersSent !== 'boolean'
-    ? Boolean(res._header)
-    : res.headersSent
-}
-
-/**
- * Normalize the index option into an array.
- *
- * @param {boolean|string|array} val
- * @param {string} name
- * @private
- */
-
-function normalizeList (val, name) {
-  var list = [].concat(val || []);
-
-  for (var i = 0; i < list.length; i++) {
-    if (typeof list[i] !== 'string') {
-      throw new TypeError(name + ' must be array of strings or false')
-    }
-  }
-
-  return list
-}
-
-/**
- * Parse an HTTP Date into a number.
- *
- * @param {string} date
- * @private
- */
-
-function parseHttpDate (date) {
-  var timestamp = date && Date.parse(date);
-
-  return typeof timestamp === 'number'
-    ? timestamp
-    : NaN
-}
-
-/**
- * Parse a HTTP token list.
- *
- * @param {string} str
- * @private
- */
-
-function parseTokenList (str) {
-  var end = 0;
-  var list = [];
-  var start = 0;
-
-  // gather tokens
-  for (var i = 0, len = str.length; i < len; i++) {
-    switch (str.charCodeAt(i)) {
-      case 0x20: /*   */
-        if (start === end) {
-          start = end = i + 1;
-        }
-        break
-      case 0x2c: /* , */
-        list.push(str.substring(start, end));
-        start = end = i + 1;
-        break
-      default:
-        end = i + 1;
-        break
-    }
-  }
-
-  // final token
-  list.push(str.substring(start, end));
-
-  return list
-}
-
-/**
- * Set an object of headers on a response.
- *
- * @param {object} res
- * @param {object} headers
- * @private
- */
-
-function setHeaders (res, headers) {
-  var keys = Object.keys(headers);
-
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i];
-    res.setHeader(key, headers[key]);
-  }
-}
-send_1.mime = mime_1;
-
-function getContentType(extWithoutDot) {
-    const { mime } = send_1;
-    if ("getType" in mime) {
-        // 2.0
-        // @ts-ignore
-        return mime.getType(extWithoutDot);
-    }
-    // 1.0
-    return mime.lookup(extWithoutDot);
-}
-function getExtension(contentType) {
-    const { mime } = send_1;
-    if ("getExtension" in mime) {
-        // 2.0
-        // @ts-ignore
-        return mime.getExtension(contentType);
-    }
-    // 1.0
-    return mime.extension(contentType);
-}
-
-/**
- * Returns total length of data blocks sequence
- *
- * @param {Buffer} buffer
- * @param {number} offset
- * @returns {number}
- */
-function getDataBlocksLength (buffer, offset) {
-  var length = 0;
-
-  while (buffer[offset + length]) {
-    length += buffer[offset + length] + 1;
-  }
-
-  return length + 1
-}
-
-/**
- * Checks if buffer contains GIF image
- *
- * @param {Buffer} buffer
- * @returns {boolean}
- */
-var isGIF = function (buffer) {
-  var header = buffer.slice(0, 3).toString('ascii');
-  return (header === 'GIF')
-};
-
-/**
- * Checks if buffer contains animated GIF image
- *
- * @param {Buffer} buffer
- * @returns {boolean}
- */
-var isAnimated$3 = function (buffer) {
-  var hasColorTable, colorTableSize, header;
-  var offset = 0;
-  var imagesCount = 0;
-
-  // Check if this is this image has valid GIF header.
-  // If not return false. Chrome, FF and IE doesn't handle GIFs with invalid version.
-  header = buffer.slice(0, 3).toString('ascii');
-
-  if (header !== 'GIF') {
-    return false
-  }
-
-  // Skip header, logical screen descriptor and global color table
-
-  hasColorTable = buffer[10] & 0x80; // 0b10000000
-  colorTableSize = buffer[10] & 0x07; // 0b00000111
-
-  offset += 6; // skip header
-  offset += 7; // skip logical screen descriptor
-  offset += hasColorTable ? 3 * Math.pow(2, colorTableSize + 1) : 0; // skip global color table
-
-  // Find if there is more than one image descriptor
-
-  while (imagesCount < 2 && offset < buffer.length) {
-    switch (buffer[offset]) {
-      // Image descriptor block. According to specification there could be any
-      // number of these blocks (even zero). When there is more than one image
-      // descriptor browsers will display animation (they shouldn't when there
-      // is no delays defined, but they do it anyway).
-      case 0x2C:
-        imagesCount += 1;
-
-        hasColorTable = buffer[offset + 9] & 0x80; // 0b10000000
-        colorTableSize = buffer[offset + 9] & 0x07; // 0b00000111
-
-        offset += 10; // skip image descriptor
-        offset += hasColorTable ? 3 * Math.pow(2, colorTableSize + 1) : 0; // skip local color table
-        offset += getDataBlocksLength(buffer, offset + 1) + 1; // skip image data
-
-        break
-
-      // Skip all extension blocks. In theory this "plain text extension" blocks
-      // could be frames of animation, but no browser renders them.
-      case 0x21:
-        offset += 2; // skip introducer and label
-        offset += getDataBlocksLength(buffer, offset); // skip this block and following data blocks
-
-        break
-
-      // Stop processing on trailer block,
-      // all data after this point will is ignored by decoders
-      case 0x3B:
-        offset = buffer.length; // fast forward to end of buffer
-        break
-
-      // Oops! This GIF seems to be invalid
-      default:
-        offset = buffer.length; // fast forward to end of buffer
-        break
-    }
-  }
-
-  return (imagesCount > 1)
-};
-
-var gif = {
-	isGIF: isGIF,
-	isAnimated: isAnimated$3
-};
-
-var isPNG = function (buffer) {
-  var header = buffer.slice(0, 8).toString('hex');
-  return (header === '89504e470d0a1a0a') // \211 P N G \r \n \032 'n
-};
-
-var isAnimated$2 = function (buffer) {
-  var hasACTL = false;
-  var hasIDAT = false;
-  var hasFDAT = false;
-
-  var previousChunkType = null;
-
-  var offset = 8;
-
-  while (offset < buffer.length) {
-    var chunkLength = buffer.readUInt32BE(offset);
-    var chunkType = buffer.slice(offset + 4, offset + 8).toString('ascii');
-
-    switch (chunkType) {
-      case 'acTL':
-        hasACTL = true;
-        break
-      case 'IDAT':
-        if (!hasACTL) {
-          return false
-        }
-
-        if (previousChunkType !== 'fcTL') {
-          return false
-        }
-
-        hasIDAT = true;
-        break
-      case 'fdAT':
-        if (!hasIDAT) {
-          return false
-        }
-
-        if (previousChunkType !== 'fcTL') {
-          return false
-        }
-
-        hasFDAT = true;
-        break
-    }
-
-    previousChunkType = chunkType;
-    offset += 4 + 4 + chunkLength + 4;
-  }
-
-  return (hasACTL && hasIDAT && hasFDAT)
-};
-
-var png = {
-	isPNG: isPNG,
-	isAnimated: isAnimated$2
-};
-
-/**
- * @since 2019-02-27 10:20
- * @author vivaxy
- */
-var isWebp = function (buffer) {
-  var WEBP = [0x57, 0x45, 0x42, 0x50];
-  for (var i = 0; i < WEBP.length; i++) {
-    if (buffer[i + 8] !== WEBP[i]) {
-      return false
-    }
-  }
-  return true
-};
-
-var isAnimated$1 = function (buffer) {
-  var ANIM = [0x41, 0x4E, 0x49, 0x4D];
-  for (var i = 0; i < buffer.length; i++) {
-    for (var j = 0; j < ANIM.length; j++) {
-      if (buffer[i + j] !== ANIM[j]) {
-        break
-      }
-    }
-    if (j === ANIM.length) {
-      return true
-    }
-  }
-  return false
-};
-
-var webp = {
-	isWebp: isWebp,
-	isAnimated: isAnimated$1
-};
-
-/**
- * Checks if buffer contains animated image
- *
- * @param {Buffer} buffer
- * @returns {boolean}
- */
-function isAnimated (buffer) {
-  if (gif.isGIF(buffer)) {
-    return gif.isAnimated(buffer)
-  }
-
-  if (png.isPNG(buffer)) {
-    return png.isAnimated(buffer)
-  }
-
-  if (webp.isWebp(buffer)) {
-    return webp.isAnimated(buffer)
-  }
-
-  return false
-}
-
-var lib$1 = isAnimated;
-
-function sendEtagResponse(req, res, etag) {
-    if (etag) {
-        /**
-         * The server generating a 304 response MUST generate any of the
-         * following header fields that would have been sent in a 200 (OK)
-         * response to the same request: Cache-Control, Content-Location, Date,
-         * ETag, Expires, and Vary. https://tools.ietf.org/html/rfc7232#section-4.1
-         */
-        res.setHeader("ETag", etag);
-    }
-    if (fresh_1(req.headers, { etag })) {
-        res.statusCode = 304;
-        res.end();
-        return true;
-    }
-    return false;
-}
-
-const imageConfigDefault = {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    path: "/_next/image",
-    loader: "default",
-    domains: []
-};
-
-/**
- * This and related code are adapted from https://github.com/vercel/next.js/blob/48acc479f3befb70de800392315831ed7defa4d8/packages/next/next-server/server/image-optimizer.ts
- * The MIT License (MIT)
-
- Copyright (c) 2020 Vercel, Inc.
-
- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-let sharp$1;
-//const AVIF = 'image/avif'
-const WEBP = "image/webp";
-const PNG = "image/png";
-const JPEG = "image/jpeg";
-const GIF = "image/gif";
-const SVG = "image/svg+xml";
-const CACHE_VERSION = 2;
-const MODERN_TYPES = [/* AVIF, */ WEBP];
-const ANIMATABLE_TYPES = [WEBP, PNG, GIF];
-const VECTOR_TYPES = [SVG];
-function parseCacheControl(str) {
-    const map = new Map();
-    if (!str) {
-        return map;
-    }
-    for (const directive of str.split(",")) {
-        let [key, value] = directive.trim().split("=");
-        key = key.toLowerCase();
-        if (value) {
-            value = value.toLowerCase();
-        }
-        map.set(key, value);
-    }
-    return map;
-}
-function getMaxAge(str) {
-    const minimum = 60;
-    const map = parseCacheControl(str);
-    if (map) {
-        let age = map.get("s-maxage") || map.get("max-age") || "";
-        if (age.startsWith('"') && age.endsWith('"')) {
-            age = age.slice(1, -1);
-        }
-        const n = parseInt(age, 10);
-        if (!isNaN(n)) {
-            return Math.max(n, minimum);
-        }
-    }
-    return minimum;
-}
-async function imageOptimizer(basePath, imagesManifest, req, res, parsedUrl, platformClient) {
-    var _a, _b, _c, _d, _e;
-    const imageConfig = (_a = imagesManifest === null || imagesManifest === void 0 ? void 0 : imagesManifest.images) !== null && _a !== void 0 ? _a : imageConfigDefault;
-    const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageConfig;
-    const sizes = [...deviceSizes, ...imageSizes];
-    if (loader !== "default") {
-        res.statusCode = 404;
-        res.end("default loader not found");
-        return { finished: true };
-    }
-    const { headers } = req;
-    const { url, w, q } = parsedUrl.query;
-    const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept);
-    let href;
-    if (!url) {
-        res.statusCode = 400;
-        res.end('"url" parameter is required');
-        return { finished: true };
-    }
-    else if (Array.isArray(url)) {
-        res.statusCode = 400;
-        res.end('"url" parameter cannot be an array');
-        return { finished: true };
-    }
-    let isAbsolute;
-    if (url.startsWith("/")) {
-        href = url;
-        isAbsolute = false;
-    }
-    else {
-        let hrefParsed;
-        try {
-            hrefParsed = new URL(url);
-            href = hrefParsed.toString();
-            isAbsolute = true;
-        }
-        catch (_error) {
-            res.statusCode = 400;
-            res.end('"url" parameter is invalid');
-            return { finished: true };
-        }
-        if (!["http:", "https:"].includes(hrefParsed.protocol)) {
-            res.statusCode = 400;
-            res.end('"url" parameter is invalid');
-            return { finished: true };
-        }
-        if (!domains.includes(hrefParsed.hostname)) {
-            res.statusCode = 400;
-            res.end('"url" parameter is not allowed');
-            return { finished: true };
-        }
-    }
-    if (!w) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) is required');
-        return { finished: true };
-    }
-    else if (Array.isArray(w)) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) cannot be an array');
-        return { finished: true };
-    }
-    if (!q) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) is required');
-        return { finished: true };
-    }
-    else if (Array.isArray(q)) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) cannot be an array');
-        return { finished: true };
-    }
-    const width = parseInt(w, 10);
-    if (!width || isNaN(width)) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) must be a number greater than 0');
-        return { finished: true };
-    }
-    if (!sizes.includes(width)) {
-        res.statusCode = 400;
-        res.end(`"w" parameter (width) of ${width} is not allowed`);
-        return { finished: true };
-    }
-    const quality = parseInt(q);
-    if (isNaN(quality) || quality < 1 || quality > 100) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) must be a number between 1 and 100');
-        return { finished: true };
-    }
-    const hash = getHash([CACHE_VERSION, href, width, quality, mimeType]);
-    const imagesDir = require$$1$2.join("/tmp", "cache", "images"); // Use Lambda tmp directory
-    const hashDir = require$$1$2.join(imagesDir, hash);
-    const now = Date.now();
-    if (fs__namespace.existsSync(hashDir)) {
-        const files = await fs.promises.readdir(hashDir);
-        for (const file of files) {
-            const [prefix, etag, extension] = file.split(".");
-            const expireAt = Number(prefix);
-            const contentType = getContentType(extension);
-            const fsPath = require$$1$2.join(hashDir, file);
-            if (now < expireAt) {
-                if (!res.getHeader("Cache-Control")) {
-                    res.setHeader("Cache-Control", "public, max-age=60");
-                }
-                if (sendEtagResponse(req, res, etag)) {
-                    return { finished: true };
-                }
-                if (contentType) {
-                    res.setHeader("Content-Type", contentType);
-                }
-                fs.createReadStream(fsPath).pipe(res);
-                return { finished: true };
-            }
-            else {
-                await fs.promises.unlink(fsPath);
-            }
-        }
-    }
-    let upstreamBuffer;
-    let upstreamType;
-    let maxAge;
-    if (isAbsolute) {
-        const upstreamRes = await fetch(href);
-        if (!upstreamRes.ok) {
-            res.statusCode = upstreamRes.status;
-            res.end('"url" parameter is valid but upstream response is invalid');
-            return { finished: true };
-        }
-        res.statusCode = upstreamRes.status;
-        upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer());
-        upstreamType = (_b = upstreamRes.headers.get("Content-Type")) !== null && _b !== void 0 ? _b : undefined;
-        maxAge = getMaxAge((_c = upstreamRes.headers.get("Cache-Control")) !== null && _c !== void 0 ? _c : undefined);
-    }
-    else {
-        let objectKey;
-        try {
-            if (href.startsWith(`${basePath}/static`) ||
-                href.startsWith(`${basePath}/_next/static`)) {
-                objectKey = href; // static files' URL map to the key directly e.g /static/ -> static
-            }
-            else {
-                objectKey = `${basePath}/public` + href; // public file URLs map from /public.png -> public/public.png
-            }
-            // Remove leading slash from object key
-            if (objectKey.startsWith("/")) {
-                objectKey = objectKey.slice(1);
-            }
-            const response = await platformClient.getObject(objectKey);
-            res.statusCode = response.statusCode;
-            upstreamBuffer = (_d = response.body) !== null && _d !== void 0 ? _d : Buffer.of();
-            upstreamType = (_e = response.contentType) !== null && _e !== void 0 ? _e : undefined;
-            maxAge = getMaxAge(response.cacheControl);
-            // If object response provides cache control header, use that
-            if (response.cacheControl) {
-                res.setHeader("Cache-Control", response.cacheControl);
-            }
-        }
-        catch (err) {
-            res.statusCode = 500;
-            res.end('"url" parameter is valid but upstream response is invalid');
-            console.error(`Error processing upstream response due to error for key: ${objectKey}. Stack trace: ` +
-                err.stack);
-            return { finished: true };
-        }
-    }
-    if (upstreamType) {
-        const vector = VECTOR_TYPES.includes(upstreamType);
-        const animate = ANIMATABLE_TYPES.includes(upstreamType) && lib$1(upstreamBuffer);
-        if (vector || animate) {
-            sendResponse(req, res, upstreamType, upstreamBuffer);
-            return { finished: true };
-        }
-    }
-    const expireAt = maxAge * 1000 + now;
-    let contentType;
-    if (mimeType) {
-        contentType = mimeType;
-    }
-    else if ((upstreamType === null || upstreamType === void 0 ? void 0 : upstreamType.startsWith("image/")) && getExtension(upstreamType)) {
-        contentType = upstreamType;
-    }
-    else {
-        contentType = JPEG;
-    }
-    if (!sharp$1) {
-        try {
-            sharp$1 = require("sharp");
-        }
-        catch (error) {
-            if (error.code === "MODULE_NOT_FOUND") {
-                error.message += "\n\nLearn more: https://err.sh/next.js/install-sharp";
-                console.error(error.stack);
-                sendResponse(req, res, upstreamType, upstreamBuffer);
-                return { finished: true };
-            }
-            throw error;
-        }
-    }
-    try {
-        const transformer = sharp$1(upstreamBuffer);
-        transformer.rotate(); // auto rotate based on EXIF data
-        const { width: metaWidth } = await transformer.metadata();
-        if (metaWidth && metaWidth > width) {
-            transformer.resize(width);
-        }
-        //if (contentType === AVIF) {
-        // Soon https://github.com/lovell/sharp/issues/2289
-        //}
-        if (contentType === WEBP) {
-            transformer.webp({ quality });
-        }
-        else if (contentType === PNG) {
-            transformer.png({ quality });
-        }
-        else if (contentType === JPEG) {
-            transformer.jpeg({ quality });
-        }
-        const optimizedBuffer = await transformer.toBuffer();
-        await fs.promises.mkdir(hashDir, { recursive: true });
-        const extension = getExtension(contentType);
-        const etag = getHash([optimizedBuffer]);
-        const filename = require$$1$2.join(hashDir, `${expireAt}.${etag}.${extension}`);
-        await fs.promises.writeFile(filename, optimizedBuffer);
-        sendResponse(req, res, contentType, optimizedBuffer);
-    }
-    catch (error) {
-        console.error("Error processing image with sharp, returning upstream image as fallback instead: " +
-            error.stack);
-        sendResponse(req, res, upstreamType, upstreamBuffer);
-    }
-    return { finished: true };
-}
-function sendResponse(req, res, contentType, buffer) {
-    const etag = getHash([buffer]);
-    if (!res.getHeader("Cache-Control")) {
-        res.setHeader("Cache-Control", "public, max-age=60");
-    }
-    if (sendEtagResponse(req, res, etag)) {
-        return;
-    }
-    if (contentType) {
-        res.setHeader("Content-Type", contentType);
-    }
-    res.end(buffer);
-}
-function getSupportedMimeType(options, accept = "") {
-    const mimeType = lib$2.mediaType(accept, options);
-    return accept.includes(mimeType) ? mimeType : "";
-}
-function getHash(items) {
-    const hash = crypto.createHash("sha256");
-    for (const item of items) {
-        if (typeof item === "number")
-            hash.update(String(item));
-        else {
-            hash.update(item);
-        }
-    }
-    // See https://en.wikipedia.org/wiki/Base64#Filenames
-    return hash.digest("base64").replace(/\//g, "-");
-}
-
-const blacklistedHeaders = [
-    "connection",
-    "expect",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "proxy-connection",
-    "trailer",
-    "upgrade",
-    "x-accel-buffering",
-    "x-accel-charset",
-    "x-accel-limit-rate",
-    "x-accel-redirect",
-    "x-cache",
-    "x-forwarded-proto",
-    "x-real-ip"
-];
-const blacklistedHeaderPrefixes = ["x-amz-cf-", "x-amzn-", "x-edge-"];
-function isBlacklistedHeader(name) {
-    const lowerCaseName = name.toLowerCase();
-    for (const prefix of blacklistedHeaderPrefixes) {
-        if (lowerCaseName.startsWith(prefix)) {
-            return true;
-        }
-    }
-    return blacklistedHeaders.includes(lowerCaseName);
-}
-function removeBlacklistedHeaders(headers) {
-    for (const header in headers) {
-        if (isBlacklistedHeader(header)) {
-            delete headers[header];
-        }
-    }
-}
 
 const s3BucketNameFromEventRequest = (request) => {
     var _a;
@@ -92909,467 +83695,6 @@ function __asyncValues$1(o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 }
-
-var HttpRequest = (function () {
-    function HttpRequest(options) {
-        this.method = options.method || "GET";
-        this.hostname = options.hostname || "localhost";
-        this.port = options.port;
-        this.query = options.query || {};
-        this.headers = options.headers || {};
-        this.body = options.body;
-        this.protocol = options.protocol
-            ? options.protocol.substr(-1) !== ":"
-                ? options.protocol + ":"
-                : options.protocol
-            : "https:";
-        this.path = options.path ? (options.path.charAt(0) !== "/" ? "/" + options.path : options.path) : "/";
-    }
-    HttpRequest.isInstance = function (request) {
-        if (!request)
-            return false;
-        var req = request;
-        return ("method" in req &&
-            "protocol" in req &&
-            "hostname" in req &&
-            "path" in req &&
-            typeof req["query"] === "object" &&
-            typeof req["headers"] === "object");
-    };
-    HttpRequest.prototype.clone = function () {
-        var cloned = new HttpRequest(__assign$1(__assign$1({}, this), { headers: __assign$1({}, this.headers) }));
-        if (cloned.query)
-            cloned.query = cloneQuery$1(cloned.query);
-        return cloned;
-    };
-    return HttpRequest;
-}());
-function cloneQuery$1(query) {
-    return Object.keys(query).reduce(function (carry, paramName) {
-        var _a;
-        var param = query[paramName];
-        return __assign$1(__assign$1({}, carry), (_a = {}, _a[paramName] = Array.isArray(param) ? __spreadArray([], __read$1(param)) : param, _a));
-    }, {});
-}
-
-var HttpResponse = (function () {
-    function HttpResponse(options) {
-        this.statusCode = options.statusCode;
-        this.headers = options.headers || {};
-        this.body = options.body;
-    }
-    HttpResponse.isInstance = function (response) {
-        if (!response)
-            return false;
-        var resp = response;
-        return typeof resp.statusCode === "number" && typeof resp.headers === "object";
-    };
-    return HttpResponse;
-}());
-
-var validate$2 = function (str) {
-    return typeof str === "string" && str.indexOf("arn:") === 0 && str.split(":").length >= 6;
-};
-var parse = function (arn) {
-    var segments = arn.split(":");
-    if (segments.length < 6 || segments[0] !== "arn")
-        throw new Error("Malformed ARN");
-    var _a = __read$1(segments), partition = _a[1], service = _a[2], region = _a[3], accountId = _a[4], resource = _a.slice(5);
-    return {
-        partition: partition,
-        service: service,
-        region: region,
-        accountId: accountId,
-        resource: resource.join(":"),
-    };
-};
-
-var DOMAIN_PATTERN = /^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$/;
-var IP_ADDRESS_PATTERN = /(\d+\.){3}\d+/;
-var DOTS_PATTERN = /\.\./;
-var DOT_PATTERN = /\./;
-var S3_HOSTNAME_PATTERN = /^(.+\.)?s3[.-]([a-z0-9-]+)\./;
-var S3_US_EAST_1_ALTNAME_PATTERN = /^s3(-external-1)?\.amazonaws\.com$/;
-var AWS_PARTITION_SUFFIX = "amazonaws.com";
-var isBucketNameOptions = function (options) { return typeof options.bucketName === "string"; };
-var getPseudoRegion = function (region) { return (isFipsRegion(region) ? region.replace(/fips-|-fips/, "") : region); };
-var isDnsCompatibleBucketName = function (bucketName) {
-    return DOMAIN_PATTERN.test(bucketName) && !IP_ADDRESS_PATTERN.test(bucketName) && !DOTS_PATTERN.test(bucketName);
-};
-var getRegionalSuffix = function (hostname) {
-    var parts = hostname.match(S3_HOSTNAME_PATTERN);
-    return [parts[2], hostname.replace(new RegExp("^" + parts[0]), "")];
-};
-var getSuffix = function (hostname) {
-    return S3_US_EAST_1_ALTNAME_PATTERN.test(hostname) ? ["us-east-1", AWS_PARTITION_SUFFIX] : getRegionalSuffix(hostname);
-};
-var getSuffixForArnEndpoint = function (hostname) {
-    return S3_US_EAST_1_ALTNAME_PATTERN.test(hostname)
-        ? [hostname.replace("." + AWS_PARTITION_SUFFIX, ""), AWS_PARTITION_SUFFIX]
-        : getRegionalSuffix(hostname);
-};
-var validateArnEndpointOptions = function (options) {
-    if (options.pathStyleEndpoint) {
-        throw new Error("Path-style S3 endpoint is not supported when bucket is an ARN");
-    }
-    if (options.accelerateEndpoint) {
-        throw new Error("Accelerate endpoint is not supported when bucket is an ARN");
-    }
-    if (!options.tlsCompatible) {
-        throw new Error("HTTPS is required when bucket is an ARN");
-    }
-};
-var validateService = function (service) {
-    if (service !== "s3" && service !== "s3-outposts" && service !== "s3-object-lambda") {
-        throw new Error("Expect 's3' or 's3-outposts' or 's3-object-lambda' in ARN service component");
-    }
-};
-var validateS3Service = function (service) {
-    if (service !== "s3") {
-        throw new Error("Expect 's3' in Accesspoint ARN service component");
-    }
-};
-var validateOutpostService = function (service) {
-    if (service !== "s3-outposts") {
-        throw new Error("Expect 's3-posts' in Outpost ARN service component");
-    }
-};
-var validatePartition = function (partition, options) {
-    if (partition !== options.clientPartition) {
-        throw new Error("Partition in ARN is incompatible, got \"" + partition + "\" but expected \"" + options.clientPartition + "\"");
-    }
-};
-var validateRegion = function (region, options) {
-    if (region === "") {
-        throw new Error("ARN region is empty");
-    }
-    if (isFipsRegion(options.clientRegion)) {
-        if (!options.allowFipsRegion) {
-            throw new Error("FIPS region is not supported");
-        }
-        else if (!isEqualRegions(region, options.clientRegion)) {
-            throw new Error("Client FIPS region " + options.clientRegion + " doesn't match region " + region + " in ARN");
-        }
-    }
-    if (!options.useArnRegion &&
-        !isEqualRegions(region, options.clientRegion || "") &&
-        !isEqualRegions(region, options.clientSigningRegion || "")) {
-        throw new Error("Region in ARN is incompatible, got " + region + " but expected " + options.clientRegion);
-    }
-};
-var validateRegionalClient = function (region) {
-    if (["s3-external-1", "aws-global"].includes(getPseudoRegion(region))) {
-        throw new Error("Client region " + region + " is not regional");
-    }
-};
-var isFipsRegion = function (region) { return region.startsWith("fips-") || region.endsWith("-fips"); };
-var isEqualRegions = function (regionA, regionB) {
-    return regionA === regionB || getPseudoRegion(regionA) === regionB || regionA === getPseudoRegion(regionB);
-};
-var validateAccountId = function (accountId) {
-    if (!/[0-9]{12}/.exec(accountId)) {
-        throw new Error("Access point ARN accountID does not match regex '[0-9]{12}'");
-    }
-};
-var validateDNSHostLabel = function (label, options) {
-    if (options === void 0) { options = { tlsCompatible: true }; }
-    if (label.length >= 64 ||
-        !/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(label) ||
-        /(\d+\.){3}\d+/.test(label) ||
-        /[.-]{2}/.test(label) ||
-        ((options === null || options === void 0 ? void 0 : options.tlsCompatible) && DOT_PATTERN.test(label))) {
-        throw new Error("Invalid DNS label " + label);
-    }
-};
-var validateCustomEndpoint = function (options) {
-    if (options.isCustomEndpoint) {
-        if (options.dualstackEndpoint)
-            throw new Error("Dualstack endpoint is not supported with custom endpoint");
-        if (options.accelerateEndpoint)
-            throw new Error("Accelerate endpoint is not supported with custom endpoint");
-    }
-};
-var getArnResources = function (resource) {
-    var delimiter = resource.includes(":") ? ":" : "/";
-    var _a = __read$1(resource.split(delimiter)), resourceType = _a[0], rest = _a.slice(1);
-    if (resourceType === "accesspoint") {
-        if (rest.length !== 1 || rest[0] === "") {
-            throw new Error("Access Point ARN should have one resource accesspoint" + delimiter + "{accesspointname}");
-        }
-        return { accesspointName: rest[0] };
-    }
-    else if (resourceType === "outpost") {
-        if (!rest[0] || rest[1] !== "accesspoint" || !rest[2] || rest.length !== 3) {
-            throw new Error("Outpost ARN should have resource outpost" + delimiter + "{outpostId}" + delimiter + "accesspoint" + delimiter + "{accesspointName}");
-        }
-        var _b = __read$1(rest, 3), outpostId = _b[0]; _b[1]; var accesspointName = _b[2];
-        return { outpostId: outpostId, accesspointName: accesspointName };
-    }
-    else {
-        throw new Error("ARN resource should begin with 'accesspoint" + delimiter + "' or 'outpost" + delimiter + "'");
-    }
-};
-var validateNoDualstack = function (dualstackEndpoint) {
-    if (dualstackEndpoint)
-        throw new Error("Dualstack endpoint is not supported with Outpost or Multi-region Access Point ARN.");
-};
-var validateNoFIPS = function (region) {
-    if (isFipsRegion(region !== null && region !== void 0 ? region : ""))
-        throw new Error("FIPS region is not supported with Outpost, got " + region);
-};
-var validateMrapAlias = function (name) {
-    try {
-        name.split(".").forEach(function (label) {
-            validateDNSHostLabel(label);
-        });
-    }
-    catch (e) {
-        throw new Error("\"" + name + "\" is not a DNS compatible name.");
-    }
-};
-
-var bucketHostname = function (options) {
-    validateCustomEndpoint(options);
-    return isBucketNameOptions(options)
-        ?
-            getEndpointFromBucketName(options)
-        :
-            getEndpointFromArn(options);
-};
-var getEndpointFromBucketName = function (_a) {
-    var _b = _a.accelerateEndpoint, accelerateEndpoint = _b === void 0 ? false : _b, region = _a.clientRegion, baseHostname = _a.baseHostname, bucketName = _a.bucketName, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.pathStyleEndpoint, pathStyleEndpoint = _d === void 0 ? false : _d, _e = _a.tlsCompatible, tlsCompatible = _e === void 0 ? true : _e, _f = _a.isCustomEndpoint, isCustomEndpoint = _f === void 0 ? false : _f;
-    var _g = __read$1(isCustomEndpoint ? [region, baseHostname] : getSuffix(baseHostname), 2), clientRegion = _g[0], hostnameSuffix = _g[1];
-    if (pathStyleEndpoint || !isDnsCompatibleBucketName(bucketName) || (tlsCompatible && DOT_PATTERN.test(bucketName))) {
-        return {
-            bucketEndpoint: false,
-            hostname: dualstackEndpoint ? "s3.dualstack." + clientRegion + "." + hostnameSuffix : baseHostname,
-        };
-    }
-    if (accelerateEndpoint) {
-        baseHostname = "s3-accelerate" + (dualstackEndpoint ? ".dualstack" : "") + "." + hostnameSuffix;
-    }
-    else if (dualstackEndpoint) {
-        baseHostname = "s3.dualstack." + clientRegion + "." + hostnameSuffix;
-    }
-    return {
-        bucketEndpoint: true,
-        hostname: bucketName + "." + baseHostname,
-    };
-};
-var getEndpointFromArn = function (options) {
-    var isCustomEndpoint = options.isCustomEndpoint, baseHostname = options.baseHostname, clientRegion = options.clientRegion;
-    var hostnameSuffix = isCustomEndpoint ? baseHostname : getSuffixForArnEndpoint(baseHostname)[1];
-    var pathStyleEndpoint = options.pathStyleEndpoint, _a = options.accelerateEndpoint, accelerateEndpoint = _a === void 0 ? false : _a, _b = options.tlsCompatible, tlsCompatible = _b === void 0 ? true : _b, bucketName = options.bucketName, _c = options.clientPartition, clientPartition = _c === void 0 ? "aws" : _c;
-    validateArnEndpointOptions({ pathStyleEndpoint: pathStyleEndpoint, accelerateEndpoint: accelerateEndpoint, tlsCompatible: tlsCompatible });
-    var service = bucketName.service, partition = bucketName.partition, accountId = bucketName.accountId, region = bucketName.region, resource = bucketName.resource;
-    validateService(service);
-    validatePartition(partition, { clientPartition: clientPartition });
-    validateAccountId(accountId);
-    var _d = getArnResources(resource), accesspointName = _d.accesspointName, outpostId = _d.outpostId;
-    if (service === "s3-object-lambda") {
-        return getEndpointFromObjectLambdaArn(__assign$1(__assign$1({}, options), { tlsCompatible: tlsCompatible, bucketName: bucketName, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
-    }
-    if (region === "") {
-        return getEndpointFromMRAPArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, mrapAlias: accesspointName, hostnameSuffix: hostnameSuffix }));
-    }
-    if (outpostId) {
-        return getEndpointFromOutpostArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, outpostId: outpostId, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
-    }
-    return getEndpointFromAccessPointArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
-};
-var getEndpointFromObjectLambdaArn = function (_a) {
-    var _b = _a.dualstackEndpoint, dualstackEndpoint = _b === void 0 ? false : _b, _c = _a.tlsCompatible, tlsCompatible = _c === void 0 ? true : _c, useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _d = _a.clientSigningRegion, clientSigningRegion = _d === void 0 ? clientRegion : _d, accesspointName = _a.accesspointName, bucketName = _a.bucketName, hostnameSuffix = _a.hostnameSuffix;
-    var accountId = bucketName.accountId, region = bucketName.region, service = bucketName.service;
-    validateRegionalClient(clientRegion);
-    validateRegion(region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion, allowFipsRegion: true });
-    validateNoDualstack(dualstackEndpoint);
-    var DNSHostLabel = accesspointName + "-" + accountId;
-    validateDNSHostLabel(DNSHostLabel, { tlsCompatible: tlsCompatible });
-    var endpointRegion = useArnRegion ? region : clientRegion;
-    var signingRegion = useArnRegion ? region : clientSigningRegion;
-    return {
-        bucketEndpoint: true,
-        hostname: DNSHostLabel + "." + service + (isFipsRegion(clientRegion) ? "-fips" : "") + "." + getPseudoRegion(endpointRegion) + "." + hostnameSuffix,
-        signingRegion: signingRegion,
-        signingService: service,
-    };
-};
-var getEndpointFromMRAPArn = function (_a) {
-    var disableMultiregionAccessPoints = _a.disableMultiregionAccessPoints, _b = _a.dualstackEndpoint, dualstackEndpoint = _b === void 0 ? false : _b, isCustomEndpoint = _a.isCustomEndpoint, mrapAlias = _a.mrapAlias, hostnameSuffix = _a.hostnameSuffix;
-    if (disableMultiregionAccessPoints === true) {
-        throw new Error("SDK is attempting to use a MRAP ARN. Please enable to feature.");
-    }
-    validateMrapAlias(mrapAlias);
-    validateNoDualstack(dualstackEndpoint);
-    return {
-        bucketEndpoint: true,
-        hostname: "" + mrapAlias + (isCustomEndpoint ? "" : ".accesspoint.s3-global") + "." + hostnameSuffix,
-        signingRegion: "*",
-    };
-};
-var getEndpointFromOutpostArn = function (_a) {
-    var useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _b = _a.clientSigningRegion, clientSigningRegion = _b === void 0 ? clientRegion : _b, bucketName = _a.bucketName, outpostId = _a.outpostId, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.tlsCompatible, tlsCompatible = _d === void 0 ? true : _d, accesspointName = _a.accesspointName, isCustomEndpoint = _a.isCustomEndpoint, hostnameSuffix = _a.hostnameSuffix;
-    validateRegionalClient(clientRegion);
-    validateRegion(bucketName.region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion });
-    var DNSHostLabel = accesspointName + "-" + bucketName.accountId;
-    validateDNSHostLabel(DNSHostLabel, { tlsCompatible: tlsCompatible });
-    var endpointRegion = useArnRegion ? bucketName.region : clientRegion;
-    var signingRegion = useArnRegion ? bucketName.region : clientSigningRegion;
-    validateOutpostService(bucketName.service);
-    validateDNSHostLabel(outpostId, { tlsCompatible: tlsCompatible });
-    validateNoDualstack(dualstackEndpoint);
-    validateNoFIPS(endpointRegion);
-    var hostnamePrefix = DNSHostLabel + "." + outpostId;
-    return {
-        bucketEndpoint: true,
-        hostname: "" + hostnamePrefix + (isCustomEndpoint ? "" : ".s3-outposts." + endpointRegion) + "." + hostnameSuffix,
-        signingRegion: signingRegion,
-        signingService: "s3-outposts",
-    };
-};
-var getEndpointFromAccessPointArn = function (_a) {
-    var useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _b = _a.clientSigningRegion, clientSigningRegion = _b === void 0 ? clientRegion : _b, bucketName = _a.bucketName, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.tlsCompatible, tlsCompatible = _d === void 0 ? true : _d, accesspointName = _a.accesspointName, isCustomEndpoint = _a.isCustomEndpoint, hostnameSuffix = _a.hostnameSuffix;
-    validateRegionalClient(clientRegion);
-    validateRegion(bucketName.region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion, allowFipsRegion: true });
-    var hostnamePrefix = accesspointName + "-" + bucketName.accountId;
-    validateDNSHostLabel(hostnamePrefix, { tlsCompatible: tlsCompatible });
-    var endpointRegion = useArnRegion ? bucketName.region : clientRegion;
-    var signingRegion = useArnRegion ? bucketName.region : clientSigningRegion;
-    validateS3Service(bucketName.service);
-    return {
-        bucketEndpoint: true,
-        hostname: "" + hostnamePrefix + (isCustomEndpoint
-            ? ""
-            : ".s3-accesspoint" + (isFipsRegion(clientRegion) ? "-fips" : "") + (dualstackEndpoint ? ".dualstack" : "") + "." + getPseudoRegion(endpointRegion)) + "." + hostnameSuffix,
-        signingRegion: signingRegion,
-    };
-};
-
-var bucketEndpointMiddleware = function (options) { return function (next, context) { return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var bucketName, replaceBucketInPath, request, bucketArn, clientRegion, _a, _b, partition, _c, signingRegion, useArnRegion, _d, hostname, bucketEndpoint, modifiedSigningRegion, signingService, _e, clientRegion, _f, _g, hostname, bucketEndpoint;
-    var _h;
-    return __generator$1(this, function (_j) {
-        switch (_j.label) {
-            case 0:
-                bucketName = args.input.Bucket;
-                replaceBucketInPath = options.bucketEndpoint;
-                request = args.request;
-                if (!HttpRequest.isInstance(request)) return [3, 9];
-                if (!options.bucketEndpoint) return [3, 1];
-                request.hostname = bucketName;
-                return [3, 8];
-            case 1:
-                if (!validate$2(bucketName)) return [3, 6];
-                bucketArn = parse(bucketName);
-                _a = getPseudoRegion;
-                return [4, options.region()];
-            case 2:
-                clientRegion = _a.apply(void 0, [_j.sent()]);
-                return [4, options.regionInfoProvider(clientRegion)];
-            case 3:
-                _b = (_j.sent()) || {}, partition = _b.partition, _c = _b.signingRegion, signingRegion = _c === void 0 ? clientRegion : _c;
-                return [4, options.useArnRegion()];
-            case 4:
-                useArnRegion = _j.sent();
-                _e = bucketHostname;
-                _h = {
-                    bucketName: bucketArn,
-                    baseHostname: request.hostname,
-                    accelerateEndpoint: options.useAccelerateEndpoint,
-                    dualstackEndpoint: options.useDualstackEndpoint,
-                    pathStyleEndpoint: options.forcePathStyle,
-                    tlsCompatible: request.protocol === "https:",
-                    useArnRegion: useArnRegion,
-                    clientPartition: partition,
-                    clientSigningRegion: signingRegion,
-                    clientRegion: clientRegion,
-                    isCustomEndpoint: options.isCustomEndpoint
-                };
-                return [4, options.disableMultiregionAccessPoints()];
-            case 5:
-                _d = _e.apply(void 0, [(_h.disableMultiregionAccessPoints = _j.sent(),
-                        _h)]), hostname = _d.hostname, bucketEndpoint = _d.bucketEndpoint, modifiedSigningRegion = _d.signingRegion, signingService = _d.signingService;
-                if (modifiedSigningRegion && modifiedSigningRegion !== signingRegion) {
-                    context["signing_region"] = modifiedSigningRegion;
-                }
-                if (signingService && signingService !== "s3") {
-                    context["signing_service"] = signingService;
-                }
-                request.hostname = hostname;
-                replaceBucketInPath = bucketEndpoint;
-                return [3, 8];
-            case 6:
-                _f = getPseudoRegion;
-                return [4, options.region()];
-            case 7:
-                clientRegion = _f.apply(void 0, [_j.sent()]);
-                _g = bucketHostname({
-                    bucketName: bucketName,
-                    clientRegion: clientRegion,
-                    baseHostname: request.hostname,
-                    accelerateEndpoint: options.useAccelerateEndpoint,
-                    dualstackEndpoint: options.useDualstackEndpoint,
-                    pathStyleEndpoint: options.forcePathStyle,
-                    tlsCompatible: request.protocol === "https:",
-                    isCustomEndpoint: options.isCustomEndpoint,
-                }), hostname = _g.hostname, bucketEndpoint = _g.bucketEndpoint;
-                request.hostname = hostname;
-                replaceBucketInPath = bucketEndpoint;
-                _j.label = 8;
-            case 8:
-                if (replaceBucketInPath) {
-                    request.path = request.path.replace(/^(\/)?[^\/]+/, "");
-                    if (request.path === "") {
-                        request.path = "/";
-                    }
-                }
-                _j.label = 9;
-            case 9: return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
-        }
-    });
-}); }; }; };
-var bucketEndpointMiddlewareOptions = {
-    tags: ["BUCKET_ENDPOINT"],
-    name: "bucketEndpointMiddleware",
-    relation: "before",
-    toMiddleware: "hostHeaderMiddleware",
-    override: true,
-};
-var getBucketEndpointPlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.addRelativeTo(bucketEndpointMiddleware(options), bucketEndpointMiddlewareOptions);
-    },
-}); };
-
-function resolveBucketEndpointConfig(input) {
-    var _a = input.bucketEndpoint, bucketEndpoint = _a === void 0 ? false : _a, _b = input.forcePathStyle, forcePathStyle = _b === void 0 ? false : _b, _c = input.useAccelerateEndpoint, useAccelerateEndpoint = _c === void 0 ? false : _c, _d = input.useDualstackEndpoint, useDualstackEndpoint = _d === void 0 ? false : _d, _e = input.useArnRegion, useArnRegion = _e === void 0 ? false : _e, _f = input.disableMultiregionAccessPoints, disableMultiregionAccessPoints = _f === void 0 ? false : _f;
-    return __assign$1(__assign$1({}, input), { bucketEndpoint: bucketEndpoint, forcePathStyle: forcePathStyle, useAccelerateEndpoint: useAccelerateEndpoint, useDualstackEndpoint: useDualstackEndpoint, useArnRegion: typeof useArnRegion === "function" ? useArnRegion : function () { return Promise.resolve(useArnRegion); }, disableMultiregionAccessPoints: typeof disableMultiregionAccessPoints === "function"
-            ? disableMultiregionAccessPoints
-            : function () { return Promise.resolve(disableMultiregionAccessPoints); } });
-}
-var NODE_USE_ARN_REGION_ENV_NAME = "AWS_S3_USE_ARN_REGION";
-var NODE_USE_ARN_REGION_INI_NAME = "s3_use_arn_region";
-var NODE_USE_ARN_REGION_CONFIG_OPTIONS = {
-    environmentVariableSelector: function (env) {
-        if (!Object.prototype.hasOwnProperty.call(env, NODE_USE_ARN_REGION_ENV_NAME))
-            return undefined;
-        if (env[NODE_USE_ARN_REGION_ENV_NAME] === "true")
-            return true;
-        if (env[NODE_USE_ARN_REGION_ENV_NAME] === "false")
-            return false;
-        throw new Error("Cannot load env " + NODE_USE_ARN_REGION_ENV_NAME + ". Expected \"true\" or \"false\", got " + env[NODE_USE_ARN_REGION_ENV_NAME] + ".");
-    },
-    configFileSelector: function (profile) {
-        if (!Object.prototype.hasOwnProperty.call(profile, NODE_USE_ARN_REGION_INI_NAME))
-            return undefined;
-        if (profile[NODE_USE_ARN_REGION_INI_NAME] === "true")
-            return true;
-        if (profile[NODE_USE_ARN_REGION_INI_NAME] === "false")
-            return false;
-        throw new Error("Cannot load shared config entry " + NODE_USE_ARN_REGION_INI_NAME + ". Expected \"true\" or \"false\", got " + profile[NODE_USE_ARN_REGION_INI_NAME] + ".");
-    },
-    default: false,
-};
 
 var deserializerMiddleware = function (options, deserializer) {
     return function (next, context) {
@@ -94002,1128 +84327,291 @@ Object.setPrototypeOf(StringWrapper, String);
     return LazyJsonString;
 })(StringWrapper));
 
-var AbortIncompleteMultipartUpload;
-(function (AbortIncompleteMultipartUpload) {
-    AbortIncompleteMultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AbortIncompleteMultipartUpload || (AbortIncompleteMultipartUpload = {}));
-var AbortMultipartUploadOutput;
-(function (AbortMultipartUploadOutput) {
-    AbortMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AbortMultipartUploadOutput || (AbortMultipartUploadOutput = {}));
-var AbortMultipartUploadRequest;
-(function (AbortMultipartUploadRequest) {
-    AbortMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AbortMultipartUploadRequest || (AbortMultipartUploadRequest = {}));
-var NoSuchUpload;
-(function (NoSuchUpload) {
-    NoSuchUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NoSuchUpload || (NoSuchUpload = {}));
-var AccelerateConfiguration;
-(function (AccelerateConfiguration) {
-    AccelerateConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AccelerateConfiguration || (AccelerateConfiguration = {}));
-var Grantee;
-(function (Grantee) {
-    Grantee.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Grantee || (Grantee = {}));
-var Grant;
-(function (Grant) {
-    Grant.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Grant || (Grant = {}));
-var Owner;
-(function (Owner) {
-    Owner.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Owner || (Owner = {}));
-var AccessControlPolicy;
-(function (AccessControlPolicy) {
-    AccessControlPolicy.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AccessControlPolicy || (AccessControlPolicy = {}));
-var AccessControlTranslation;
-(function (AccessControlTranslation) {
-    AccessControlTranslation.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AccessControlTranslation || (AccessControlTranslation = {}));
-var CompleteMultipartUploadOutput;
-(function (CompleteMultipartUploadOutput) {
-    CompleteMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
-})(CompleteMultipartUploadOutput || (CompleteMultipartUploadOutput = {}));
-var CompletedPart;
-(function (CompletedPart) {
-    CompletedPart.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CompletedPart || (CompletedPart = {}));
-var CompletedMultipartUpload;
-(function (CompletedMultipartUpload) {
-    CompletedMultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CompletedMultipartUpload || (CompletedMultipartUpload = {}));
-var CompleteMultipartUploadRequest;
-(function (CompleteMultipartUploadRequest) {
-    CompleteMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CompleteMultipartUploadRequest || (CompleteMultipartUploadRequest = {}));
-var CopyObjectResult;
-(function (CopyObjectResult) {
-    CopyObjectResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CopyObjectResult || (CopyObjectResult = {}));
-var CopyObjectOutput;
-(function (CopyObjectOutput) {
-    CopyObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
-})(CopyObjectOutput || (CopyObjectOutput = {}));
-var CopyObjectRequest;
-(function (CopyObjectRequest) {
-    CopyObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING })), (obj.CopySourceSSECustomerKey && { CopySourceSSECustomerKey: SENSITIVE_STRING }))); };
-})(CopyObjectRequest || (CopyObjectRequest = {}));
-var ObjectNotInActiveTierError;
-(function (ObjectNotInActiveTierError) {
-    ObjectNotInActiveTierError.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectNotInActiveTierError || (ObjectNotInActiveTierError = {}));
-var BucketAlreadyExists;
-(function (BucketAlreadyExists) {
-    BucketAlreadyExists.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BucketAlreadyExists || (BucketAlreadyExists = {}));
-var BucketAlreadyOwnedByYou;
-(function (BucketAlreadyOwnedByYou) {
-    BucketAlreadyOwnedByYou.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BucketAlreadyOwnedByYou || (BucketAlreadyOwnedByYou = {}));
-var CreateBucketOutput;
-(function (CreateBucketOutput) {
-    CreateBucketOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CreateBucketOutput || (CreateBucketOutput = {}));
-var CreateBucketConfiguration;
-(function (CreateBucketConfiguration) {
-    CreateBucketConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CreateBucketConfiguration || (CreateBucketConfiguration = {}));
-var CreateBucketRequest;
-(function (CreateBucketRequest) {
-    CreateBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CreateBucketRequest || (CreateBucketRequest = {}));
-var CreateMultipartUploadOutput;
-(function (CreateMultipartUploadOutput) {
-    CreateMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
-})(CreateMultipartUploadOutput || (CreateMultipartUploadOutput = {}));
-var CreateMultipartUploadRequest;
-(function (CreateMultipartUploadRequest) {
-    CreateMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
-})(CreateMultipartUploadRequest || (CreateMultipartUploadRequest = {}));
-var DeleteBucketRequest;
-(function (DeleteBucketRequest) {
-    DeleteBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketRequest || (DeleteBucketRequest = {}));
-var DeleteBucketAnalyticsConfigurationRequest;
-(function (DeleteBucketAnalyticsConfigurationRequest) {
-    DeleteBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketAnalyticsConfigurationRequest || (DeleteBucketAnalyticsConfigurationRequest = {}));
-var DeleteBucketCorsRequest;
-(function (DeleteBucketCorsRequest) {
-    DeleteBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketCorsRequest || (DeleteBucketCorsRequest = {}));
-var DeleteBucketEncryptionRequest;
-(function (DeleteBucketEncryptionRequest) {
-    DeleteBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketEncryptionRequest || (DeleteBucketEncryptionRequest = {}));
-var DeleteBucketIntelligentTieringConfigurationRequest;
-(function (DeleteBucketIntelligentTieringConfigurationRequest) {
-    DeleteBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketIntelligentTieringConfigurationRequest || (DeleteBucketIntelligentTieringConfigurationRequest = {}));
-var DeleteBucketInventoryConfigurationRequest;
-(function (DeleteBucketInventoryConfigurationRequest) {
-    DeleteBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketInventoryConfigurationRequest || (DeleteBucketInventoryConfigurationRequest = {}));
-var DeleteBucketLifecycleRequest;
-(function (DeleteBucketLifecycleRequest) {
-    DeleteBucketLifecycleRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketLifecycleRequest || (DeleteBucketLifecycleRequest = {}));
-var DeleteBucketMetricsConfigurationRequest;
-(function (DeleteBucketMetricsConfigurationRequest) {
-    DeleteBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketMetricsConfigurationRequest || (DeleteBucketMetricsConfigurationRequest = {}));
-var DeleteBucketOwnershipControlsRequest;
-(function (DeleteBucketOwnershipControlsRequest) {
-    DeleteBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketOwnershipControlsRequest || (DeleteBucketOwnershipControlsRequest = {}));
-var DeleteBucketPolicyRequest;
-(function (DeleteBucketPolicyRequest) {
-    DeleteBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketPolicyRequest || (DeleteBucketPolicyRequest = {}));
-var DeleteBucketReplicationRequest;
-(function (DeleteBucketReplicationRequest) {
-    DeleteBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketReplicationRequest || (DeleteBucketReplicationRequest = {}));
-var DeleteBucketTaggingRequest;
-(function (DeleteBucketTaggingRequest) {
-    DeleteBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketTaggingRequest || (DeleteBucketTaggingRequest = {}));
-var DeleteBucketWebsiteRequest;
-(function (DeleteBucketWebsiteRequest) {
-    DeleteBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteBucketWebsiteRequest || (DeleteBucketWebsiteRequest = {}));
-var DeleteObjectOutput;
-(function (DeleteObjectOutput) {
-    DeleteObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectOutput || (DeleteObjectOutput = {}));
-var DeleteObjectRequest;
-(function (DeleteObjectRequest) {
-    DeleteObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectRequest || (DeleteObjectRequest = {}));
-var DeletedObject;
-(function (DeletedObject) {
-    DeletedObject.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeletedObject || (DeletedObject = {}));
-var _Error;
-(function (_Error) {
-    _Error.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(_Error || (_Error = {}));
-var DeleteObjectsOutput;
-(function (DeleteObjectsOutput) {
-    DeleteObjectsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectsOutput || (DeleteObjectsOutput = {}));
-var ObjectIdentifier;
-(function (ObjectIdentifier) {
-    ObjectIdentifier.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectIdentifier || (ObjectIdentifier = {}));
-var Delete;
-(function (Delete) {
-    Delete.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Delete || (Delete = {}));
-var DeleteObjectsRequest;
-(function (DeleteObjectsRequest) {
-    DeleteObjectsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectsRequest || (DeleteObjectsRequest = {}));
-var DeleteObjectTaggingOutput;
-(function (DeleteObjectTaggingOutput) {
-    DeleteObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectTaggingOutput || (DeleteObjectTaggingOutput = {}));
-var DeleteObjectTaggingRequest;
-(function (DeleteObjectTaggingRequest) {
-    DeleteObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteObjectTaggingRequest || (DeleteObjectTaggingRequest = {}));
-var DeletePublicAccessBlockRequest;
-(function (DeletePublicAccessBlockRequest) {
-    DeletePublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeletePublicAccessBlockRequest || (DeletePublicAccessBlockRequest = {}));
-var GetBucketAccelerateConfigurationOutput;
-(function (GetBucketAccelerateConfigurationOutput) {
-    GetBucketAccelerateConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketAccelerateConfigurationOutput || (GetBucketAccelerateConfigurationOutput = {}));
-var GetBucketAccelerateConfigurationRequest;
-(function (GetBucketAccelerateConfigurationRequest) {
-    GetBucketAccelerateConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketAccelerateConfigurationRequest || (GetBucketAccelerateConfigurationRequest = {}));
-var GetBucketAclOutput;
-(function (GetBucketAclOutput) {
-    GetBucketAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketAclOutput || (GetBucketAclOutput = {}));
-var GetBucketAclRequest;
-(function (GetBucketAclRequest) {
-    GetBucketAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketAclRequest || (GetBucketAclRequest = {}));
-var Tag$1;
-(function (Tag) {
-    Tag.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Tag$1 || (Tag$1 = {}));
-var AnalyticsAndOperator;
-(function (AnalyticsAndOperator) {
-    AnalyticsAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AnalyticsAndOperator || (AnalyticsAndOperator = {}));
-var AnalyticsFilter;
-(function (AnalyticsFilter) {
-    AnalyticsFilter.visit = function (value, visitor) {
-        if (value.Prefix !== undefined)
-            return visitor.Prefix(value.Prefix);
-        if (value.Tag !== undefined)
-            return visitor.Tag(value.Tag);
-        if (value.And !== undefined)
-            return visitor.And(value.And);
-        return visitor._(value.$unknown[0], value.$unknown[1]);
+var AddPermissionRequest;
+(function (AddPermissionRequest) {
+    AddPermissionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AddPermissionRequest || (AddPermissionRequest = {}));
+var OverLimit;
+(function (OverLimit) {
+    OverLimit.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(OverLimit || (OverLimit = {}));
+var ChangeMessageVisibilityRequest;
+(function (ChangeMessageVisibilityRequest) {
+    ChangeMessageVisibilityRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ChangeMessageVisibilityRequest || (ChangeMessageVisibilityRequest = {}));
+var MessageNotInflight;
+(function (MessageNotInflight) {
+    MessageNotInflight.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(MessageNotInflight || (MessageNotInflight = {}));
+var ReceiptHandleIsInvalid;
+(function (ReceiptHandleIsInvalid) {
+    ReceiptHandleIsInvalid.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReceiptHandleIsInvalid || (ReceiptHandleIsInvalid = {}));
+var BatchEntryIdsNotDistinct;
+(function (BatchEntryIdsNotDistinct) {
+    BatchEntryIdsNotDistinct.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BatchEntryIdsNotDistinct || (BatchEntryIdsNotDistinct = {}));
+var ChangeMessageVisibilityBatchRequestEntry;
+(function (ChangeMessageVisibilityBatchRequestEntry) {
+    ChangeMessageVisibilityBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ChangeMessageVisibilityBatchRequestEntry || (ChangeMessageVisibilityBatchRequestEntry = {}));
+var ChangeMessageVisibilityBatchRequest;
+(function (ChangeMessageVisibilityBatchRequest) {
+    ChangeMessageVisibilityBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ChangeMessageVisibilityBatchRequest || (ChangeMessageVisibilityBatchRequest = {}));
+var BatchResultErrorEntry;
+(function (BatchResultErrorEntry) {
+    BatchResultErrorEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BatchResultErrorEntry || (BatchResultErrorEntry = {}));
+var ChangeMessageVisibilityBatchResultEntry;
+(function (ChangeMessageVisibilityBatchResultEntry) {
+    ChangeMessageVisibilityBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ChangeMessageVisibilityBatchResultEntry || (ChangeMessageVisibilityBatchResultEntry = {}));
+var ChangeMessageVisibilityBatchResult;
+(function (ChangeMessageVisibilityBatchResult) {
+    ChangeMessageVisibilityBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ChangeMessageVisibilityBatchResult || (ChangeMessageVisibilityBatchResult = {}));
+var EmptyBatchRequest;
+(function (EmptyBatchRequest) {
+    EmptyBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(EmptyBatchRequest || (EmptyBatchRequest = {}));
+var InvalidBatchEntryId;
+(function (InvalidBatchEntryId) {
+    InvalidBatchEntryId.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InvalidBatchEntryId || (InvalidBatchEntryId = {}));
+var TooManyEntriesInBatchRequest;
+(function (TooManyEntriesInBatchRequest) {
+    TooManyEntriesInBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(TooManyEntriesInBatchRequest || (TooManyEntriesInBatchRequest = {}));
+var CreateQueueRequest;
+(function (CreateQueueRequest) {
+    CreateQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CreateQueueRequest || (CreateQueueRequest = {}));
+var CreateQueueResult;
+(function (CreateQueueResult) {
+    CreateQueueResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CreateQueueResult || (CreateQueueResult = {}));
+var QueueDeletedRecently;
+(function (QueueDeletedRecently) {
+    QueueDeletedRecently.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(QueueDeletedRecently || (QueueDeletedRecently = {}));
+var QueueNameExists;
+(function (QueueNameExists) {
+    QueueNameExists.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(QueueNameExists || (QueueNameExists = {}));
+var DeleteMessageRequest;
+(function (DeleteMessageRequest) {
+    DeleteMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMessageRequest || (DeleteMessageRequest = {}));
+var InvalidIdFormat;
+(function (InvalidIdFormat) {
+    InvalidIdFormat.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InvalidIdFormat || (InvalidIdFormat = {}));
+var DeleteMessageBatchRequestEntry;
+(function (DeleteMessageBatchRequestEntry) {
+    DeleteMessageBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMessageBatchRequestEntry || (DeleteMessageBatchRequestEntry = {}));
+var DeleteMessageBatchRequest;
+(function (DeleteMessageBatchRequest) {
+    DeleteMessageBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMessageBatchRequest || (DeleteMessageBatchRequest = {}));
+var DeleteMessageBatchResultEntry;
+(function (DeleteMessageBatchResultEntry) {
+    DeleteMessageBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMessageBatchResultEntry || (DeleteMessageBatchResultEntry = {}));
+var DeleteMessageBatchResult;
+(function (DeleteMessageBatchResult) {
+    DeleteMessageBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMessageBatchResult || (DeleteMessageBatchResult = {}));
+var DeleteQueueRequest;
+(function (DeleteQueueRequest) {
+    DeleteQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteQueueRequest || (DeleteQueueRequest = {}));
+var GetQueueAttributesRequest;
+(function (GetQueueAttributesRequest) {
+    GetQueueAttributesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetQueueAttributesRequest || (GetQueueAttributesRequest = {}));
+var GetQueueAttributesResult;
+(function (GetQueueAttributesResult) {
+    GetQueueAttributesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetQueueAttributesResult || (GetQueueAttributesResult = {}));
+var InvalidAttributeName;
+(function (InvalidAttributeName) {
+    InvalidAttributeName.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InvalidAttributeName || (InvalidAttributeName = {}));
+var GetQueueUrlRequest;
+(function (GetQueueUrlRequest) {
+    GetQueueUrlRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetQueueUrlRequest || (GetQueueUrlRequest = {}));
+var GetQueueUrlResult;
+(function (GetQueueUrlResult) {
+    GetQueueUrlResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetQueueUrlResult || (GetQueueUrlResult = {}));
+var QueueDoesNotExist;
+(function (QueueDoesNotExist) {
+    QueueDoesNotExist.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(QueueDoesNotExist || (QueueDoesNotExist = {}));
+var ListDeadLetterSourceQueuesRequest;
+(function (ListDeadLetterSourceQueuesRequest) {
+    ListDeadLetterSourceQueuesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListDeadLetterSourceQueuesRequest || (ListDeadLetterSourceQueuesRequest = {}));
+var ListDeadLetterSourceQueuesResult;
+(function (ListDeadLetterSourceQueuesResult) {
+    ListDeadLetterSourceQueuesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListDeadLetterSourceQueuesResult || (ListDeadLetterSourceQueuesResult = {}));
+var ListQueuesRequest;
+(function (ListQueuesRequest) {
+    ListQueuesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListQueuesRequest || (ListQueuesRequest = {}));
+var ListQueuesResult;
+(function (ListQueuesResult) {
+    ListQueuesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListQueuesResult || (ListQueuesResult = {}));
+var ListQueueTagsRequest;
+(function (ListQueueTagsRequest) {
+    ListQueueTagsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListQueueTagsRequest || (ListQueueTagsRequest = {}));
+var ListQueueTagsResult;
+(function (ListQueueTagsResult) {
+    ListQueueTagsResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListQueueTagsResult || (ListQueueTagsResult = {}));
+var PurgeQueueInProgress;
+(function (PurgeQueueInProgress) {
+    PurgeQueueInProgress.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PurgeQueueInProgress || (PurgeQueueInProgress = {}));
+var PurgeQueueRequest;
+(function (PurgeQueueRequest) {
+    PurgeQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PurgeQueueRequest || (PurgeQueueRequest = {}));
+var ReceiveMessageRequest;
+(function (ReceiveMessageRequest) {
+    ReceiveMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReceiveMessageRequest || (ReceiveMessageRequest = {}));
+var MessageAttributeValue;
+(function (MessageAttributeValue) {
+    MessageAttributeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(MessageAttributeValue || (MessageAttributeValue = {}));
+var Message;
+(function (Message) {
+    Message.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Message || (Message = {}));
+var ReceiveMessageResult;
+(function (ReceiveMessageResult) {
+    ReceiveMessageResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReceiveMessageResult || (ReceiveMessageResult = {}));
+var RemovePermissionRequest;
+(function (RemovePermissionRequest) {
+    RemovePermissionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(RemovePermissionRequest || (RemovePermissionRequest = {}));
+var InvalidMessageContents;
+(function (InvalidMessageContents) {
+    InvalidMessageContents.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InvalidMessageContents || (InvalidMessageContents = {}));
+var MessageSystemAttributeValue;
+(function (MessageSystemAttributeValue) {
+    MessageSystemAttributeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(MessageSystemAttributeValue || (MessageSystemAttributeValue = {}));
+var SendMessageRequest;
+(function (SendMessageRequest) {
+    SendMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageRequest || (SendMessageRequest = {}));
+var SendMessageResult;
+(function (SendMessageResult) {
+    SendMessageResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageResult || (SendMessageResult = {}));
+var UnsupportedOperation;
+(function (UnsupportedOperation) {
+    UnsupportedOperation.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(UnsupportedOperation || (UnsupportedOperation = {}));
+var BatchRequestTooLong;
+(function (BatchRequestTooLong) {
+    BatchRequestTooLong.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BatchRequestTooLong || (BatchRequestTooLong = {}));
+var SendMessageBatchRequestEntry;
+(function (SendMessageBatchRequestEntry) {
+    SendMessageBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageBatchRequestEntry || (SendMessageBatchRequestEntry = {}));
+var SendMessageBatchRequest;
+(function (SendMessageBatchRequest) {
+    SendMessageBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageBatchRequest || (SendMessageBatchRequest = {}));
+var SendMessageBatchResultEntry;
+(function (SendMessageBatchResultEntry) {
+    SendMessageBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageBatchResultEntry || (SendMessageBatchResultEntry = {}));
+var SendMessageBatchResult;
+(function (SendMessageBatchResult) {
+    SendMessageBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SendMessageBatchResult || (SendMessageBatchResult = {}));
+var SetQueueAttributesRequest;
+(function (SetQueueAttributesRequest) {
+    SetQueueAttributesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SetQueueAttributesRequest || (SetQueueAttributesRequest = {}));
+var TagQueueRequest;
+(function (TagQueueRequest) {
+    TagQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(TagQueueRequest || (TagQueueRequest = {}));
+var UntagQueueRequest;
+(function (UntagQueueRequest) {
+    UntagQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(UntagQueueRequest || (UntagQueueRequest = {}));
+
+var HttpRequest = (function () {
+    function HttpRequest(options) {
+        this.method = options.method || "GET";
+        this.hostname = options.hostname || "localhost";
+        this.port = options.port;
+        this.query = options.query || {};
+        this.headers = options.headers || {};
+        this.body = options.body;
+        this.protocol = options.protocol
+            ? options.protocol.substr(-1) !== ":"
+                ? options.protocol + ":"
+                : options.protocol
+            : "https:";
+        this.path = options.path ? (options.path.charAt(0) !== "/" ? "/" + options.path : options.path) : "/";
+    }
+    HttpRequest.isInstance = function (request) {
+        if (!request)
+            return false;
+        var req = request;
+        return ("method" in req &&
+            "protocol" in req &&
+            "hostname" in req &&
+            "path" in req &&
+            typeof req["query"] === "object" &&
+            typeof req["headers"] === "object");
     };
-    AnalyticsFilter.filterSensitiveLog = function (obj) {
+    HttpRequest.prototype.clone = function () {
+        var cloned = new HttpRequest(__assign$1(__assign$1({}, this), { headers: __assign$1({}, this.headers) }));
+        if (cloned.query)
+            cloned.query = cloneQuery$1(cloned.query);
+        return cloned;
+    };
+    return HttpRequest;
+}());
+function cloneQuery$1(query) {
+    return Object.keys(query).reduce(function (carry, paramName) {
         var _a;
-        if (obj.Prefix !== undefined)
-            return { Prefix: obj.Prefix };
-        if (obj.Tag !== undefined)
-            return { Tag: Tag$1.filterSensitiveLog(obj.Tag) };
-        if (obj.And !== undefined)
-            return { And: AnalyticsAndOperator.filterSensitiveLog(obj.And) };
-        if (obj.$unknown !== undefined)
-            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
+        var param = query[paramName];
+        return __assign$1(__assign$1({}, carry), (_a = {}, _a[paramName] = Array.isArray(param) ? __spreadArray([], __read$1(param)) : param, _a));
+    }, {});
+}
+
+var HttpResponse = (function () {
+    function HttpResponse(options) {
+        this.statusCode = options.statusCode;
+        this.headers = options.headers || {};
+        this.body = options.body;
+    }
+    HttpResponse.isInstance = function (response) {
+        if (!response)
+            return false;
+        var resp = response;
+        return typeof resp.statusCode === "number" && typeof resp.headers === "object";
     };
-})(AnalyticsFilter || (AnalyticsFilter = {}));
-var AnalyticsS3BucketDestination;
-(function (AnalyticsS3BucketDestination) {
-    AnalyticsS3BucketDestination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AnalyticsS3BucketDestination || (AnalyticsS3BucketDestination = {}));
-var AnalyticsExportDestination;
-(function (AnalyticsExportDestination) {
-    AnalyticsExportDestination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AnalyticsExportDestination || (AnalyticsExportDestination = {}));
-var StorageClassAnalysisDataExport;
-(function (StorageClassAnalysisDataExport) {
-    StorageClassAnalysisDataExport.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(StorageClassAnalysisDataExport || (StorageClassAnalysisDataExport = {}));
-var StorageClassAnalysis;
-(function (StorageClassAnalysis) {
-    StorageClassAnalysis.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(StorageClassAnalysis || (StorageClassAnalysis = {}));
-var AnalyticsConfiguration;
-(function (AnalyticsConfiguration) {
-    AnalyticsConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: AnalyticsFilter.filterSensitiveLog(obj.Filter) }))); };
-})(AnalyticsConfiguration || (AnalyticsConfiguration = {}));
-var GetBucketAnalyticsConfigurationOutput;
-(function (GetBucketAnalyticsConfigurationOutput) {
-    GetBucketAnalyticsConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfiguration && {
-        AnalyticsConfiguration: AnalyticsConfiguration.filterSensitiveLog(obj.AnalyticsConfiguration),
-    }))); };
-})(GetBucketAnalyticsConfigurationOutput || (GetBucketAnalyticsConfigurationOutput = {}));
-var GetBucketAnalyticsConfigurationRequest;
-(function (GetBucketAnalyticsConfigurationRequest) {
-    GetBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketAnalyticsConfigurationRequest || (GetBucketAnalyticsConfigurationRequest = {}));
-var CORSRule;
-(function (CORSRule) {
-    CORSRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CORSRule || (CORSRule = {}));
-var GetBucketCorsOutput;
-(function (GetBucketCorsOutput) {
-    GetBucketCorsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketCorsOutput || (GetBucketCorsOutput = {}));
-var GetBucketCorsRequest;
-(function (GetBucketCorsRequest) {
-    GetBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketCorsRequest || (GetBucketCorsRequest = {}));
-var ServerSideEncryptionByDefault;
-(function (ServerSideEncryptionByDefault) {
-    ServerSideEncryptionByDefault.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.KMSMasterKeyID && { KMSMasterKeyID: SENSITIVE_STRING }))); };
-})(ServerSideEncryptionByDefault || (ServerSideEncryptionByDefault = {}));
-var ServerSideEncryptionRule;
-(function (ServerSideEncryptionRule) {
-    ServerSideEncryptionRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ApplyServerSideEncryptionByDefault && {
-        ApplyServerSideEncryptionByDefault: ServerSideEncryptionByDefault.filterSensitiveLog(obj.ApplyServerSideEncryptionByDefault),
-    }))); };
-})(ServerSideEncryptionRule || (ServerSideEncryptionRule = {}));
-var ServerSideEncryptionConfiguration;
-(function (ServerSideEncryptionConfiguration) {
-    ServerSideEncryptionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return ServerSideEncryptionRule.filterSensitiveLog(item); }) }))); };
-})(ServerSideEncryptionConfiguration || (ServerSideEncryptionConfiguration = {}));
-var GetBucketEncryptionOutput;
-(function (GetBucketEncryptionOutput) {
-    GetBucketEncryptionOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ServerSideEncryptionConfiguration && {
-        ServerSideEncryptionConfiguration: ServerSideEncryptionConfiguration.filterSensitiveLog(obj.ServerSideEncryptionConfiguration),
-    }))); };
-})(GetBucketEncryptionOutput || (GetBucketEncryptionOutput = {}));
-var GetBucketEncryptionRequest;
-(function (GetBucketEncryptionRequest) {
-    GetBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketEncryptionRequest || (GetBucketEncryptionRequest = {}));
-var IntelligentTieringAndOperator;
-(function (IntelligentTieringAndOperator) {
-    IntelligentTieringAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(IntelligentTieringAndOperator || (IntelligentTieringAndOperator = {}));
-var IntelligentTieringFilter;
-(function (IntelligentTieringFilter) {
-    IntelligentTieringFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(IntelligentTieringFilter || (IntelligentTieringFilter = {}));
-var Tiering;
-(function (Tiering) {
-    Tiering.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Tiering || (Tiering = {}));
-var IntelligentTieringConfiguration;
-(function (IntelligentTieringConfiguration) {
-    IntelligentTieringConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(IntelligentTieringConfiguration || (IntelligentTieringConfiguration = {}));
-var GetBucketIntelligentTieringConfigurationOutput;
-(function (GetBucketIntelligentTieringConfigurationOutput) {
-    GetBucketIntelligentTieringConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketIntelligentTieringConfigurationOutput || (GetBucketIntelligentTieringConfigurationOutput = {}));
-var GetBucketIntelligentTieringConfigurationRequest;
-(function (GetBucketIntelligentTieringConfigurationRequest) {
-    GetBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketIntelligentTieringConfigurationRequest || (GetBucketIntelligentTieringConfigurationRequest = {}));
-var SSEKMS;
-(function (SSEKMS) {
-    SSEKMS.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.KeyId && { KeyId: SENSITIVE_STRING }))); };
-})(SSEKMS || (SSEKMS = {}));
-var SSES3;
-(function (SSES3) {
-    SSES3.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SSES3 || (SSES3 = {}));
-var InventoryEncryption;
-(function (InventoryEncryption) {
-    InventoryEncryption.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMS && { SSEKMS: SSEKMS.filterSensitiveLog(obj.SSEKMS) }))); };
-})(InventoryEncryption || (InventoryEncryption = {}));
-var InventoryS3BucketDestination;
-(function (InventoryS3BucketDestination) {
-    InventoryS3BucketDestination.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Encryption && { Encryption: InventoryEncryption.filterSensitiveLog(obj.Encryption) }))); };
-})(InventoryS3BucketDestination || (InventoryS3BucketDestination = {}));
-var InventoryDestination;
-(function (InventoryDestination) {
-    InventoryDestination.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.S3BucketDestination && {
-        S3BucketDestination: InventoryS3BucketDestination.filterSensitiveLog(obj.S3BucketDestination),
-    }))); };
-})(InventoryDestination || (InventoryDestination = {}));
-var InventoryFilter;
-(function (InventoryFilter) {
-    InventoryFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InventoryFilter || (InventoryFilter = {}));
-var InventorySchedule;
-(function (InventorySchedule) {
-    InventorySchedule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InventorySchedule || (InventorySchedule = {}));
-var InventoryConfiguration;
-(function (InventoryConfiguration) {
-    InventoryConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Destination && { Destination: InventoryDestination.filterSensitiveLog(obj.Destination) }))); };
-})(InventoryConfiguration || (InventoryConfiguration = {}));
-var GetBucketInventoryConfigurationOutput;
-(function (GetBucketInventoryConfigurationOutput) {
-    GetBucketInventoryConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfiguration && {
-        InventoryConfiguration: InventoryConfiguration.filterSensitiveLog(obj.InventoryConfiguration),
-    }))); };
-})(GetBucketInventoryConfigurationOutput || (GetBucketInventoryConfigurationOutput = {}));
-var GetBucketInventoryConfigurationRequest;
-(function (GetBucketInventoryConfigurationRequest) {
-    GetBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketInventoryConfigurationRequest || (GetBucketInventoryConfigurationRequest = {}));
-var LifecycleExpiration;
-(function (LifecycleExpiration) {
-    LifecycleExpiration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(LifecycleExpiration || (LifecycleExpiration = {}));
-var LifecycleRuleAndOperator;
-(function (LifecycleRuleAndOperator) {
-    LifecycleRuleAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(LifecycleRuleAndOperator || (LifecycleRuleAndOperator = {}));
-var LifecycleRuleFilter;
-(function (LifecycleRuleFilter) {
-    LifecycleRuleFilter.visit = function (value, visitor) {
-        if (value.Prefix !== undefined)
-            return visitor.Prefix(value.Prefix);
-        if (value.Tag !== undefined)
-            return visitor.Tag(value.Tag);
-        if (value.And !== undefined)
-            return visitor.And(value.And);
-        return visitor._(value.$unknown[0], value.$unknown[1]);
-    };
-    LifecycleRuleFilter.filterSensitiveLog = function (obj) {
-        var _a;
-        if (obj.Prefix !== undefined)
-            return { Prefix: obj.Prefix };
-        if (obj.Tag !== undefined)
-            return { Tag: Tag$1.filterSensitiveLog(obj.Tag) };
-        if (obj.And !== undefined)
-            return { And: LifecycleRuleAndOperator.filterSensitiveLog(obj.And) };
-        if (obj.$unknown !== undefined)
-            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
-    };
-})(LifecycleRuleFilter || (LifecycleRuleFilter = {}));
-var NoncurrentVersionExpiration;
-(function (NoncurrentVersionExpiration) {
-    NoncurrentVersionExpiration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NoncurrentVersionExpiration || (NoncurrentVersionExpiration = {}));
-var NoncurrentVersionTransition;
-(function (NoncurrentVersionTransition) {
-    NoncurrentVersionTransition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NoncurrentVersionTransition || (NoncurrentVersionTransition = {}));
-var Transition;
-(function (Transition) {
-    Transition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Transition || (Transition = {}));
-var LifecycleRule;
-(function (LifecycleRule) {
-    LifecycleRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: LifecycleRuleFilter.filterSensitiveLog(obj.Filter) }))); };
-})(LifecycleRule || (LifecycleRule = {}));
-var GetBucketLifecycleConfigurationOutput;
-(function (GetBucketLifecycleConfigurationOutput) {
-    GetBucketLifecycleConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return LifecycleRule.filterSensitiveLog(item); }) }))); };
-})(GetBucketLifecycleConfigurationOutput || (GetBucketLifecycleConfigurationOutput = {}));
-var GetBucketLifecycleConfigurationRequest;
-(function (GetBucketLifecycleConfigurationRequest) {
-    GetBucketLifecycleConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketLifecycleConfigurationRequest || (GetBucketLifecycleConfigurationRequest = {}));
-var GetBucketLocationOutput;
-(function (GetBucketLocationOutput) {
-    GetBucketLocationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketLocationOutput || (GetBucketLocationOutput = {}));
-var GetBucketLocationRequest;
-(function (GetBucketLocationRequest) {
-    GetBucketLocationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketLocationRequest || (GetBucketLocationRequest = {}));
-var TargetGrant;
-(function (TargetGrant) {
-    TargetGrant.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(TargetGrant || (TargetGrant = {}));
-var LoggingEnabled;
-(function (LoggingEnabled) {
-    LoggingEnabled.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(LoggingEnabled || (LoggingEnabled = {}));
-var GetBucketLoggingOutput;
-(function (GetBucketLoggingOutput) {
-    GetBucketLoggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketLoggingOutput || (GetBucketLoggingOutput = {}));
-var GetBucketLoggingRequest;
-(function (GetBucketLoggingRequest) {
-    GetBucketLoggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketLoggingRequest || (GetBucketLoggingRequest = {}));
-var MetricsAndOperator;
-(function (MetricsAndOperator) {
-    MetricsAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(MetricsAndOperator || (MetricsAndOperator = {}));
-var MetricsFilter;
-(function (MetricsFilter) {
-    MetricsFilter.visit = function (value, visitor) {
-        if (value.Prefix !== undefined)
-            return visitor.Prefix(value.Prefix);
-        if (value.Tag !== undefined)
-            return visitor.Tag(value.Tag);
-        if (value.AccessPointArn !== undefined)
-            return visitor.AccessPointArn(value.AccessPointArn);
-        if (value.And !== undefined)
-            return visitor.And(value.And);
-        return visitor._(value.$unknown[0], value.$unknown[1]);
-    };
-    MetricsFilter.filterSensitiveLog = function (obj) {
-        var _a;
-        if (obj.Prefix !== undefined)
-            return { Prefix: obj.Prefix };
-        if (obj.Tag !== undefined)
-            return { Tag: Tag$1.filterSensitiveLog(obj.Tag) };
-        if (obj.AccessPointArn !== undefined)
-            return { AccessPointArn: obj.AccessPointArn };
-        if (obj.And !== undefined)
-            return { And: MetricsAndOperator.filterSensitiveLog(obj.And) };
-        if (obj.$unknown !== undefined)
-            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
-    };
-})(MetricsFilter || (MetricsFilter = {}));
-var MetricsConfiguration;
-(function (MetricsConfiguration) {
-    MetricsConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: MetricsFilter.filterSensitiveLog(obj.Filter) }))); };
-})(MetricsConfiguration || (MetricsConfiguration = {}));
-var GetBucketMetricsConfigurationOutput;
-(function (GetBucketMetricsConfigurationOutput) {
-    GetBucketMetricsConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfiguration && {
-        MetricsConfiguration: MetricsConfiguration.filterSensitiveLog(obj.MetricsConfiguration),
-    }))); };
-})(GetBucketMetricsConfigurationOutput || (GetBucketMetricsConfigurationOutput = {}));
-var GetBucketMetricsConfigurationRequest;
-(function (GetBucketMetricsConfigurationRequest) {
-    GetBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketMetricsConfigurationRequest || (GetBucketMetricsConfigurationRequest = {}));
-var GetBucketNotificationConfigurationRequest;
-(function (GetBucketNotificationConfigurationRequest) {
-    GetBucketNotificationConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketNotificationConfigurationRequest || (GetBucketNotificationConfigurationRequest = {}));
-var FilterRule;
-(function (FilterRule) {
-    FilterRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(FilterRule || (FilterRule = {}));
-var S3KeyFilter;
-(function (S3KeyFilter) {
-    S3KeyFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(S3KeyFilter || (S3KeyFilter = {}));
-var NotificationConfigurationFilter;
-(function (NotificationConfigurationFilter) {
-    NotificationConfigurationFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NotificationConfigurationFilter || (NotificationConfigurationFilter = {}));
-var LambdaFunctionConfiguration;
-(function (LambdaFunctionConfiguration) {
-    LambdaFunctionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(LambdaFunctionConfiguration || (LambdaFunctionConfiguration = {}));
-var QueueConfiguration;
-(function (QueueConfiguration) {
-    QueueConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(QueueConfiguration || (QueueConfiguration = {}));
-var TopicConfiguration;
-(function (TopicConfiguration) {
-    TopicConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(TopicConfiguration || (TopicConfiguration = {}));
-var NotificationConfiguration;
-(function (NotificationConfiguration) {
-    NotificationConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NotificationConfiguration || (NotificationConfiguration = {}));
-var OwnershipControlsRule;
-(function (OwnershipControlsRule) {
-    OwnershipControlsRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(OwnershipControlsRule || (OwnershipControlsRule = {}));
-var OwnershipControls;
-(function (OwnershipControls) {
-    OwnershipControls.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(OwnershipControls || (OwnershipControls = {}));
-var GetBucketOwnershipControlsOutput;
-(function (GetBucketOwnershipControlsOutput) {
-    GetBucketOwnershipControlsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketOwnershipControlsOutput || (GetBucketOwnershipControlsOutput = {}));
-var GetBucketOwnershipControlsRequest;
-(function (GetBucketOwnershipControlsRequest) {
-    GetBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketOwnershipControlsRequest || (GetBucketOwnershipControlsRequest = {}));
-var GetBucketPolicyOutput;
-(function (GetBucketPolicyOutput) {
-    GetBucketPolicyOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketPolicyOutput || (GetBucketPolicyOutput = {}));
-var GetBucketPolicyRequest;
-(function (GetBucketPolicyRequest) {
-    GetBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketPolicyRequest || (GetBucketPolicyRequest = {}));
-var PolicyStatus;
-(function (PolicyStatus) {
-    PolicyStatus.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PolicyStatus || (PolicyStatus = {}));
-var GetBucketPolicyStatusOutput;
-(function (GetBucketPolicyStatusOutput) {
-    GetBucketPolicyStatusOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketPolicyStatusOutput || (GetBucketPolicyStatusOutput = {}));
-var GetBucketPolicyStatusRequest;
-(function (GetBucketPolicyStatusRequest) {
-    GetBucketPolicyStatusRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketPolicyStatusRequest || (GetBucketPolicyStatusRequest = {}));
-var DeleteMarkerReplication;
-(function (DeleteMarkerReplication) {
-    DeleteMarkerReplication.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMarkerReplication || (DeleteMarkerReplication = {}));
-var EncryptionConfiguration;
-(function (EncryptionConfiguration) {
-    EncryptionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(EncryptionConfiguration || (EncryptionConfiguration = {}));
-var ReplicationTimeValue;
-(function (ReplicationTimeValue) {
-    ReplicationTimeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReplicationTimeValue || (ReplicationTimeValue = {}));
-var Metrics;
-(function (Metrics) {
-    Metrics.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Metrics || (Metrics = {}));
-var ReplicationTime;
-(function (ReplicationTime) {
-    ReplicationTime.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReplicationTime || (ReplicationTime = {}));
-var Destination;
-(function (Destination) {
-    Destination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Destination || (Destination = {}));
-var ExistingObjectReplication;
-(function (ExistingObjectReplication) {
-    ExistingObjectReplication.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ExistingObjectReplication || (ExistingObjectReplication = {}));
-var ReplicationRuleAndOperator;
-(function (ReplicationRuleAndOperator) {
-    ReplicationRuleAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReplicationRuleAndOperator || (ReplicationRuleAndOperator = {}));
-var ReplicationRuleFilter;
-(function (ReplicationRuleFilter) {
-    ReplicationRuleFilter.visit = function (value, visitor) {
-        if (value.Prefix !== undefined)
-            return visitor.Prefix(value.Prefix);
-        if (value.Tag !== undefined)
-            return visitor.Tag(value.Tag);
-        if (value.And !== undefined)
-            return visitor.And(value.And);
-        return visitor._(value.$unknown[0], value.$unknown[1]);
-    };
-    ReplicationRuleFilter.filterSensitiveLog = function (obj) {
-        var _a;
-        if (obj.Prefix !== undefined)
-            return { Prefix: obj.Prefix };
-        if (obj.Tag !== undefined)
-            return { Tag: Tag$1.filterSensitiveLog(obj.Tag) };
-        if (obj.And !== undefined)
-            return { And: ReplicationRuleAndOperator.filterSensitiveLog(obj.And) };
-        if (obj.$unknown !== undefined)
-            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
-    };
-})(ReplicationRuleFilter || (ReplicationRuleFilter = {}));
-var ReplicaModifications;
-(function (ReplicaModifications) {
-    ReplicaModifications.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReplicaModifications || (ReplicaModifications = {}));
-var SseKmsEncryptedObjects;
-(function (SseKmsEncryptedObjects) {
-    SseKmsEncryptedObjects.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SseKmsEncryptedObjects || (SseKmsEncryptedObjects = {}));
-var SourceSelectionCriteria;
-(function (SourceSelectionCriteria) {
-    SourceSelectionCriteria.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SourceSelectionCriteria || (SourceSelectionCriteria = {}));
-var ReplicationRule;
-(function (ReplicationRule) {
-    ReplicationRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: ReplicationRuleFilter.filterSensitiveLog(obj.Filter) }))); };
-})(ReplicationRule || (ReplicationRule = {}));
-var ReplicationConfiguration;
-(function (ReplicationConfiguration) {
-    ReplicationConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return ReplicationRule.filterSensitiveLog(item); }) }))); };
-})(ReplicationConfiguration || (ReplicationConfiguration = {}));
-var GetBucketReplicationOutput;
-(function (GetBucketReplicationOutput) {
-    GetBucketReplicationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ReplicationConfiguration && {
-        ReplicationConfiguration: ReplicationConfiguration.filterSensitiveLog(obj.ReplicationConfiguration),
-    }))); };
-})(GetBucketReplicationOutput || (GetBucketReplicationOutput = {}));
-var GetBucketReplicationRequest;
-(function (GetBucketReplicationRequest) {
-    GetBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketReplicationRequest || (GetBucketReplicationRequest = {}));
-var GetBucketRequestPaymentOutput;
-(function (GetBucketRequestPaymentOutput) {
-    GetBucketRequestPaymentOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketRequestPaymentOutput || (GetBucketRequestPaymentOutput = {}));
-var GetBucketRequestPaymentRequest;
-(function (GetBucketRequestPaymentRequest) {
-    GetBucketRequestPaymentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketRequestPaymentRequest || (GetBucketRequestPaymentRequest = {}));
-var GetBucketTaggingOutput;
-(function (GetBucketTaggingOutput) {
-    GetBucketTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketTaggingOutput || (GetBucketTaggingOutput = {}));
-var GetBucketTaggingRequest;
-(function (GetBucketTaggingRequest) {
-    GetBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketTaggingRequest || (GetBucketTaggingRequest = {}));
-var GetBucketVersioningOutput;
-(function (GetBucketVersioningOutput) {
-    GetBucketVersioningOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketVersioningOutput || (GetBucketVersioningOutput = {}));
-var GetBucketVersioningRequest;
-(function (GetBucketVersioningRequest) {
-    GetBucketVersioningRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketVersioningRequest || (GetBucketVersioningRequest = {}));
-var ErrorDocument;
-(function (ErrorDocument) {
-    ErrorDocument.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ErrorDocument || (ErrorDocument = {}));
-var IndexDocument;
-(function (IndexDocument) {
-    IndexDocument.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(IndexDocument || (IndexDocument = {}));
-var RedirectAllRequestsTo;
-(function (RedirectAllRequestsTo) {
-    RedirectAllRequestsTo.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(RedirectAllRequestsTo || (RedirectAllRequestsTo = {}));
-var Condition;
-(function (Condition) {
-    Condition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Condition || (Condition = {}));
-var Redirect;
-(function (Redirect) {
-    Redirect.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Redirect || (Redirect = {}));
-var RoutingRule;
-(function (RoutingRule) {
-    RoutingRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(RoutingRule || (RoutingRule = {}));
-var GetBucketWebsiteOutput;
-(function (GetBucketWebsiteOutput) {
-    GetBucketWebsiteOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketWebsiteOutput || (GetBucketWebsiteOutput = {}));
-var GetBucketWebsiteRequest;
-(function (GetBucketWebsiteRequest) {
-    GetBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetBucketWebsiteRequest || (GetBucketWebsiteRequest = {}));
-var GetObjectOutput;
-(function (GetObjectOutput) {
-    GetObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
-})(GetObjectOutput || (GetObjectOutput = {}));
-var GetObjectRequest;
-(function (GetObjectRequest) {
-    GetObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING }))); };
-})(GetObjectRequest || (GetObjectRequest = {}));
-var InvalidObjectState;
-(function (InvalidObjectState) {
-    InvalidObjectState.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InvalidObjectState || (InvalidObjectState = {}));
-var NoSuchKey;
-(function (NoSuchKey) {
-    NoSuchKey.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NoSuchKey || (NoSuchKey = {}));
-var GetObjectAclOutput;
-(function (GetObjectAclOutput) {
-    GetObjectAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectAclOutput || (GetObjectAclOutput = {}));
-var GetObjectAclRequest;
-(function (GetObjectAclRequest) {
-    GetObjectAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectAclRequest || (GetObjectAclRequest = {}));
-var ObjectLockLegalHold;
-(function (ObjectLockLegalHold) {
-    ObjectLockLegalHold.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectLockLegalHold || (ObjectLockLegalHold = {}));
-var GetObjectLegalHoldOutput;
-(function (GetObjectLegalHoldOutput) {
-    GetObjectLegalHoldOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectLegalHoldOutput || (GetObjectLegalHoldOutput = {}));
-var GetObjectLegalHoldRequest;
-(function (GetObjectLegalHoldRequest) {
-    GetObjectLegalHoldRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectLegalHoldRequest || (GetObjectLegalHoldRequest = {}));
-var DefaultRetention;
-(function (DefaultRetention) {
-    DefaultRetention.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DefaultRetention || (DefaultRetention = {}));
-var ObjectLockRule;
-(function (ObjectLockRule) {
-    ObjectLockRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectLockRule || (ObjectLockRule = {}));
-var ObjectLockConfiguration;
-(function (ObjectLockConfiguration) {
-    ObjectLockConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectLockConfiguration || (ObjectLockConfiguration = {}));
-var GetObjectLockConfigurationOutput;
-(function (GetObjectLockConfigurationOutput) {
-    GetObjectLockConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectLockConfigurationOutput || (GetObjectLockConfigurationOutput = {}));
-var GetObjectLockConfigurationRequest;
-(function (GetObjectLockConfigurationRequest) {
-    GetObjectLockConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectLockConfigurationRequest || (GetObjectLockConfigurationRequest = {}));
-var ObjectLockRetention;
-(function (ObjectLockRetention) {
-    ObjectLockRetention.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectLockRetention || (ObjectLockRetention = {}));
-var GetObjectRetentionOutput;
-(function (GetObjectRetentionOutput) {
-    GetObjectRetentionOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectRetentionOutput || (GetObjectRetentionOutput = {}));
-var GetObjectRetentionRequest;
-(function (GetObjectRetentionRequest) {
-    GetObjectRetentionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectRetentionRequest || (GetObjectRetentionRequest = {}));
-var GetObjectTaggingOutput;
-(function (GetObjectTaggingOutput) {
-    GetObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectTaggingOutput || (GetObjectTaggingOutput = {}));
-var GetObjectTaggingRequest;
-(function (GetObjectTaggingRequest) {
-    GetObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectTaggingRequest || (GetObjectTaggingRequest = {}));
-var GetObjectTorrentOutput;
-(function (GetObjectTorrentOutput) {
-    GetObjectTorrentOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectTorrentOutput || (GetObjectTorrentOutput = {}));
-var GetObjectTorrentRequest;
-(function (GetObjectTorrentRequest) {
-    GetObjectTorrentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetObjectTorrentRequest || (GetObjectTorrentRequest = {}));
-var PublicAccessBlockConfiguration;
-(function (PublicAccessBlockConfiguration) {
-    PublicAccessBlockConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PublicAccessBlockConfiguration || (PublicAccessBlockConfiguration = {}));
-var GetPublicAccessBlockOutput;
-(function (GetPublicAccessBlockOutput) {
-    GetPublicAccessBlockOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetPublicAccessBlockOutput || (GetPublicAccessBlockOutput = {}));
-var GetPublicAccessBlockRequest;
-(function (GetPublicAccessBlockRequest) {
-    GetPublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetPublicAccessBlockRequest || (GetPublicAccessBlockRequest = {}));
-var HeadBucketRequest;
-(function (HeadBucketRequest) {
-    HeadBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(HeadBucketRequest || (HeadBucketRequest = {}));
-var NotFound;
-(function (NotFound) {
-    NotFound.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NotFound || (NotFound = {}));
-var HeadObjectOutput;
-(function (HeadObjectOutput) {
-    HeadObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
-})(HeadObjectOutput || (HeadObjectOutput = {}));
-var HeadObjectRequest;
-(function (HeadObjectRequest) {
-    HeadObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING }))); };
-})(HeadObjectRequest || (HeadObjectRequest = {}));
-var ListBucketAnalyticsConfigurationsOutput;
-(function (ListBucketAnalyticsConfigurationsOutput) {
-    ListBucketAnalyticsConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfigurationList && {
-        AnalyticsConfigurationList: obj.AnalyticsConfigurationList.map(function (item) {
-            return AnalyticsConfiguration.filterSensitiveLog(item);
-        }),
-    }))); };
-})(ListBucketAnalyticsConfigurationsOutput || (ListBucketAnalyticsConfigurationsOutput = {}));
-var ListBucketAnalyticsConfigurationsRequest;
-(function (ListBucketAnalyticsConfigurationsRequest) {
-    ListBucketAnalyticsConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketAnalyticsConfigurationsRequest || (ListBucketAnalyticsConfigurationsRequest = {}));
-var ListBucketIntelligentTieringConfigurationsOutput;
-(function (ListBucketIntelligentTieringConfigurationsOutput) {
-    ListBucketIntelligentTieringConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketIntelligentTieringConfigurationsOutput || (ListBucketIntelligentTieringConfigurationsOutput = {}));
-var ListBucketIntelligentTieringConfigurationsRequest;
-(function (ListBucketIntelligentTieringConfigurationsRequest) {
-    ListBucketIntelligentTieringConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketIntelligentTieringConfigurationsRequest || (ListBucketIntelligentTieringConfigurationsRequest = {}));
-var ListBucketInventoryConfigurationsOutput;
-(function (ListBucketInventoryConfigurationsOutput) {
-    ListBucketInventoryConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfigurationList && {
-        InventoryConfigurationList: obj.InventoryConfigurationList.map(function (item) {
-            return InventoryConfiguration.filterSensitiveLog(item);
-        }),
-    }))); };
-})(ListBucketInventoryConfigurationsOutput || (ListBucketInventoryConfigurationsOutput = {}));
-var ListBucketInventoryConfigurationsRequest;
-(function (ListBucketInventoryConfigurationsRequest) {
-    ListBucketInventoryConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketInventoryConfigurationsRequest || (ListBucketInventoryConfigurationsRequest = {}));
-var ListBucketMetricsConfigurationsOutput;
-(function (ListBucketMetricsConfigurationsOutput) {
-    ListBucketMetricsConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfigurationList && {
-        MetricsConfigurationList: obj.MetricsConfigurationList.map(function (item) {
-            return MetricsConfiguration.filterSensitiveLog(item);
-        }),
-    }))); };
-})(ListBucketMetricsConfigurationsOutput || (ListBucketMetricsConfigurationsOutput = {}));
-var ListBucketMetricsConfigurationsRequest;
-(function (ListBucketMetricsConfigurationsRequest) {
-    ListBucketMetricsConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketMetricsConfigurationsRequest || (ListBucketMetricsConfigurationsRequest = {}));
-var Bucket;
-(function (Bucket) {
-    Bucket.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Bucket || (Bucket = {}));
-var ListBucketsOutput;
-(function (ListBucketsOutput) {
-    ListBucketsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListBucketsOutput || (ListBucketsOutput = {}));
-var CommonPrefix;
-(function (CommonPrefix) {
-    CommonPrefix.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CommonPrefix || (CommonPrefix = {}));
-var Initiator;
-(function (Initiator) {
-    Initiator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Initiator || (Initiator = {}));
-var MultipartUpload;
-(function (MultipartUpload) {
-    MultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(MultipartUpload || (MultipartUpload = {}));
-var ListMultipartUploadsOutput;
-(function (ListMultipartUploadsOutput) {
-    ListMultipartUploadsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListMultipartUploadsOutput || (ListMultipartUploadsOutput = {}));
-var ListMultipartUploadsRequest;
-(function (ListMultipartUploadsRequest) {
-    ListMultipartUploadsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListMultipartUploadsRequest || (ListMultipartUploadsRequest = {}));
-var _Object;
-(function (_Object) {
-    _Object.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(_Object || (_Object = {}));
-var ListObjectsOutput;
-(function (ListObjectsOutput) {
-    ListObjectsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectsOutput || (ListObjectsOutput = {}));
-var ListObjectsRequest;
-(function (ListObjectsRequest) {
-    ListObjectsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectsRequest || (ListObjectsRequest = {}));
-var NoSuchBucket;
-(function (NoSuchBucket) {
-    NoSuchBucket.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(NoSuchBucket || (NoSuchBucket = {}));
-var ListObjectsV2Output;
-(function (ListObjectsV2Output) {
-    ListObjectsV2Output.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectsV2Output || (ListObjectsV2Output = {}));
-var ListObjectsV2Request;
-(function (ListObjectsV2Request) {
-    ListObjectsV2Request.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectsV2Request || (ListObjectsV2Request = {}));
-var DeleteMarkerEntry;
-(function (DeleteMarkerEntry) {
-    DeleteMarkerEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMarkerEntry || (DeleteMarkerEntry = {}));
-var ObjectVersion;
-(function (ObjectVersion) {
-    ObjectVersion.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectVersion || (ObjectVersion = {}));
-var ListObjectVersionsOutput;
-(function (ListObjectVersionsOutput) {
-    ListObjectVersionsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectVersionsOutput || (ListObjectVersionsOutput = {}));
-var ListObjectVersionsRequest;
-(function (ListObjectVersionsRequest) {
-    ListObjectVersionsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListObjectVersionsRequest || (ListObjectVersionsRequest = {}));
-var Part;
-(function (Part) {
-    Part.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Part || (Part = {}));
-var ListPartsOutput;
-(function (ListPartsOutput) {
-    ListPartsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListPartsOutput || (ListPartsOutput = {}));
-var ListPartsRequest;
-(function (ListPartsRequest) {
-    ListPartsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListPartsRequest || (ListPartsRequest = {}));
-var PutBucketAccelerateConfigurationRequest;
-(function (PutBucketAccelerateConfigurationRequest) {
-    PutBucketAccelerateConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketAccelerateConfigurationRequest || (PutBucketAccelerateConfigurationRequest = {}));
-var PutBucketAclRequest;
-(function (PutBucketAclRequest) {
-    PutBucketAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketAclRequest || (PutBucketAclRequest = {}));
-var PutBucketAnalyticsConfigurationRequest;
-(function (PutBucketAnalyticsConfigurationRequest) {
-    PutBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfiguration && {
-        AnalyticsConfiguration: AnalyticsConfiguration.filterSensitiveLog(obj.AnalyticsConfiguration),
-    }))); };
-})(PutBucketAnalyticsConfigurationRequest || (PutBucketAnalyticsConfigurationRequest = {}));
-var CORSConfiguration;
-(function (CORSConfiguration) {
-    CORSConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CORSConfiguration || (CORSConfiguration = {}));
-var PutBucketCorsRequest;
-(function (PutBucketCorsRequest) {
-    PutBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketCorsRequest || (PutBucketCorsRequest = {}));
-var PutBucketEncryptionRequest;
-(function (PutBucketEncryptionRequest) {
-    PutBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ServerSideEncryptionConfiguration && {
-        ServerSideEncryptionConfiguration: ServerSideEncryptionConfiguration.filterSensitiveLog(obj.ServerSideEncryptionConfiguration),
-    }))); };
-})(PutBucketEncryptionRequest || (PutBucketEncryptionRequest = {}));
-var PutBucketIntelligentTieringConfigurationRequest;
-(function (PutBucketIntelligentTieringConfigurationRequest) {
-    PutBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketIntelligentTieringConfigurationRequest || (PutBucketIntelligentTieringConfigurationRequest = {}));
-var PutBucketInventoryConfigurationRequest;
-(function (PutBucketInventoryConfigurationRequest) {
-    PutBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfiguration && {
-        InventoryConfiguration: InventoryConfiguration.filterSensitiveLog(obj.InventoryConfiguration),
-    }))); };
-})(PutBucketInventoryConfigurationRequest || (PutBucketInventoryConfigurationRequest = {}));
-var BucketLifecycleConfiguration;
-(function (BucketLifecycleConfiguration) {
-    BucketLifecycleConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return LifecycleRule.filterSensitiveLog(item); }) }))); };
-})(BucketLifecycleConfiguration || (BucketLifecycleConfiguration = {}));
-var PutBucketLifecycleConfigurationRequest;
-(function (PutBucketLifecycleConfigurationRequest) {
-    PutBucketLifecycleConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.LifecycleConfiguration && {
-        LifecycleConfiguration: BucketLifecycleConfiguration.filterSensitiveLog(obj.LifecycleConfiguration),
-    }))); };
-})(PutBucketLifecycleConfigurationRequest || (PutBucketLifecycleConfigurationRequest = {}));
-var BucketLoggingStatus;
-(function (BucketLoggingStatus) {
-    BucketLoggingStatus.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BucketLoggingStatus || (BucketLoggingStatus = {}));
-var PutBucketLoggingRequest;
-(function (PutBucketLoggingRequest) {
-    PutBucketLoggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketLoggingRequest || (PutBucketLoggingRequest = {}));
-var PutBucketMetricsConfigurationRequest;
-(function (PutBucketMetricsConfigurationRequest) {
-    PutBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfiguration && {
-        MetricsConfiguration: MetricsConfiguration.filterSensitiveLog(obj.MetricsConfiguration),
-    }))); };
-})(PutBucketMetricsConfigurationRequest || (PutBucketMetricsConfigurationRequest = {}));
-var PutBucketNotificationConfigurationRequest;
-(function (PutBucketNotificationConfigurationRequest) {
-    PutBucketNotificationConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketNotificationConfigurationRequest || (PutBucketNotificationConfigurationRequest = {}));
-var PutBucketOwnershipControlsRequest;
-(function (PutBucketOwnershipControlsRequest) {
-    PutBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketOwnershipControlsRequest || (PutBucketOwnershipControlsRequest = {}));
-var PutBucketPolicyRequest;
-(function (PutBucketPolicyRequest) {
-    PutBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketPolicyRequest || (PutBucketPolicyRequest = {}));
-var PutBucketReplicationRequest;
-(function (PutBucketReplicationRequest) {
-    PutBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ReplicationConfiguration && {
-        ReplicationConfiguration: ReplicationConfiguration.filterSensitiveLog(obj.ReplicationConfiguration),
-    }))); };
-})(PutBucketReplicationRequest || (PutBucketReplicationRequest = {}));
-var RequestPaymentConfiguration;
-(function (RequestPaymentConfiguration) {
-    RequestPaymentConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(RequestPaymentConfiguration || (RequestPaymentConfiguration = {}));
-var PutBucketRequestPaymentRequest;
-(function (PutBucketRequestPaymentRequest) {
-    PutBucketRequestPaymentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketRequestPaymentRequest || (PutBucketRequestPaymentRequest = {}));
-var Tagging;
-(function (Tagging) {
-    Tagging.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Tagging || (Tagging = {}));
-var PutBucketTaggingRequest;
-(function (PutBucketTaggingRequest) {
-    PutBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketTaggingRequest || (PutBucketTaggingRequest = {}));
-var VersioningConfiguration;
-(function (VersioningConfiguration) {
-    VersioningConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(VersioningConfiguration || (VersioningConfiguration = {}));
-var PutBucketVersioningRequest;
-(function (PutBucketVersioningRequest) {
-    PutBucketVersioningRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketVersioningRequest || (PutBucketVersioningRequest = {}));
-var WebsiteConfiguration;
-(function (WebsiteConfiguration) {
-    WebsiteConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(WebsiteConfiguration || (WebsiteConfiguration = {}));
-var PutBucketWebsiteRequest;
-(function (PutBucketWebsiteRequest) {
-    PutBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutBucketWebsiteRequest || (PutBucketWebsiteRequest = {}));
-var PutObjectOutput;
-(function (PutObjectOutput) {
-    PutObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
-})(PutObjectOutput || (PutObjectOutput = {}));
-var PutObjectRequest;
-(function (PutObjectRequest) {
-    PutObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
-})(PutObjectRequest || (PutObjectRequest = {}));
-var PutObjectAclOutput;
-(function (PutObjectAclOutput) {
-    PutObjectAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectAclOutput || (PutObjectAclOutput = {}));
-var PutObjectAclRequest;
-(function (PutObjectAclRequest) {
-    PutObjectAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectAclRequest || (PutObjectAclRequest = {}));
-var PutObjectLegalHoldOutput;
-(function (PutObjectLegalHoldOutput) {
-    PutObjectLegalHoldOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectLegalHoldOutput || (PutObjectLegalHoldOutput = {}));
-var PutObjectLegalHoldRequest;
-(function (PutObjectLegalHoldRequest) {
-    PutObjectLegalHoldRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectLegalHoldRequest || (PutObjectLegalHoldRequest = {}));
-var PutObjectLockConfigurationOutput;
-(function (PutObjectLockConfigurationOutput) {
-    PutObjectLockConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectLockConfigurationOutput || (PutObjectLockConfigurationOutput = {}));
-var PutObjectLockConfigurationRequest;
-(function (PutObjectLockConfigurationRequest) {
-    PutObjectLockConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectLockConfigurationRequest || (PutObjectLockConfigurationRequest = {}));
-var PutObjectRetentionOutput;
-(function (PutObjectRetentionOutput) {
-    PutObjectRetentionOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectRetentionOutput || (PutObjectRetentionOutput = {}));
-var PutObjectRetentionRequest;
-(function (PutObjectRetentionRequest) {
-    PutObjectRetentionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectRetentionRequest || (PutObjectRetentionRequest = {}));
-var PutObjectTaggingOutput;
-(function (PutObjectTaggingOutput) {
-    PutObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectTaggingOutput || (PutObjectTaggingOutput = {}));
-var PutObjectTaggingRequest;
-(function (PutObjectTaggingRequest) {
-    PutObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutObjectTaggingRequest || (PutObjectTaggingRequest = {}));
-var PutPublicAccessBlockRequest;
-(function (PutPublicAccessBlockRequest) {
-    PutPublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PutPublicAccessBlockRequest || (PutPublicAccessBlockRequest = {}));
-var ObjectAlreadyInActiveTierError;
-(function (ObjectAlreadyInActiveTierError) {
-    ObjectAlreadyInActiveTierError.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ObjectAlreadyInActiveTierError || (ObjectAlreadyInActiveTierError = {}));
-var RestoreObjectOutput;
-(function (RestoreObjectOutput) {
-    RestoreObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(RestoreObjectOutput || (RestoreObjectOutput = {}));
-var GlacierJobParameters;
-(function (GlacierJobParameters) {
-    GlacierJobParameters.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GlacierJobParameters || (GlacierJobParameters = {}));
+    return HttpResponse;
+}());
 
 var Aacute$1 = "Á";
 var aacute$1 = "á";
@@ -100448,7 +89936,7 @@ const defaultOptions$1 = {
 const props$1 = ['allowBooleanAttributes'];
 
 //const tagsPattern = new RegExp("<\\/?([\\w:\\-_\.]+)\\s*\/?>","g");
-var validate$1 = function (xmlData, options) {
+var validate$2 = function (xmlData, options) {
   options = util.buildOptions(options, defaultOptions$1, props$1);
 
   //xmlData = xmlData.replace(/(\r\n|\n|\r)/gm,"");//make it single line
@@ -100839,7 +90327,7 @@ function getPositionFromMatch(attrStr, match) {
 }
 
 var validator = {
-	validate: validate$1
+	validate: validate$2
 };
 
 const char = function(a) {
@@ -101346,294 +90834,35 @@ exports.parseToNimn = function(xmlData, schema, options) {
 };
 });
 
-var serializeAws_restXmlGetObjectCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var _a, hostname, _b, protocol, port, basePath, headers, resolvedPath, labelValue, labelValue, query, body;
-    return __generator$1(this, function (_c) {
-        switch (_c.label) {
-            case 0: return [4, context.endpoint()];
-            case 1:
-                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
-                headers = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({}, (isSerializableHeaderValue$1(input.IfMatch) && { "if-match": input.IfMatch })), (isSerializableHeaderValue$1(input.IfModifiedSince) && {
-                    "if-modified-since": dateToUtcString(input.IfModifiedSince).toString(),
-                })), (isSerializableHeaderValue$1(input.IfNoneMatch) && { "if-none-match": input.IfNoneMatch })), (isSerializableHeaderValue$1(input.IfUnmodifiedSince) && {
-                    "if-unmodified-since": dateToUtcString(input.IfUnmodifiedSince).toString(),
-                })), (isSerializableHeaderValue$1(input.Range) && { range: input.Range })), (isSerializableHeaderValue$1(input.SSECustomerAlgorithm) && {
-                    "x-amz-server-side-encryption-customer-algorithm": input.SSECustomerAlgorithm,
-                })), (isSerializableHeaderValue$1(input.SSECustomerKey) && {
-                    "x-amz-server-side-encryption-customer-key": input.SSECustomerKey,
-                })), (isSerializableHeaderValue$1(input.SSECustomerKeyMD5) && {
-                    "x-amz-server-side-encryption-customer-key-md5": input.SSECustomerKeyMD5,
-                })), (isSerializableHeaderValue$1(input.RequestPayer) && { "x-amz-request-payer": input.RequestPayer })), (isSerializableHeaderValue$1(input.ExpectedBucketOwner) && {
-                    "x-amz-expected-bucket-owner": input.ExpectedBucketOwner,
-                }));
-                resolvedPath = "" + ((basePath === null || basePath === void 0 ? void 0 : basePath.endsWith("/")) ? basePath.slice(0, -1) : basePath || "") + "/{Bucket}/{Key+}";
-                if (input.Bucket !== undefined) {
-                    labelValue = input.Bucket;
-                    if (labelValue.length <= 0) {
-                        throw new Error("Empty value provided for input HTTP label: Bucket.");
-                    }
-                    resolvedPath = resolvedPath.replace("{Bucket}", extendedEncodeURIComponent(labelValue));
-                }
-                else {
-                    throw new Error("No value provided for input HTTP label: Bucket.");
-                }
-                if (input.Key !== undefined) {
-                    labelValue = input.Key;
-                    if (labelValue.length <= 0) {
-                        throw new Error("Empty value provided for input HTTP label: Key.");
-                    }
-                    resolvedPath = resolvedPath.replace("{Key+}", labelValue
-                        .split("/")
-                        .map(function (segment) { return extendedEncodeURIComponent(segment); })
-                        .join("/"));
-                }
-                else {
-                    throw new Error("No value provided for input HTTP label: Key.");
-                }
-                query = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({ "x-id": "GetObject" }, (input.ResponseCacheControl !== undefined && { "response-cache-control": input.ResponseCacheControl })), (input.ResponseContentDisposition !== undefined && {
-                    "response-content-disposition": input.ResponseContentDisposition,
-                })), (input.ResponseContentEncoding !== undefined && { "response-content-encoding": input.ResponseContentEncoding })), (input.ResponseContentLanguage !== undefined && { "response-content-language": input.ResponseContentLanguage })), (input.ResponseContentType !== undefined && { "response-content-type": input.ResponseContentType })), (input.ResponseExpires !== undefined && {
-                    "response-expires": dateToUtcString(input.ResponseExpires).toString(),
-                })), (input.VersionId !== undefined && { versionId: input.VersionId })), (input.PartNumber !== undefined && { partNumber: input.PartNumber.toString() }));
-                return [2, new HttpRequest({
-                        protocol: protocol,
-                        hostname: hostname,
-                        port: port,
-                        method: "GET",
-                        headers: headers,
-                        path: resolvedPath,
-                        query: query,
-                        body: body,
-                    })];
-        }
-    });
-}); };
-var serializeAws_restXmlPutObjectCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var _a, hostname, _b, protocol, port, basePath, headers, resolvedPath, labelValue, labelValue, query, body, contents;
-    return __generator$1(this, function (_c) {
-        switch (_c.label) {
-            case 0: return [4, context.endpoint()];
-            case 1:
-                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
-                headers = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({ "content-type": "application/octet-stream" }, (isSerializableHeaderValue$1(input.ACL) && { "x-amz-acl": input.ACL })), (isSerializableHeaderValue$1(input.CacheControl) && { "cache-control": input.CacheControl })), (isSerializableHeaderValue$1(input.ContentDisposition) && { "content-disposition": input.ContentDisposition })), (isSerializableHeaderValue$1(input.ContentEncoding) && { "content-encoding": input.ContentEncoding })), (isSerializableHeaderValue$1(input.ContentLanguage) && { "content-language": input.ContentLanguage })), (isSerializableHeaderValue$1(input.ContentLength) && { "content-length": input.ContentLength.toString() })), (isSerializableHeaderValue$1(input.ContentMD5) && { "content-md5": input.ContentMD5 })), (isSerializableHeaderValue$1(input.ContentType) && { "content-type": input.ContentType })), (isSerializableHeaderValue$1(input.Expires) && { expires: dateToUtcString(input.Expires).toString() })), (isSerializableHeaderValue$1(input.GrantFullControl) && { "x-amz-grant-full-control": input.GrantFullControl })), (isSerializableHeaderValue$1(input.GrantRead) && { "x-amz-grant-read": input.GrantRead })), (isSerializableHeaderValue$1(input.GrantReadACP) && { "x-amz-grant-read-acp": input.GrantReadACP })), (isSerializableHeaderValue$1(input.GrantWriteACP) && { "x-amz-grant-write-acp": input.GrantWriteACP })), (isSerializableHeaderValue$1(input.ServerSideEncryption) && {
-                    "x-amz-server-side-encryption": input.ServerSideEncryption,
-                })), (isSerializableHeaderValue$1(input.StorageClass) && { "x-amz-storage-class": input.StorageClass })), (isSerializableHeaderValue$1(input.WebsiteRedirectLocation) && {
-                    "x-amz-website-redirect-location": input.WebsiteRedirectLocation,
-                })), (isSerializableHeaderValue$1(input.SSECustomerAlgorithm) && {
-                    "x-amz-server-side-encryption-customer-algorithm": input.SSECustomerAlgorithm,
-                })), (isSerializableHeaderValue$1(input.SSECustomerKey) && {
-                    "x-amz-server-side-encryption-customer-key": input.SSECustomerKey,
-                })), (isSerializableHeaderValue$1(input.SSECustomerKeyMD5) && {
-                    "x-amz-server-side-encryption-customer-key-md5": input.SSECustomerKeyMD5,
-                })), (isSerializableHeaderValue$1(input.SSEKMSKeyId) && {
-                    "x-amz-server-side-encryption-aws-kms-key-id": input.SSEKMSKeyId,
-                })), (isSerializableHeaderValue$1(input.SSEKMSEncryptionContext) && {
-                    "x-amz-server-side-encryption-context": input.SSEKMSEncryptionContext,
-                })), (isSerializableHeaderValue$1(input.BucketKeyEnabled) && {
-                    "x-amz-server-side-encryption-bucket-key-enabled": input.BucketKeyEnabled.toString(),
-                })), (isSerializableHeaderValue$1(input.RequestPayer) && { "x-amz-request-payer": input.RequestPayer })), (isSerializableHeaderValue$1(input.Tagging) && { "x-amz-tagging": input.Tagging })), (isSerializableHeaderValue$1(input.ObjectLockMode) && { "x-amz-object-lock-mode": input.ObjectLockMode })), (isSerializableHeaderValue$1(input.ObjectLockRetainUntilDate) && {
-                    "x-amz-object-lock-retain-until-date": (input.ObjectLockRetainUntilDate.toISOString().split(".")[0] + "Z").toString(),
-                })), (isSerializableHeaderValue$1(input.ObjectLockLegalHoldStatus) && {
-                    "x-amz-object-lock-legal-hold": input.ObjectLockLegalHoldStatus,
-                })), (isSerializableHeaderValue$1(input.ExpectedBucketOwner) && {
-                    "x-amz-expected-bucket-owner": input.ExpectedBucketOwner,
-                })), (input.Metadata !== undefined &&
-                    Object.keys(input.Metadata).reduce(function (acc, suffix) {
-                        var _a;
-                        return (__assign$1(__assign$1({}, acc), (_a = {}, _a["x-amz-meta-" + suffix.toLowerCase()] = input.Metadata[suffix], _a)));
-                    }, {})));
-                resolvedPath = "" + ((basePath === null || basePath === void 0 ? void 0 : basePath.endsWith("/")) ? basePath.slice(0, -1) : basePath || "") + "/{Bucket}/{Key+}";
-                if (input.Bucket !== undefined) {
-                    labelValue = input.Bucket;
-                    if (labelValue.length <= 0) {
-                        throw new Error("Empty value provided for input HTTP label: Bucket.");
-                    }
-                    resolvedPath = resolvedPath.replace("{Bucket}", extendedEncodeURIComponent(labelValue));
-                }
-                else {
-                    throw new Error("No value provided for input HTTP label: Bucket.");
-                }
-                if (input.Key !== undefined) {
-                    labelValue = input.Key;
-                    if (labelValue.length <= 0) {
-                        throw new Error("Empty value provided for input HTTP label: Key.");
-                    }
-                    resolvedPath = resolvedPath.replace("{Key+}", labelValue
-                        .split("/")
-                        .map(function (segment) { return extendedEncodeURIComponent(segment); })
-                        .join("/"));
-                }
-                else {
-                    throw new Error("No value provided for input HTTP label: Key.");
-                }
-                query = {
-                    "x-id": "PutObject",
-                };
-                if (input.Body !== undefined) {
-                    body = input.Body;
-                }
-                if (input.Body !== undefined) {
-                    contents = input.Body;
-                    body = contents;
-                }
-                return [2, new HttpRequest({
-                        protocol: protocol,
-                        hostname: hostname,
-                        port: port,
-                        method: "PUT",
-                        headers: headers,
-                        path: resolvedPath,
-                        query: query,
-                        body: body,
-                    })];
-        }
-    });
-}); };
-var deserializeAws_restXmlGetObjectCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var contents, data;
+var serializeAws_querySendMessageCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var headers, body;
     return __generator$1(this, function (_a) {
-        if (output.statusCode !== 200 && output.statusCode >= 300) {
-            return [2, deserializeAws_restXmlGetObjectCommandError(output, context)];
-        }
-        contents = {
-            $metadata: deserializeMetadata$3(output),
-            AcceptRanges: undefined,
-            Body: undefined,
-            BucketKeyEnabled: undefined,
-            CacheControl: undefined,
-            ContentDisposition: undefined,
-            ContentEncoding: undefined,
-            ContentLanguage: undefined,
-            ContentLength: undefined,
-            ContentRange: undefined,
-            ContentType: undefined,
-            DeleteMarker: undefined,
-            ETag: undefined,
-            Expiration: undefined,
-            Expires: undefined,
-            LastModified: undefined,
-            Metadata: undefined,
-            MissingMeta: undefined,
-            ObjectLockLegalHoldStatus: undefined,
-            ObjectLockMode: undefined,
-            ObjectLockRetainUntilDate: undefined,
-            PartsCount: undefined,
-            ReplicationStatus: undefined,
-            RequestCharged: undefined,
-            Restore: undefined,
-            SSECustomerAlgorithm: undefined,
-            SSECustomerKeyMD5: undefined,
-            SSEKMSKeyId: undefined,
-            ServerSideEncryption: undefined,
-            StorageClass: undefined,
-            TagCount: undefined,
-            VersionId: undefined,
-            WebsiteRedirectLocation: undefined,
+        headers = {
+            "content-type": "application/x-www-form-urlencoded",
         };
-        if (output.headers["x-amz-delete-marker"] !== undefined) {
-            contents.DeleteMarker = parseBoolean(output.headers["x-amz-delete-marker"]);
-        }
-        if (output.headers["accept-ranges"] !== undefined) {
-            contents.AcceptRanges = output.headers["accept-ranges"];
-        }
-        if (output.headers["x-amz-expiration"] !== undefined) {
-            contents.Expiration = output.headers["x-amz-expiration"];
-        }
-        if (output.headers["x-amz-restore"] !== undefined) {
-            contents.Restore = output.headers["x-amz-restore"];
-        }
-        if (output.headers["last-modified"] !== undefined) {
-            contents.LastModified = expectNonNull(parseRfc7231DateTime(output.headers["last-modified"]));
-        }
-        if (output.headers["content-length"] !== undefined) {
-            contents.ContentLength = strictParseLong(output.headers["content-length"]);
-        }
-        if (output.headers["etag"] !== undefined) {
-            contents.ETag = output.headers["etag"];
-        }
-        if (output.headers["x-amz-missing-meta"] !== undefined) {
-            contents.MissingMeta = strictParseInt32(output.headers["x-amz-missing-meta"]);
-        }
-        if (output.headers["x-amz-version-id"] !== undefined) {
-            contents.VersionId = output.headers["x-amz-version-id"];
-        }
-        if (output.headers["cache-control"] !== undefined) {
-            contents.CacheControl = output.headers["cache-control"];
-        }
-        if (output.headers["content-disposition"] !== undefined) {
-            contents.ContentDisposition = output.headers["content-disposition"];
-        }
-        if (output.headers["content-encoding"] !== undefined) {
-            contents.ContentEncoding = output.headers["content-encoding"];
-        }
-        if (output.headers["content-language"] !== undefined) {
-            contents.ContentLanguage = output.headers["content-language"];
-        }
-        if (output.headers["content-range"] !== undefined) {
-            contents.ContentRange = output.headers["content-range"];
-        }
-        if (output.headers["content-type"] !== undefined) {
-            contents.ContentType = output.headers["content-type"];
-        }
-        if (output.headers["expires"] !== undefined) {
-            contents.Expires = expectNonNull(parseRfc7231DateTime(output.headers["expires"]));
-        }
-        if (output.headers["x-amz-website-redirect-location"] !== undefined) {
-            contents.WebsiteRedirectLocation = output.headers["x-amz-website-redirect-location"];
-        }
-        if (output.headers["x-amz-server-side-encryption"] !== undefined) {
-            contents.ServerSideEncryption = output.headers["x-amz-server-side-encryption"];
-        }
-        if (output.headers["x-amz-server-side-encryption-customer-algorithm"] !== undefined) {
-            contents.SSECustomerAlgorithm = output.headers["x-amz-server-side-encryption-customer-algorithm"];
-        }
-        if (output.headers["x-amz-server-side-encryption-customer-key-md5"] !== undefined) {
-            contents.SSECustomerKeyMD5 = output.headers["x-amz-server-side-encryption-customer-key-md5"];
-        }
-        if (output.headers["x-amz-server-side-encryption-aws-kms-key-id"] !== undefined) {
-            contents.SSEKMSKeyId = output.headers["x-amz-server-side-encryption-aws-kms-key-id"];
-        }
-        if (output.headers["x-amz-server-side-encryption-bucket-key-enabled"] !== undefined) {
-            contents.BucketKeyEnabled = parseBoolean(output.headers["x-amz-server-side-encryption-bucket-key-enabled"]);
-        }
-        if (output.headers["x-amz-storage-class"] !== undefined) {
-            contents.StorageClass = output.headers["x-amz-storage-class"];
-        }
-        if (output.headers["x-amz-request-charged"] !== undefined) {
-            contents.RequestCharged = output.headers["x-amz-request-charged"];
-        }
-        if (output.headers["x-amz-replication-status"] !== undefined) {
-            contents.ReplicationStatus = output.headers["x-amz-replication-status"];
-        }
-        if (output.headers["x-amz-mp-parts-count"] !== undefined) {
-            contents.PartsCount = strictParseInt32(output.headers["x-amz-mp-parts-count"]);
-        }
-        if (output.headers["x-amz-tagging-count"] !== undefined) {
-            contents.TagCount = strictParseInt32(output.headers["x-amz-tagging-count"]);
-        }
-        if (output.headers["x-amz-object-lock-mode"] !== undefined) {
-            contents.ObjectLockMode = output.headers["x-amz-object-lock-mode"];
-        }
-        if (output.headers["x-amz-object-lock-retain-until-date"] !== undefined) {
-            contents.ObjectLockRetainUntilDate = expectNonNull(parseRfc3339DateTime(output.headers["x-amz-object-lock-retain-until-date"]));
-        }
-        if (output.headers["x-amz-object-lock-legal-hold"] !== undefined) {
-            contents.ObjectLockLegalHoldStatus = output.headers["x-amz-object-lock-legal-hold"];
-        }
-        Object.keys(output.headers).forEach(function (header) {
-            if (contents.Metadata === undefined) {
-                contents.Metadata = {};
-            }
-            if (header.startsWith("x-amz-meta-")) {
-                contents.Metadata[header.substring(11)] = output.headers[header];
-            }
-        });
-        data = output.body;
-        contents.Body = data;
-        return [2, Promise.resolve(contents)];
+        body = buildFormUrlencodedString$1(__assign$1(__assign$1({}, serializeAws_querySendMessageRequest(input, context)), { Action: "SendMessage", Version: "2012-11-05" }));
+        return [2, buildHttpRpcRequest$1(context, headers, "/", undefined, body)];
     });
 }); };
-var deserializeAws_restXmlGetObjectCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+var deserializeAws_querySendMessageCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var data, contents, response;
+    return __generator$1(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                if (output.statusCode >= 300) {
+                    return [2, deserializeAws_querySendMessageCommandError(output, context)];
+                }
+                return [4, parseBody$3(output.body, context)];
+            case 1:
+                data = _a.sent();
+                contents = {};
+                contents = deserializeAws_querySendMessageResult(data.SendMessageResult, context);
+                response = __assign$1({ $metadata: deserializeMetadata$3(output) }, contents);
+                return [2, Promise.resolve(response)];
+        }
+    });
+}); };
+var deserializeAws_querySendMessageCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
     var parsedOutput, _a, response, errorCode, _b, _c, _d, parsedBody, message;
     var _e;
     return __generator$1(this, function (_f) {
@@ -101645,31 +90874,31 @@ var deserializeAws_restXmlGetObjectCommandError = function (output, context) { r
             case 1:
                 parsedOutput = __assign$1.apply(void 0, _a.concat([(_e.body = _f.sent(), _e)]));
                 errorCode = "UnknownError";
-                errorCode = loadRestXmlErrorCode(output, parsedOutput.body);
+                errorCode = loadQueryErrorCode$1(output, parsedOutput.body);
                 _b = errorCode;
                 switch (_b) {
-                    case "InvalidObjectState": return [3, 2];
-                    case "com.amazonaws.s3#InvalidObjectState": return [3, 2];
-                    case "NoSuchKey": return [3, 4];
-                    case "com.amazonaws.s3#NoSuchKey": return [3, 4];
+                    case "InvalidMessageContents": return [3, 2];
+                    case "com.amazonaws.sqs#InvalidMessageContents": return [3, 2];
+                    case "UnsupportedOperation": return [3, 4];
+                    case "com.amazonaws.sqs#UnsupportedOperation": return [3, 4];
                 }
                 return [3, 6];
             case 2:
                 _c = [{}];
-                return [4, deserializeAws_restXmlInvalidObjectStateResponse(parsedOutput)];
+                return [4, deserializeAws_queryInvalidMessageContentsResponse(parsedOutput, context)];
             case 3:
                 response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _c.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata$3(output) }]);
                 return [3, 7];
             case 4:
                 _d = [{}];
-                return [4, deserializeAws_restXmlNoSuchKeyResponse(parsedOutput)];
+                return [4, deserializeAws_queryUnsupportedOperationResponse(parsedOutput, context)];
             case 5:
                 response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _d.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata$3(output) }]);
                 return [3, 7];
             case 6:
                 parsedBody = parsedOutput.body;
-                errorCode = parsedBody.code || parsedBody.Code || errorCode;
-                response = __assign$1(__assign$1({}, parsedBody), { name: "" + errorCode, message: parsedBody.message || parsedBody.Message || errorCode, $fault: "client", $metadata: deserializeMetadata$3(output) });
+                errorCode = parsedBody.Error.code || parsedBody.Error.Code || errorCode;
+                response = __assign$1(__assign$1({}, parsedBody.Error), { name: "" + errorCode, message: parsedBody.Error.message || parsedBody.Error.Message || errorCode, $fault: "client", $metadata: deserializeMetadata$3(output) });
                 _f.label = 7;
             case 7:
                 message = response.message || response.Message || errorCode;
@@ -101679,121 +90908,228 @@ var deserializeAws_restXmlGetObjectCommandError = function (output, context) { r
         }
     });
 }); };
-var deserializeAws_restXmlPutObjectCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var contents;
+var deserializeAws_queryInvalidMessageContentsResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var body, deserialized, contents;
     return __generator$1(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                if (output.statusCode !== 200 && output.statusCode >= 300) {
-                    return [2, deserializeAws_restXmlPutObjectCommandError(output, context)];
-                }
-                contents = {
-                    $metadata: deserializeMetadata$3(output),
-                    BucketKeyEnabled: undefined,
-                    ETag: undefined,
-                    Expiration: undefined,
-                    RequestCharged: undefined,
-                    SSECustomerAlgorithm: undefined,
-                    SSECustomerKeyMD5: undefined,
-                    SSEKMSEncryptionContext: undefined,
-                    SSEKMSKeyId: undefined,
-                    ServerSideEncryption: undefined,
-                    VersionId: undefined,
-                };
-                if (output.headers["x-amz-expiration"] !== undefined) {
-                    contents.Expiration = output.headers["x-amz-expiration"];
-                }
-                if (output.headers["etag"] !== undefined) {
-                    contents.ETag = output.headers["etag"];
-                }
-                if (output.headers["x-amz-server-side-encryption"] !== undefined) {
-                    contents.ServerSideEncryption = output.headers["x-amz-server-side-encryption"];
-                }
-                if (output.headers["x-amz-version-id"] !== undefined) {
-                    contents.VersionId = output.headers["x-amz-version-id"];
-                }
-                if (output.headers["x-amz-server-side-encryption-customer-algorithm"] !== undefined) {
-                    contents.SSECustomerAlgorithm = output.headers["x-amz-server-side-encryption-customer-algorithm"];
-                }
-                if (output.headers["x-amz-server-side-encryption-customer-key-md5"] !== undefined) {
-                    contents.SSECustomerKeyMD5 = output.headers["x-amz-server-side-encryption-customer-key-md5"];
-                }
-                if (output.headers["x-amz-server-side-encryption-aws-kms-key-id"] !== undefined) {
-                    contents.SSEKMSKeyId = output.headers["x-amz-server-side-encryption-aws-kms-key-id"];
-                }
-                if (output.headers["x-amz-server-side-encryption-context"] !== undefined) {
-                    contents.SSEKMSEncryptionContext = output.headers["x-amz-server-side-encryption-context"];
-                }
-                if (output.headers["x-amz-server-side-encryption-bucket-key-enabled"] !== undefined) {
-                    contents.BucketKeyEnabled = parseBoolean(output.headers["x-amz-server-side-encryption-bucket-key-enabled"]);
-                }
-                if (output.headers["x-amz-request-charged"] !== undefined) {
-                    contents.RequestCharged = output.headers["x-amz-request-charged"];
-                }
-                return [4, collectBody$3(output.body, context)];
-            case 1:
-                _a.sent();
-                return [2, Promise.resolve(contents)];
-        }
-    });
-}); };
-var deserializeAws_restXmlPutObjectCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var parsedOutput, _a, response, errorCode, parsedBody, message;
-    var _b;
-    return __generator$1(this, function (_c) {
-        switch (_c.label) {
-            case 0:
-                _a = [__assign$1({}, output)];
-                _b = {};
-                return [4, parseBody$3(output.body, context)];
-            case 1:
-                parsedOutput = __assign$1.apply(void 0, _a.concat([(_b.body = _c.sent(), _b)]));
-                errorCode = "UnknownError";
-                errorCode = loadRestXmlErrorCode(output, parsedOutput.body);
-                switch (errorCode) {
-                    default:
-                        parsedBody = parsedOutput.body;
-                        errorCode = parsedBody.code || parsedBody.Code || errorCode;
-                        response = __assign$1(__assign$1({}, parsedBody), { name: "" + errorCode, message: parsedBody.message || parsedBody.Message || errorCode, $fault: "client", $metadata: deserializeMetadata$3(output) });
-                }
-                message = response.message || response.Message || errorCode;
-                response.message = message;
-                delete response.Message;
-                return [2, Promise.reject(Object.assign(new Error(message), response))];
-        }
-    });
-}); };
-var deserializeAws_restXmlInvalidObjectStateResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var contents, data;
-    return __generator$1(this, function (_a) {
-        contents = {
-            name: "InvalidObjectState",
-            $fault: "client",
-            $metadata: deserializeMetadata$3(parsedOutput),
-            AccessTier: undefined,
-            StorageClass: undefined,
-        };
-        data = parsedOutput.body;
-        if (data["AccessTier"] !== undefined) {
-            contents.AccessTier = expectString(data["AccessTier"]);
-        }
-        if (data["StorageClass"] !== undefined) {
-            contents.StorageClass = expectString(data["StorageClass"]);
-        }
+        body = parsedOutput.body;
+        deserialized = deserializeAws_queryInvalidMessageContents(body.Error, context);
+        contents = __assign$1({ name: "InvalidMessageContents", $fault: "client", $metadata: deserializeMetadata$3(parsedOutput) }, deserialized);
         return [2, contents];
     });
 }); };
-var deserializeAws_restXmlNoSuchKeyResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var contents;
+var deserializeAws_queryUnsupportedOperationResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var body, deserialized, contents;
     return __generator$1(this, function (_a) {
-        contents = {
-            name: "NoSuchKey",
-            $fault: "client",
-            $metadata: deserializeMetadata$3(parsedOutput),
-        };
+        body = parsedOutput.body;
+        deserialized = deserializeAws_queryUnsupportedOperation(body.Error, context);
+        contents = __assign$1({ name: "UnsupportedOperation", $fault: "client", $metadata: deserializeMetadata$3(parsedOutput) }, deserialized);
         return [2, contents];
     });
 }); };
+var serializeAws_queryBinaryList = function (input, context) {
+    var e_4, _a;
+    var entries = {};
+    var counter = 1;
+    try {
+        for (var input_4 = __values$1(input), input_4_1 = input_4.next(); !input_4_1.done; input_4_1 = input_4.next()) {
+            var entry = input_4_1.value;
+            if (entry === null) {
+                continue;
+            }
+            entries["BinaryListValue." + counter] = context.base64Encoder(entry);
+            counter++;
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (input_4_1 && !input_4_1.done && (_a = input_4.return)) _a.call(input_4);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+    return entries;
+};
+var serializeAws_queryMessageAttributeValue = function (input, context) {
+    var entries = {};
+    if (input.StringValue !== undefined && input.StringValue !== null) {
+        entries["StringValue"] = input.StringValue;
+    }
+    if (input.BinaryValue !== undefined && input.BinaryValue !== null) {
+        entries["BinaryValue"] = context.base64Encoder(input.BinaryValue);
+    }
+    if (input.StringListValues !== undefined && input.StringListValues !== null) {
+        var memberEntries = serializeAws_queryStringList(input.StringListValues);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "StringListValue." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.BinaryListValues !== undefined && input.BinaryListValues !== null) {
+        var memberEntries = serializeAws_queryBinaryList(input.BinaryListValues, context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "BinaryListValue." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.DataType !== undefined && input.DataType !== null) {
+        entries["DataType"] = input.DataType;
+    }
+    return entries;
+};
+var serializeAws_queryMessageBodyAttributeMap = function (input, context) {
+    var entries = {};
+    var counter = 1;
+    Object.keys(input)
+        .filter(function (key) { return input[key] != null; })
+        .forEach(function (key) {
+        entries["entry." + counter + ".Name"] = key;
+        var memberEntries = serializeAws_queryMessageAttributeValue(input[key], context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            entries["entry." + counter + ".Value." + key] = value;
+        });
+        counter++;
+    });
+    return entries;
+};
+var serializeAws_queryMessageBodySystemAttributeMap = function (input, context) {
+    var entries = {};
+    var counter = 1;
+    Object.keys(input)
+        .filter(function (key) { return input[key] != null; })
+        .forEach(function (key) {
+        entries["entry." + counter + ".Name"] = key;
+        var memberEntries = serializeAws_queryMessageSystemAttributeValue(input[key], context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            entries["entry." + counter + ".Value." + key] = value;
+        });
+        counter++;
+    });
+    return entries;
+};
+var serializeAws_queryMessageSystemAttributeValue = function (input, context) {
+    var entries = {};
+    if (input.StringValue !== undefined && input.StringValue !== null) {
+        entries["StringValue"] = input.StringValue;
+    }
+    if (input.BinaryValue !== undefined && input.BinaryValue !== null) {
+        entries["BinaryValue"] = context.base64Encoder(input.BinaryValue);
+    }
+    if (input.StringListValues !== undefined && input.StringListValues !== null) {
+        var memberEntries = serializeAws_queryStringList(input.StringListValues);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "StringListValue." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.BinaryListValues !== undefined && input.BinaryListValues !== null) {
+        var memberEntries = serializeAws_queryBinaryList(input.BinaryListValues, context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "BinaryListValue." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.DataType !== undefined && input.DataType !== null) {
+        entries["DataType"] = input.DataType;
+    }
+    return entries;
+};
+var serializeAws_querySendMessageRequest = function (input, context) {
+    var entries = {};
+    if (input.QueueUrl !== undefined && input.QueueUrl !== null) {
+        entries["QueueUrl"] = input.QueueUrl;
+    }
+    if (input.MessageBody !== undefined && input.MessageBody !== null) {
+        entries["MessageBody"] = input.MessageBody;
+    }
+    if (input.DelaySeconds !== undefined && input.DelaySeconds !== null) {
+        entries["DelaySeconds"] = input.DelaySeconds;
+    }
+    if (input.MessageAttributes !== undefined && input.MessageAttributes !== null) {
+        var memberEntries = serializeAws_queryMessageBodyAttributeMap(input.MessageAttributes, context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "MessageAttribute." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.MessageSystemAttributes !== undefined && input.MessageSystemAttributes !== null) {
+        var memberEntries = serializeAws_queryMessageBodySystemAttributeMap(input.MessageSystemAttributes, context);
+        Object.entries(memberEntries).forEach(function (_a) {
+            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+            var loc = "MessageSystemAttribute." + key.substring(key.indexOf(".") + 1);
+            entries[loc] = value;
+        });
+    }
+    if (input.MessageDeduplicationId !== undefined && input.MessageDeduplicationId !== null) {
+        entries["MessageDeduplicationId"] = input.MessageDeduplicationId;
+    }
+    if (input.MessageGroupId !== undefined && input.MessageGroupId !== null) {
+        entries["MessageGroupId"] = input.MessageGroupId;
+    }
+    return entries;
+};
+var serializeAws_queryStringList = function (input, context) {
+    var e_9, _a;
+    var entries = {};
+    var counter = 1;
+    try {
+        for (var input_9 = __values$1(input), input_9_1 = input_9.next(); !input_9_1.done; input_9_1 = input_9.next()) {
+            var entry = input_9_1.value;
+            if (entry === null) {
+                continue;
+            }
+            entries["StringListValue." + counter] = entry;
+            counter++;
+        }
+    }
+    catch (e_9_1) { e_9 = { error: e_9_1 }; }
+    finally {
+        try {
+            if (input_9_1 && !input_9_1.done && (_a = input_9.return)) _a.call(input_9);
+        }
+        finally { if (e_9) throw e_9.error; }
+    }
+    return entries;
+};
+var deserializeAws_queryInvalidMessageContents = function (output, context) {
+    var contents = {};
+    return contents;
+};
+var deserializeAws_querySendMessageResult = function (output, context) {
+    var contents = {
+        MD5OfMessageBody: undefined,
+        MD5OfMessageAttributes: undefined,
+        MD5OfMessageSystemAttributes: undefined,
+        MessageId: undefined,
+        SequenceNumber: undefined,
+    };
+    if (output["MD5OfMessageBody"] !== undefined) {
+        contents.MD5OfMessageBody = expectString(output["MD5OfMessageBody"]);
+    }
+    if (output["MD5OfMessageAttributes"] !== undefined) {
+        contents.MD5OfMessageAttributes = expectString(output["MD5OfMessageAttributes"]);
+    }
+    if (output["MD5OfMessageSystemAttributes"] !== undefined) {
+        contents.MD5OfMessageSystemAttributes = expectString(output["MD5OfMessageSystemAttributes"]);
+    }
+    if (output["MessageId"] !== undefined) {
+        contents.MessageId = expectString(output["MessageId"]);
+    }
+    if (output["SequenceNumber"] !== undefined) {
+        contents.SequenceNumber = expectString(output["SequenceNumber"]);
+    }
+    return contents;
+};
+var deserializeAws_queryUnsupportedOperation = function (output, context) {
+    var contents = {};
+    return contents;
+};
 var deserializeMetadata$3 = function (output) {
     var _a;
     return ({
@@ -101813,13 +91149,31 @@ var collectBody$3 = function (streamBody, context) {
 var collectBodyString$3 = function (streamBody, context) {
     return collectBody$3(streamBody, context).then(function (body) { return context.utf8Encoder(body); });
 };
-var isSerializableHeaderValue$1 = function (value) {
-    return value !== undefined &&
-        value !== null &&
-        value !== "" &&
-        (!Object.getOwnPropertyNames(value).includes("length") || value.length != 0) &&
-        (!Object.getOwnPropertyNames(value).includes("size") || value.size != 0);
-};
+var buildHttpRpcRequest$1 = function (context, headers, path, resolvedHostname, body) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var _a, hostname, _b, protocol, port, basePath, contents;
+    return __generator$1(this, function (_c) {
+        switch (_c.label) {
+            case 0: return [4, context.endpoint()];
+            case 1:
+                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
+                contents = {
+                    protocol: protocol,
+                    hostname: hostname,
+                    port: port,
+                    method: "POST",
+                    path: basePath.endsWith("/") ? basePath.slice(0, -1) + path : basePath + path,
+                    headers: headers,
+                };
+                if (resolvedHostname !== undefined) {
+                    contents.hostname = resolvedHostname;
+                }
+                if (body !== undefined) {
+                    contents.body = body;
+                }
+                return [2, new HttpRequest(contents)];
+        }
+    });
+}); };
 var parseBody$3 = function (streamBody, context) {
     return collectBodyString$3(streamBody, context).then(function (encoded) {
         if (encoded.length) {
@@ -101842,9 +91196,17 @@ var parseBody$3 = function (streamBody, context) {
         return {};
     });
 };
-var loadRestXmlErrorCode = function (output, data) {
-    if (data.Code !== undefined) {
-        return data.Code;
+var buildFormUrlencodedString$1 = function (formEntries) {
+    return Object.entries(formEntries)
+        .map(function (_a) {
+        var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
+        return extendedEncodeURIComponent(key) + "=" + extendedEncodeURIComponent(value);
+    })
+        .join("&");
+};
+var loadQueryErrorCode$1 = function (output, data) {
+    if (data.Error.Code !== undefined) {
+        return data.Error.Code;
     }
     if (output.statusCode == 404) {
         return "NotFound";
@@ -101885,6 +91247,984 @@ function toHex(bytes) {
     }
     return out;
 }
+
+var sendMessageMiddleware = function (options) {
+    return function (next) {
+        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+            var resp, output, hash, _a, _b;
+            return __generator$1(this, function (_c) {
+                switch (_c.label) {
+                    case 0: return [4, next(__assign$1({}, args))];
+                    case 1:
+                        resp = _c.sent();
+                        output = resp.output;
+                        hash = new options.md5();
+                        hash.update(args.input.MessageBody || "");
+                        _a = output.MD5OfMessageBody;
+                        _b = toHex;
+                        return [4, hash.digest()];
+                    case 2:
+                        if (_a !== _b.apply(void 0, [_c.sent()])) {
+                            throw new Error("InvalidChecksumError");
+                        }
+                        return [2, resp];
+                }
+            });
+        }); };
+    };
+};
+var sendMessageMiddlewareOptions = {
+    step: "initialize",
+    tags: ["VALIDATE_BODY_MD5"],
+    name: "sendMessageMiddleware",
+    override: true,
+};
+var getSendMessagePlugin = function (config) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(sendMessageMiddleware(config), sendMessageMiddlewareOptions);
+    },
+}); };
+
+var SendMessageCommand = (function (_super) {
+    __extends$1(SendMessageCommand, _super);
+    function SendMessageCommand(input) {
+        var _this = _super.call(this) || this;
+        _this.input = input;
+        return _this;
+    }
+    SendMessageCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
+        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
+        this.middlewareStack.use(getSendMessagePlugin(configuration));
+        var stack = clientStack.concat(this.middlewareStack);
+        var logger = configuration.logger;
+        var clientName = "SQSClient";
+        var commandName = "SendMessageCommand";
+        var handlerExecutionContext = {
+            logger: logger,
+            clientName: clientName,
+            commandName: commandName,
+            inputFilterSensitiveLog: SendMessageRequest.filterSensitiveLog,
+            outputFilterSensitiveLog: SendMessageResult.filterSensitiveLog,
+        };
+        var requestHandler = configuration.requestHandler;
+        return stack.resolve(function (request) {
+            return requestHandler.handle(request.request, options || {});
+        }, handlerExecutionContext);
+    };
+    SendMessageCommand.prototype.serialize = function (input, context) {
+        return serializeAws_querySendMessageCommand(input, context);
+    };
+    SendMessageCommand.prototype.deserialize = function (output, context) {
+        return deserializeAws_querySendMessageCommand(output, context);
+    };
+    return SendMessageCommand;
+}(Command));
+
+var normalizeEndpoint = function (_a) {
+    var endpoint = _a.endpoint, urlParser = _a.urlParser;
+    if (typeof endpoint === "string") {
+        var promisified_1 = Promise.resolve(urlParser(endpoint));
+        return function () { return promisified_1; };
+    }
+    else if (typeof endpoint === "object") {
+        var promisified_2 = Promise.resolve(endpoint);
+        return function () { return promisified_2; };
+    }
+    return endpoint;
+};
+
+var getEndpointFromRegion = function (input) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var _a, tls, region, dnsHostRegex, hostname;
+    var _b;
+    return __generator$1(this, function (_c) {
+        switch (_c.label) {
+            case 0:
+                _a = input.tls, tls = _a === void 0 ? true : _a;
+                return [4, input.region()];
+            case 1:
+                region = _c.sent();
+                dnsHostRegex = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])$/);
+                if (!dnsHostRegex.test(region)) {
+                    throw new Error("Invalid region in client config");
+                }
+                return [4, input.regionInfoProvider(region)];
+            case 2:
+                hostname = ((_b = (_c.sent())) !== null && _b !== void 0 ? _b : {}).hostname;
+                if (!hostname) {
+                    throw new Error("Cannot resolve hostname from client config");
+                }
+                return [2, input.urlParser((tls ? "https:" : "http:") + "//" + hostname)];
+        }
+    });
+}); };
+
+var resolveEndpointsConfig = function (input) {
+    var _a;
+    return (__assign$1(__assign$1({}, input), { tls: (_a = input.tls) !== null && _a !== void 0 ? _a : true, endpoint: input.endpoint
+            ? normalizeEndpoint(__assign$1(__assign$1({}, input), { endpoint: input.endpoint }))
+            : function () { return getEndpointFromRegion(input); }, isCustomEndpoint: input.endpoint ? true : false }));
+};
+
+var REGION_ENV_NAME = "AWS_REGION";
+var REGION_INI_NAME = "region";
+var NODE_REGION_CONFIG_OPTIONS = {
+    environmentVariableSelector: function (env) { return env[REGION_ENV_NAME]; },
+    configFileSelector: function (profile) { return profile[REGION_INI_NAME]; },
+    default: function () {
+        throw new Error("Region is missing");
+    },
+};
+var NODE_REGION_CONFIG_FILE_OPTIONS = {
+    preferredFile: "credentials",
+};
+
+var normalizeRegion = function (region) {
+    if (typeof region === "string") {
+        var promisified_1 = Promise.resolve(region);
+        return function () { return promisified_1; };
+    }
+    return region;
+};
+
+var resolveRegionConfig = function (input) {
+    if (!input.region) {
+        throw new Error("Region is missing");
+    }
+    return __assign$1(__assign$1({}, input), { region: normalizeRegion(input.region) });
+};
+
+var getResolvedPartition = function (region, _a) {
+    var _b;
+    var partitionHash = _a.partitionHash;
+    return (_b = Object.keys(partitionHash || {}).find(function (key) { return partitionHash[key].regions.includes(region); })) !== null && _b !== void 0 ? _b : "aws";
+};
+
+var AWS_TEMPLATE = "{signingService}.{region}.amazonaws.com";
+var getHostnameTemplate = function (region, _a) {
+    var _b, _c;
+    var signingService = _a.signingService, partitionHash = _a.partitionHash;
+    return (_c = (_b = partitionHash[getResolvedPartition(region, { partitionHash: partitionHash })]) === null || _b === void 0 ? void 0 : _b.hostname) !== null && _c !== void 0 ? _c : AWS_TEMPLATE.replace("{signingService}", signingService);
+};
+
+var getResolvedHostname = function (region, _a) {
+    var _b, _c;
+    var signingService = _a.signingService, regionHash = _a.regionHash, partitionHash = _a.partitionHash;
+    return (_c = (_b = regionHash[region]) === null || _b === void 0 ? void 0 : _b.hostname) !== null && _c !== void 0 ? _c : getHostnameTemplate(region, { signingService: signingService, partitionHash: partitionHash }).replace("{region}", region);
+};
+
+var getRegionInfo = function (region, _a) {
+    var _b, _c, _d, _e;
+    var signingService = _a.signingService, regionHash = _a.regionHash, partitionHash = _a.partitionHash;
+    var partition = getResolvedPartition(region, { partitionHash: partitionHash });
+    var resolvedRegion = (_c = (_b = partitionHash[partition]) === null || _b === void 0 ? void 0 : _b.endpoint) !== null && _c !== void 0 ? _c : region;
+    return __assign$1(__assign$1({ partition: partition, signingService: signingService, hostname: getResolvedHostname(resolvedRegion, { signingService: signingService, regionHash: regionHash, partitionHash: partitionHash }) }, (((_d = regionHash[resolvedRegion]) === null || _d === void 0 ? void 0 : _d.signingRegion) && {
+        signingRegion: regionHash[resolvedRegion].signingRegion,
+    })), (((_e = regionHash[resolvedRegion]) === null || _e === void 0 ? void 0 : _e.signingService) && {
+        signingService: regionHash[resolvedRegion].signingService,
+    }));
+};
+
+var CONTENT_LENGTH_HEADER = "content-length";
+function contentLengthMiddleware(bodyLengthChecker) {
+    var _this = this;
+    return function (next) {
+        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
+            var request, body, headers, length;
+            var _a;
+            return __generator$1(this, function (_b) {
+                request = args.request;
+                if (HttpRequest.isInstance(request)) {
+                    body = request.body, headers = request.headers;
+                    if (body &&
+                        Object.keys(headers)
+                            .map(function (str) { return str.toLowerCase(); })
+                            .indexOf(CONTENT_LENGTH_HEADER) === -1) {
+                        length = bodyLengthChecker(body);
+                        if (length !== undefined) {
+                            request.headers = __assign$1(__assign$1({}, request.headers), (_a = {}, _a[CONTENT_LENGTH_HEADER] = String(length), _a));
+                        }
+                    }
+                }
+                return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
+            });
+        }); };
+    };
+}
+var contentLengthMiddlewareOptions = {
+    step: "build",
+    tags: ["SET_CONTENT_LENGTH", "CONTENT_LENGTH"],
+    name: "contentLengthMiddleware",
+    override: true,
+};
+var getContentLengthPlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(contentLengthMiddleware(options.bodyLengthChecker), contentLengthMiddlewareOptions);
+    },
+}); };
+
+function resolveHostHeaderConfig(input) {
+    return input;
+}
+var hostHeaderMiddleware = function (options) {
+    return function (next) {
+        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+            var request, _a, handlerProtocol;
+            return __generator$1(this, function (_b) {
+                if (!HttpRequest.isInstance(args.request))
+                    return [2, next(args)];
+                request = args.request;
+                _a = (options.requestHandler.metadata || {}).handlerProtocol, handlerProtocol = _a === void 0 ? "" : _a;
+                if (handlerProtocol.indexOf("h2") >= 0 && !request.headers[":authority"]) {
+                    delete request.headers["host"];
+                    request.headers[":authority"] = "";
+                }
+                else if (!request.headers["host"]) {
+                    request.headers["host"] = request.hostname;
+                }
+                return [2, next(args)];
+            });
+        }); };
+    };
+};
+var hostHeaderMiddlewareOptions = {
+    name: "hostHeaderMiddleware",
+    step: "build",
+    priority: "low",
+    tags: ["HOST"],
+    override: true,
+};
+var getHostHeaderPlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(hostHeaderMiddleware(options), hostHeaderMiddlewareOptions);
+    },
+}); };
+
+var loggerMiddleware = function () {
+    return function (next, context) {
+        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+            var clientName, commandName, inputFilterSensitiveLog, logger, outputFilterSensitiveLog, response, _a, $metadata, outputWithoutMetadata;
+            return __generator$1(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        clientName = context.clientName, commandName = context.commandName, inputFilterSensitiveLog = context.inputFilterSensitiveLog, logger = context.logger, outputFilterSensitiveLog = context.outputFilterSensitiveLog;
+                        return [4, next(args)];
+                    case 1:
+                        response = _b.sent();
+                        if (!logger) {
+                            return [2, response];
+                        }
+                        if (typeof logger.info === "function") {
+                            _a = response.output, $metadata = _a.$metadata, outputWithoutMetadata = __rest$1(_a, ["$metadata"]);
+                            logger.info({
+                                clientName: clientName,
+                                commandName: commandName,
+                                input: inputFilterSensitiveLog(args.input),
+                                output: outputFilterSensitiveLog(outputWithoutMetadata),
+                                metadata: $metadata,
+                            });
+                        }
+                        return [2, response];
+                }
+            });
+        }); };
+    };
+};
+var loggerMiddlewareOptions = {
+    name: "loggerMiddleware",
+    tags: ["LOGGER"],
+    step: "initialize",
+    override: true,
+};
+var getLoggerPlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(loggerMiddleware(), loggerMiddlewareOptions);
+    },
+}); };
+
+var RETRY_MODES;
+(function (RETRY_MODES) {
+    RETRY_MODES["STANDARD"] = "standard";
+    RETRY_MODES["ADAPTIVE"] = "adaptive";
+})(RETRY_MODES || (RETRY_MODES = {}));
+var DEFAULT_MAX_ATTEMPTS = 3;
+var DEFAULT_RETRY_MODE = RETRY_MODES.STANDARD;
+
+var CLOCK_SKEW_ERROR_CODES = [
+    "AuthFailure",
+    "InvalidSignatureException",
+    "RequestExpired",
+    "RequestInTheFuture",
+    "RequestTimeTooSkewed",
+    "SignatureDoesNotMatch",
+];
+var THROTTLING_ERROR_CODES = [
+    "BandwidthLimitExceeded",
+    "EC2ThrottledException",
+    "LimitExceededException",
+    "PriorRequestNotComplete",
+    "ProvisionedThroughputExceededException",
+    "RequestLimitExceeded",
+    "RequestThrottled",
+    "RequestThrottledException",
+    "SlowDown",
+    "ThrottledException",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+    "TransactionInProgressException",
+];
+var TRANSIENT_ERROR_CODES = ["AbortError", "TimeoutError", "RequestTimeout", "RequestTimeoutException"];
+var TRANSIENT_ERROR_STATUS_CODES = [500, 502, 503, 504];
+
+var isRetryableByTrait = function (error) { return error.$retryable !== undefined; };
+var isClockSkewError = function (error) { return CLOCK_SKEW_ERROR_CODES.includes(error.name); };
+var isThrottlingError = function (error) {
+    var _a, _b;
+    return ((_a = error.$metadata) === null || _a === void 0 ? void 0 : _a.httpStatusCode) === 429 ||
+        THROTTLING_ERROR_CODES.includes(error.name) ||
+        ((_b = error.$retryable) === null || _b === void 0 ? void 0 : _b.throttling) == true;
+};
+var isTransientError = function (error) {
+    var _a;
+    return TRANSIENT_ERROR_CODES.includes(error.name) ||
+        TRANSIENT_ERROR_STATUS_CODES.includes(((_a = error.$metadata) === null || _a === void 0 ? void 0 : _a.httpStatusCode) || 0);
+};
+
+var DefaultRateLimiter = (function () {
+    function DefaultRateLimiter(options) {
+        var _a, _b, _c, _d, _e;
+        this.currentCapacity = 0;
+        this.enabled = false;
+        this.lastMaxRate = 0;
+        this.measuredTxRate = 0;
+        this.requestCount = 0;
+        this.lastTimestamp = 0;
+        this.timeWindow = 0;
+        this.beta = (_a = options === null || options === void 0 ? void 0 : options.beta) !== null && _a !== void 0 ? _a : 0.7;
+        this.minCapacity = (_b = options === null || options === void 0 ? void 0 : options.minCapacity) !== null && _b !== void 0 ? _b : 1;
+        this.minFillRate = (_c = options === null || options === void 0 ? void 0 : options.minFillRate) !== null && _c !== void 0 ? _c : 0.5;
+        this.scaleConstant = (_d = options === null || options === void 0 ? void 0 : options.scaleConstant) !== null && _d !== void 0 ? _d : 0.4;
+        this.smooth = (_e = options === null || options === void 0 ? void 0 : options.smooth) !== null && _e !== void 0 ? _e : 0.8;
+        var currentTimeInSeconds = this.getCurrentTimeInSeconds();
+        this.lastThrottleTime = currentTimeInSeconds;
+        this.lastTxRateBucket = Math.floor(this.getCurrentTimeInSeconds());
+        this.fillRate = this.minFillRate;
+        this.maxCapacity = this.minCapacity;
+    }
+    DefaultRateLimiter.prototype.getCurrentTimeInSeconds = function () {
+        return Date.now() / 1000;
+    };
+    DefaultRateLimiter.prototype.getSendToken = function () {
+        return __awaiter$1(this, void 0, void 0, function () {
+            return __generator$1(this, function (_a) {
+                return [2, this.acquireTokenBucket(1)];
+            });
+        });
+    };
+    DefaultRateLimiter.prototype.acquireTokenBucket = function (amount) {
+        return __awaiter$1(this, void 0, void 0, function () {
+            var delay_1;
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!this.enabled) {
+                            return [2];
+                        }
+                        this.refillTokenBucket();
+                        if (!(amount > this.currentCapacity)) return [3, 2];
+                        delay_1 = ((amount - this.currentCapacity) / this.fillRate) * 1000;
+                        return [4, new Promise(function (resolve) { return setTimeout(resolve, delay_1); })];
+                    case 1:
+                        _a.sent();
+                        _a.label = 2;
+                    case 2:
+                        this.currentCapacity = this.currentCapacity - amount;
+                        return [2];
+                }
+            });
+        });
+    };
+    DefaultRateLimiter.prototype.refillTokenBucket = function () {
+        var timestamp = this.getCurrentTimeInSeconds();
+        if (!this.lastTimestamp) {
+            this.lastTimestamp = timestamp;
+            return;
+        }
+        var fillAmount = (timestamp - this.lastTimestamp) * this.fillRate;
+        this.currentCapacity = Math.min(this.maxCapacity, this.currentCapacity + fillAmount);
+        this.lastTimestamp = timestamp;
+    };
+    DefaultRateLimiter.prototype.updateClientSendingRate = function (response) {
+        var calculatedRate;
+        this.updateMeasuredRate();
+        if (isThrottlingError(response)) {
+            var rateToUse = !this.enabled ? this.measuredTxRate : Math.min(this.measuredTxRate, this.fillRate);
+            this.lastMaxRate = rateToUse;
+            this.calculateTimeWindow();
+            this.lastThrottleTime = this.getCurrentTimeInSeconds();
+            calculatedRate = this.cubicThrottle(rateToUse);
+            this.enableTokenBucket();
+        }
+        else {
+            this.calculateTimeWindow();
+            calculatedRate = this.cubicSuccess(this.getCurrentTimeInSeconds());
+        }
+        var newRate = Math.min(calculatedRate, 2 * this.measuredTxRate);
+        this.updateTokenBucketRate(newRate);
+    };
+    DefaultRateLimiter.prototype.calculateTimeWindow = function () {
+        this.timeWindow = this.getPrecise(Math.pow((this.lastMaxRate * (1 - this.beta)) / this.scaleConstant, 1 / 3));
+    };
+    DefaultRateLimiter.prototype.cubicThrottle = function (rateToUse) {
+        return this.getPrecise(rateToUse * this.beta);
+    };
+    DefaultRateLimiter.prototype.cubicSuccess = function (timestamp) {
+        return this.getPrecise(this.scaleConstant * Math.pow(timestamp - this.lastThrottleTime - this.timeWindow, 3) + this.lastMaxRate);
+    };
+    DefaultRateLimiter.prototype.enableTokenBucket = function () {
+        this.enabled = true;
+    };
+    DefaultRateLimiter.prototype.updateTokenBucketRate = function (newRate) {
+        this.refillTokenBucket();
+        this.fillRate = Math.max(newRate, this.minFillRate);
+        this.maxCapacity = Math.max(newRate, this.minCapacity);
+        this.currentCapacity = Math.min(this.currentCapacity, this.maxCapacity);
+    };
+    DefaultRateLimiter.prototype.updateMeasuredRate = function () {
+        var t = this.getCurrentTimeInSeconds();
+        var timeBucket = Math.floor(t * 2) / 2;
+        this.requestCount++;
+        if (timeBucket > this.lastTxRateBucket) {
+            var currentRate = this.requestCount / (timeBucket - this.lastTxRateBucket);
+            this.measuredTxRate = this.getPrecise(currentRate * this.smooth + this.measuredTxRate * (1 - this.smooth));
+            this.requestCount = 0;
+            this.lastTxRateBucket = timeBucket;
+        }
+    };
+    DefaultRateLimiter.prototype.getPrecise = function (num) {
+        return parseFloat(num.toFixed(8));
+    };
+    return DefaultRateLimiter;
+}());
+
+const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
+
+let poolPtr = rnds8Pool.length;
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    crypto__default["default"].randomFillSync(rnds8Pool);
+    poolPtr = 0;
+  }
+
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+
+var REGEX = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i;
+
+function validate$1(uuid) {
+  return typeof uuid === 'string' && REGEX.test(uuid);
+}
+
+/**
+ * Convert array of 16 byte values to UUID string format of the form:
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+ */
+
+const byteToHex = [];
+
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 0x100).toString(16).substr(1));
+}
+
+function stringify(arr, offset = 0) {
+  // Note: Be careful editing this code!  It's been tuned for performance
+  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
+  const uuid = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase(); // Consistency check for valid UUID.  If this throws, it's likely due to one
+  // of the following:
+  // - One or more input array values don't map to a hex octet (leading to
+  // "undefined" in the uuid)
+  // - Invalid input values for the RFC `version` or `variant` fields
+
+  if (!validate$1(uuid)) {
+    throw TypeError('Stringified UUID is invalid');
+  }
+
+  return uuid;
+}
+
+function v4(options, buf, offset) {
+  options = options || {};
+  const rnds = options.random || (options.rng || rng)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+
+  rnds[6] = rnds[6] & 0x0f | 0x40;
+  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
+
+  if (buf) {
+    offset = offset || 0;
+
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+
+    return buf;
+  }
+
+  return stringify(rnds);
+}
+
+var DEFAULT_RETRY_DELAY_BASE = 100;
+var MAXIMUM_RETRY_DELAY = 20 * 1000;
+var THROTTLING_RETRY_DELAY_BASE = 500;
+var INITIAL_RETRY_TOKENS = 500;
+var RETRY_COST = 5;
+var TIMEOUT_RETRY_COST = 10;
+var NO_RETRY_INCREMENT = 1;
+var INVOCATION_ID_HEADER = "amz-sdk-invocation-id";
+var REQUEST_HEADER = "amz-sdk-request";
+
+var getDefaultRetryQuota = function (initialRetryTokens, options) {
+    var _a, _b, _c;
+    var MAX_CAPACITY = initialRetryTokens;
+    var noRetryIncrement = (_a = options === null || options === void 0 ? void 0 : options.noRetryIncrement) !== null && _a !== void 0 ? _a : NO_RETRY_INCREMENT;
+    var retryCost = (_b = options === null || options === void 0 ? void 0 : options.retryCost) !== null && _b !== void 0 ? _b : RETRY_COST;
+    var timeoutRetryCost = (_c = options === null || options === void 0 ? void 0 : options.timeoutRetryCost) !== null && _c !== void 0 ? _c : TIMEOUT_RETRY_COST;
+    var availableCapacity = initialRetryTokens;
+    var getCapacityAmount = function (error) { return (error.name === "TimeoutError" ? timeoutRetryCost : retryCost); };
+    var hasRetryTokens = function (error) { return getCapacityAmount(error) <= availableCapacity; };
+    var retrieveRetryTokens = function (error) {
+        if (!hasRetryTokens(error)) {
+            throw new Error("No retry token available");
+        }
+        var capacityAmount = getCapacityAmount(error);
+        availableCapacity -= capacityAmount;
+        return capacityAmount;
+    };
+    var releaseRetryTokens = function (capacityReleaseAmount) {
+        availableCapacity += capacityReleaseAmount !== null && capacityReleaseAmount !== void 0 ? capacityReleaseAmount : noRetryIncrement;
+        availableCapacity = Math.min(availableCapacity, MAX_CAPACITY);
+    };
+    return Object.freeze({
+        hasRetryTokens: hasRetryTokens,
+        retrieveRetryTokens: retrieveRetryTokens,
+        releaseRetryTokens: releaseRetryTokens,
+    });
+};
+
+var defaultDelayDecider = function (delayBase, attempts) {
+    return Math.floor(Math.min(MAXIMUM_RETRY_DELAY, Math.random() * Math.pow(2, attempts) * delayBase));
+};
+
+var defaultRetryDecider = function (error) {
+    if (!error) {
+        return false;
+    }
+    return isRetryableByTrait(error) || isClockSkewError(error) || isThrottlingError(error) || isTransientError(error);
+};
+
+var StandardRetryStrategy = (function () {
+    function StandardRetryStrategy(maxAttemptsProvider, options) {
+        var _a, _b, _c;
+        this.maxAttemptsProvider = maxAttemptsProvider;
+        this.mode = RETRY_MODES.STANDARD;
+        this.retryDecider = (_a = options === null || options === void 0 ? void 0 : options.retryDecider) !== null && _a !== void 0 ? _a : defaultRetryDecider;
+        this.delayDecider = (_b = options === null || options === void 0 ? void 0 : options.delayDecider) !== null && _b !== void 0 ? _b : defaultDelayDecider;
+        this.retryQuota = (_c = options === null || options === void 0 ? void 0 : options.retryQuota) !== null && _c !== void 0 ? _c : getDefaultRetryQuota(INITIAL_RETRY_TOKENS);
+    }
+    StandardRetryStrategy.prototype.shouldRetry = function (error, attempts, maxAttempts) {
+        return attempts < maxAttempts && this.retryDecider(error) && this.retryQuota.hasRetryTokens(error);
+    };
+    StandardRetryStrategy.prototype.getMaxAttempts = function () {
+        return __awaiter$1(this, void 0, void 0, function () {
+            var maxAttempts;
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4, this.maxAttemptsProvider()];
+                    case 1:
+                        maxAttempts = _a.sent();
+                        return [3, 3];
+                    case 2:
+                        _a.sent();
+                        maxAttempts = DEFAULT_MAX_ATTEMPTS;
+                        return [3, 3];
+                    case 3: return [2, maxAttempts];
+                }
+            });
+        });
+    };
+    StandardRetryStrategy.prototype.retry = function (next, args, options) {
+        return __awaiter$1(this, void 0, void 0, function () {
+            var retryTokenAmount, attempts, totalDelay, maxAttempts, request, _loop_1, this_1, state_1;
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        attempts = 0;
+                        totalDelay = 0;
+                        return [4, this.getMaxAttempts()];
+                    case 1:
+                        maxAttempts = _a.sent();
+                        request = args.request;
+                        if (HttpRequest.isInstance(request)) {
+                            request.headers[INVOCATION_ID_HEADER] = v4();
+                        }
+                        _loop_1 = function () {
+                            var _b, response, output, e_1, err, delay_1;
+                            return __generator$1(this, function (_c) {
+                                switch (_c.label) {
+                                    case 0:
+                                        _c.trys.push([0, 4, , 7]);
+                                        if (HttpRequest.isInstance(request)) {
+                                            request.headers[REQUEST_HEADER] = "attempt=" + (attempts + 1) + "; max=" + maxAttempts;
+                                        }
+                                        if (!(options === null || options === void 0 ? void 0 : options.beforeRequest)) return [3, 2];
+                                        return [4, options.beforeRequest()];
+                                    case 1:
+                                        _c.sent();
+                                        _c.label = 2;
+                                    case 2: return [4, next(args)];
+                                    case 3:
+                                        _b = _c.sent(), response = _b.response, output = _b.output;
+                                        if (options === null || options === void 0 ? void 0 : options.afterRequest) {
+                                            options.afterRequest(response);
+                                        }
+                                        this_1.retryQuota.releaseRetryTokens(retryTokenAmount);
+                                        output.$metadata.attempts = attempts + 1;
+                                        output.$metadata.totalRetryDelay = totalDelay;
+                                        return [2, { value: { response: response, output: output } }];
+                                    case 4:
+                                        e_1 = _c.sent();
+                                        err = asSdkError(e_1);
+                                        attempts++;
+                                        if (!this_1.shouldRetry(err, attempts, maxAttempts)) return [3, 6];
+                                        retryTokenAmount = this_1.retryQuota.retrieveRetryTokens(err);
+                                        delay_1 = this_1.delayDecider(isThrottlingError(err) ? THROTTLING_RETRY_DELAY_BASE : DEFAULT_RETRY_DELAY_BASE, attempts);
+                                        totalDelay += delay_1;
+                                        return [4, new Promise(function (resolve) { return setTimeout(resolve, delay_1); })];
+                                    case 5:
+                                        _c.sent();
+                                        return [2, "continue"];
+                                    case 6:
+                                        if (!err.$metadata) {
+                                            err.$metadata = {};
+                                        }
+                                        err.$metadata.attempts = attempts;
+                                        err.$metadata.totalRetryDelay = totalDelay;
+                                        throw err;
+                                    case 7: return [2];
+                                }
+                            });
+                        };
+                        this_1 = this;
+                        _a.label = 2;
+                    case 2:
+                        return [5, _loop_1()];
+                    case 3:
+                        state_1 = _a.sent();
+                        if (typeof state_1 === "object")
+                            return [2, state_1.value];
+                        return [3, 2];
+                    case 4: return [2];
+                }
+            });
+        });
+    };
+    return StandardRetryStrategy;
+}());
+var asSdkError = function (error) {
+    if (error instanceof Error)
+        return error;
+    if (error instanceof Object)
+        return Object.assign(new Error(), error);
+    if (typeof error === "string")
+        return new Error(error);
+    return new Error("AWS SDK error wrapper for " + error);
+};
+
+var AdaptiveRetryStrategy = (function (_super) {
+    __extends$1(AdaptiveRetryStrategy, _super);
+    function AdaptiveRetryStrategy(maxAttemptsProvider, options) {
+        var _this = this;
+        var _a = options !== null && options !== void 0 ? options : {}, rateLimiter = _a.rateLimiter, superOptions = __rest$1(_a, ["rateLimiter"]);
+        _this = _super.call(this, maxAttemptsProvider, superOptions) || this;
+        _this.rateLimiter = rateLimiter !== null && rateLimiter !== void 0 ? rateLimiter : new DefaultRateLimiter();
+        _this.mode = RETRY_MODES.ADAPTIVE;
+        return _this;
+    }
+    AdaptiveRetryStrategy.prototype.retry = function (next, args) {
+        return __awaiter$1(this, void 0, void 0, function () {
+            var _this = this;
+            return __generator$1(this, function (_a) {
+                return [2, _super.prototype.retry.call(this, next, args, {
+                        beforeRequest: function () { return __awaiter$1(_this, void 0, void 0, function () {
+                            return __generator$1(this, function (_a) {
+                                return [2, this.rateLimiter.getSendToken()];
+                            });
+                        }); },
+                        afterRequest: function (response) {
+                            _this.rateLimiter.updateClientSendingRate(response);
+                        },
+                    })];
+            });
+        });
+    };
+    return AdaptiveRetryStrategy;
+}(StandardRetryStrategy));
+
+var ENV_MAX_ATTEMPTS = "AWS_MAX_ATTEMPTS";
+var CONFIG_MAX_ATTEMPTS = "max_attempts";
+var NODE_MAX_ATTEMPT_CONFIG_OPTIONS = {
+    environmentVariableSelector: function (env) {
+        var value = env[ENV_MAX_ATTEMPTS];
+        if (!value)
+            return undefined;
+        var maxAttempt = parseInt(value);
+        if (Number.isNaN(maxAttempt)) {
+            throw new Error("Environment variable " + ENV_MAX_ATTEMPTS + " mast be a number, got \"" + value + "\"");
+        }
+        return maxAttempt;
+    },
+    configFileSelector: function (profile) {
+        var value = profile[CONFIG_MAX_ATTEMPTS];
+        if (!value)
+            return undefined;
+        var maxAttempt = parseInt(value);
+        if (Number.isNaN(maxAttempt)) {
+            throw new Error("Shared config file entry " + CONFIG_MAX_ATTEMPTS + " mast be a number, got \"" + value + "\"");
+        }
+        return maxAttempt;
+    },
+    default: DEFAULT_MAX_ATTEMPTS,
+};
+var resolveRetryConfig = function (input) {
+    var maxAttempts = normalizeMaxAttempts(input.maxAttempts);
+    return __assign$1(__assign$1({}, input), { maxAttempts: maxAttempts, retryStrategy: function () { return __awaiter$1(void 0, void 0, void 0, function () {
+            var retryMode;
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (input.retryStrategy) {
+                            return [2, input.retryStrategy];
+                        }
+                        return [4, getRetryMode(input.retryMode)];
+                    case 1:
+                        retryMode = _a.sent();
+                        if (retryMode === RETRY_MODES.ADAPTIVE) {
+                            return [2, new AdaptiveRetryStrategy(maxAttempts)];
+                        }
+                        return [2, new StandardRetryStrategy(maxAttempts)];
+                }
+            });
+        }); } });
+};
+var getRetryMode = function (retryMode) { return __awaiter$1(void 0, void 0, void 0, function () {
+    return __generator$1(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                if (typeof retryMode === "string") {
+                    return [2, retryMode];
+                }
+                return [4, retryMode()];
+            case 1: return [2, _a.sent()];
+        }
+    });
+}); };
+var normalizeMaxAttempts = function (maxAttempts) {
+    if (maxAttempts === void 0) { maxAttempts = DEFAULT_MAX_ATTEMPTS; }
+    if (typeof maxAttempts === "number") {
+        var promisified_1 = Promise.resolve(maxAttempts);
+        return function () { return promisified_1; };
+    }
+    return maxAttempts;
+};
+var ENV_RETRY_MODE = "AWS_RETRY_MODE";
+var CONFIG_RETRY_MODE = "retry_mode";
+var NODE_RETRY_MODE_CONFIG_OPTIONS = {
+    environmentVariableSelector: function (env) { return env[ENV_RETRY_MODE]; },
+    configFileSelector: function (profile) { return profile[CONFIG_RETRY_MODE]; },
+    default: DEFAULT_RETRY_MODE,
+};
+
+var retryMiddleware = function (options) {
+    return function (next, context) {
+        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+            var retryStrategy;
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4, options.retryStrategy()];
+                    case 1:
+                        retryStrategy = _a.sent();
+                        if (retryStrategy === null || retryStrategy === void 0 ? void 0 : retryStrategy.mode)
+                            context.userAgent = __spreadArray(__spreadArray([], __read$1((context.userAgent || []))), [["cfg/retry-mode", retryStrategy.mode]]);
+                        return [2, retryStrategy.retry(next, args)];
+                }
+            });
+        }); };
+    };
+};
+var retryMiddlewareOptions = {
+    name: "retryMiddleware",
+    tags: ["RETRY"],
+    step: "finalizeRequest",
+    priority: "high",
+    override: true,
+};
+var getRetryPlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(retryMiddleware(options), retryMiddlewareOptions);
+    },
+}); };
+
+var ProviderError = (function (_super) {
+    __extends$1(ProviderError, _super);
+    function ProviderError(message, tryNextLink) {
+        if (tryNextLink === void 0) { tryNextLink = true; }
+        var _this = _super.call(this, message) || this;
+        _this.tryNextLink = tryNextLink;
+        return _this;
+    }
+    ProviderError.from = function (error, tryNextLink) {
+        if (tryNextLink === void 0) { tryNextLink = true; }
+        Object.defineProperty(error, "tryNextLink", {
+            value: tryNextLink,
+            configurable: false,
+            enumerable: false,
+            writable: false,
+        });
+        return error;
+    };
+    return ProviderError;
+}(Error));
+var CredentialsProviderError = (function (_super) {
+    __extends$1(CredentialsProviderError, _super);
+    function CredentialsProviderError(message, tryNextLink) {
+        if (tryNextLink === void 0) { tryNextLink = true; }
+        var _this = _super.call(this, message) || this;
+        _this.tryNextLink = tryNextLink;
+        _this.name = "CredentialsProviderError";
+        return _this;
+    }
+    CredentialsProviderError.from = function (error, tryNextLink) {
+        if (tryNextLink === void 0) { tryNextLink = true; }
+        Object.defineProperty(error, "tryNextLink", {
+            value: tryNextLink,
+            configurable: false,
+            enumerable: false,
+            writable: false,
+        });
+        return error;
+    };
+    return CredentialsProviderError;
+}(Error));
+
+function chain() {
+    var providers = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        providers[_i] = arguments[_i];
+    }
+    return function () {
+        var e_1, _a;
+        var promise = Promise.reject(new ProviderError("No providers in chain"));
+        var _loop_1 = function (provider) {
+            promise = promise.catch(function (err) {
+                if (err === null || err === void 0 ? void 0 : err.tryNextLink) {
+                    return provider();
+                }
+                throw err;
+            });
+        };
+        try {
+            for (var providers_1 = __values$1(providers), providers_1_1 = providers_1.next(); !providers_1_1.done; providers_1_1 = providers_1.next()) {
+                var provider = providers_1_1.value;
+                _loop_1(provider);
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (providers_1_1 && !providers_1_1.done && (_a = providers_1.return)) _a.call(providers_1);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        return promise;
+    };
+}
+
+var fromStatic$1 = function (staticValue) {
+    return function () {
+        return Promise.resolve(staticValue);
+    };
+};
+
+var memoize = function (provider, isExpired, requiresRefresh) {
+    var resolved;
+    var pending;
+    var hasResult;
+    var coalesceProvider = function () { return __awaiter$1(void 0, void 0, void 0, function () {
+        return __generator$1(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!pending) {
+                        pending = provider();
+                    }
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, , 3, 4]);
+                    return [4, pending];
+                case 2:
+                    resolved = _a.sent();
+                    hasResult = true;
+                    return [3, 4];
+                case 3:
+                    pending = undefined;
+                    return [7];
+                case 4: return [2, resolved];
+            }
+        });
+    }); };
+    if (isExpired === undefined) {
+        return function () { return __awaiter$1(void 0, void 0, void 0, function () {
+            return __generator$1(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!!hasResult) return [3, 2];
+                        return [4, coalesceProvider()];
+                    case 1:
+                        resolved = _a.sent();
+                        _a.label = 2;
+                    case 2: return [2, resolved];
+                }
+            });
+        }); };
+    }
+    var isConstant = false;
+    return function () { return __awaiter$1(void 0, void 0, void 0, function () {
+        return __generator$1(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!!hasResult) return [3, 2];
+                    return [4, coalesceProvider()];
+                case 1:
+                    resolved = _a.sent();
+                    _a.label = 2;
+                case 2:
+                    if (isConstant) {
+                        return [2, resolved];
+                    }
+                    if (requiresRefresh && !requiresRefresh(resolved)) {
+                        isConstant = true;
+                        return [2, resolved];
+                    }
+                    if (!isExpired(resolved)) return [3, 4];
+                    return [4, coalesceProvider()];
+                case 3:
+                    _a.sent();
+                    return [2, resolved];
+                case 4: return [2, resolved];
+            }
+        });
+    }); };
+};
 
 var ALGORITHM_QUERY_PARAM = "X-Amz-Algorithm";
 var CREDENTIAL_QUERY_PARAM = "X-Amz-Credential";
@@ -102474,1211 +92814,6 @@ var formatDate = function (now) {
 };
 var getCanonicalHeaderList = function (headers) { return Object.keys(headers).sort().join(";"); };
 
-var S3SignatureV4 = (function () {
-    function S3SignatureV4(options) {
-        this.sigv4Signer = new SignatureV4(options);
-        this.signerOptions = options;
-    }
-    S3SignatureV4.prototype.sign = function (requestToSign, options) {
-        if (options === void 0) { options = {}; }
-        return __awaiter$1(this, void 0, void 0, function () {
-            return __generator$1(this, function (_a) {
-                if (options.signingRegion === "*") {
-                    if (this.signerOptions.runtime !== "node")
-                        throw new Error("This request requires signing with SigV4Asymmetric algorithm. It's only available in Node.js");
-                    return [2, this.getSigv4aSigner().sign(requestToSign, options)];
-                }
-                return [2, this.sigv4Signer.sign(requestToSign, options)];
-            });
-        });
-    };
-    S3SignatureV4.prototype.presign = function (originalRequest, options) {
-        if (options === void 0) { options = {}; }
-        return __awaiter$1(this, void 0, void 0, function () {
-            return __generator$1(this, function (_a) {
-                if (options.signingRegion === "*") {
-                    if (this.signerOptions.runtime !== "node")
-                        throw new Error("This request requires signing with SigV4Asymmetric algorithm. It's only available in Node.js");
-                    return [2, this.getSigv4aSigner().presign(originalRequest, options)];
-                }
-                return [2, this.sigv4Signer.presign(originalRequest, options)];
-            });
-        });
-    };
-    S3SignatureV4.prototype.getSigv4aSigner = function () {
-        if (!this.sigv4aSigner) {
-            var CrtSignerV4_1;
-            try {
-                CrtSignerV4_1 = require("@aws-sdk/signature-v4-crt").CrtSignerV4;
-                if (typeof CrtSignerV4_1 !== "function")
-                    throw new Error();
-            }
-            catch (e) {
-                e.message =
-                    e.message + "\nPlease check if you have installed \"@aws-sdk/signature-v4-crt\" package explicitly. \n" +
-                        "For more information please go to https://github.com/aws/aws-sdk-js-v3#known-issues";
-                throw e;
-            }
-            this.sigv4aSigner = new CrtSignerV4_1(__assign$1(__assign$1({}, this.signerOptions), { signingAlgorithm: 1 }));
-        }
-        return this.sigv4aSigner;
-    };
-    return S3SignatureV4;
-}());
-
-var useRegionalEndpointMiddleware = function (config) {
-    return function (next) {
-        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-            var request, _a;
-            return __generator$1(this, function (_b) {
-                switch (_b.label) {
-                    case 0:
-                        request = args.request;
-                        if (!HttpRequest.isInstance(request) || config.isCustomEndpoint)
-                            return [2, next(__assign$1({}, args))];
-                        if (!(request.hostname === "s3.amazonaws.com")) return [3, 1];
-                        request.hostname = "s3.us-east-1.amazonaws.com";
-                        return [3, 3];
-                    case 1:
-                        _a = "aws-global";
-                        return [4, config.region()];
-                    case 2:
-                        if (_a === (_b.sent())) {
-                            request.hostname = "s3.amazonaws.com";
-                        }
-                        _b.label = 3;
-                    case 3: return [2, next(__assign$1({}, args))];
-                }
-            });
-        }); };
-    };
-};
-var useRegionalEndpointMiddlewareOptions = {
-    step: "build",
-    tags: ["USE_REGIONAL_ENDPOINT", "S3"],
-    name: "useRegionalEndpointMiddleware",
-    override: true,
-};
-var getUseRegionalEndpointPlugin = function (config) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(useRegionalEndpointMiddleware(config), useRegionalEndpointMiddlewareOptions);
-    },
-}); };
-
-function validateBucketNameMiddleware() {
-    var _this = this;
-    return function (next) {
-        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
-            var Bucket, err;
-            return __generator$1(this, function (_a) {
-                Bucket = args.input.Bucket;
-                if (typeof Bucket === "string" && !validate$2(Bucket) && Bucket.indexOf("/") >= 0) {
-                    err = new Error("Bucket name shouldn't contain '/', received '" + Bucket + "'");
-                    err.name = "InvalidBucketName";
-                    throw err;
-                }
-                return [2, next(__assign$1({}, args))];
-            });
-        }); };
-    };
-}
-var validateBucketNameMiddlewareOptions = {
-    step: "initialize",
-    tags: ["VALIDATE_BUCKET_NAME"],
-    name: "validateBucketNameMiddleware",
-    override: true,
-};
-var getValidateBucketNamePlugin = function (unused) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(validateBucketNameMiddleware(), validateBucketNameMiddlewareOptions);
-    },
-}); };
-
-function ssecMiddleware(options) {
-    var _this = this;
-    return function (next) {
-        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
-            var input, properties, properties_1, properties_1_1, prop, value, valueView, encoded, hash, _a, _b, _c, _d, e_1_1;
-            var e_1, _e, _f;
-            return __generator$1(this, function (_g) {
-                switch (_g.label) {
-                    case 0:
-                        input = __assign$1({}, args.input);
-                        properties = [
-                            {
-                                target: "SSECustomerKey",
-                                hash: "SSECustomerKeyMD5",
-                            },
-                            {
-                                target: "CopySourceSSECustomerKey",
-                                hash: "CopySourceSSECustomerKeyMD5",
-                            },
-                        ];
-                        _g.label = 1;
-                    case 1:
-                        _g.trys.push([1, 6, 7, 8]);
-                        properties_1 = __values$1(properties), properties_1_1 = properties_1.next();
-                        _g.label = 2;
-                    case 2:
-                        if (!!properties_1_1.done) return [3, 5];
-                        prop = properties_1_1.value;
-                        value = input[prop.target];
-                        if (!value) return [3, 4];
-                        valueView = ArrayBuffer.isView(value)
-                            ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-                            : typeof value === "string"
-                                ? options.utf8Decoder(value)
-                                : new Uint8Array(value);
-                        encoded = options.base64Encoder(valueView);
-                        hash = new options.md5();
-                        hash.update(valueView);
-                        _a = [__assign$1({}, input)];
-                        _f = {}, _f[prop.target] = encoded;
-                        _b = prop.hash;
-                        _d = (_c = options).base64Encoder;
-                        return [4, hash.digest()];
-                    case 3:
-                        input = __assign$1.apply(void 0, _a.concat([(_f[_b] = _d.apply(_c, [_g.sent()]), _f)]));
-                        _g.label = 4;
-                    case 4:
-                        properties_1_1 = properties_1.next();
-                        return [3, 2];
-                    case 5: return [3, 8];
-                    case 6:
-                        e_1_1 = _g.sent();
-                        e_1 = { error: e_1_1 };
-                        return [3, 8];
-                    case 7:
-                        try {
-                            if (properties_1_1 && !properties_1_1.done && (_e = properties_1.return)) _e.call(properties_1);
-                        }
-                        finally { if (e_1) throw e_1.error; }
-                        return [7];
-                    case 8: return [2, next(__assign$1(__assign$1({}, args), { input: input }))];
-                }
-            });
-        }); };
-    };
-}
-var ssecMiddlewareOptions = {
-    name: "ssecMiddleware",
-    step: "initialize",
-    tags: ["SSE"],
-    override: true,
-};
-var getSsecPlugin = function (config) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(ssecMiddleware(config), ssecMiddlewareOptions);
-    },
-}); };
-
-var GetObjectCommand = (function (_super) {
-    __extends$1(GetObjectCommand, _super);
-    function GetObjectCommand(input) {
-        var _this = _super.call(this) || this;
-        _this.input = input;
-        return _this;
-    }
-    GetObjectCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
-        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
-        this.middlewareStack.use(getSsecPlugin(configuration));
-        this.middlewareStack.use(getBucketEndpointPlugin(configuration));
-        var stack = clientStack.concat(this.middlewareStack);
-        var logger = configuration.logger;
-        var clientName = "S3Client";
-        var commandName = "GetObjectCommand";
-        var handlerExecutionContext = {
-            logger: logger,
-            clientName: clientName,
-            commandName: commandName,
-            inputFilterSensitiveLog: GetObjectRequest.filterSensitiveLog,
-            outputFilterSensitiveLog: GetObjectOutput.filterSensitiveLog,
-        };
-        var requestHandler = configuration.requestHandler;
-        return stack.resolve(function (request) {
-            return requestHandler.handle(request.request, options || {});
-        }, handlerExecutionContext);
-    };
-    GetObjectCommand.prototype.serialize = function (input, context) {
-        return serializeAws_restXmlGetObjectCommand(input, context);
-    };
-    GetObjectCommand.prototype.deserialize = function (output, context) {
-        return deserializeAws_restXmlGetObjectCommand(output, context);
-    };
-    return GetObjectCommand;
-}(Command));
-
-var PutObjectCommand = (function (_super) {
-    __extends$1(PutObjectCommand, _super);
-    function PutObjectCommand(input) {
-        var _this = _super.call(this) || this;
-        _this.input = input;
-        return _this;
-    }
-    PutObjectCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
-        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
-        this.middlewareStack.use(getSsecPlugin(configuration));
-        this.middlewareStack.use(getBucketEndpointPlugin(configuration));
-        var stack = clientStack.concat(this.middlewareStack);
-        var logger = configuration.logger;
-        var clientName = "S3Client";
-        var commandName = "PutObjectCommand";
-        var handlerExecutionContext = {
-            logger: logger,
-            clientName: clientName,
-            commandName: commandName,
-            inputFilterSensitiveLog: PutObjectRequest.filterSensitiveLog,
-            outputFilterSensitiveLog: PutObjectOutput.filterSensitiveLog,
-        };
-        var requestHandler = configuration.requestHandler;
-        return stack.resolve(function (request) {
-            return requestHandler.handle(request.request, options || {});
-        }, handlerExecutionContext);
-    };
-    PutObjectCommand.prototype.serialize = function (input, context) {
-        return serializeAws_restXmlPutObjectCommand(input, context);
-    };
-    PutObjectCommand.prototype.deserialize = function (output, context) {
-        return deserializeAws_restXmlPutObjectCommand(output, context);
-    };
-    return PutObjectCommand;
-}(Command));
-
-var normalizeEndpoint = function (_a) {
-    var endpoint = _a.endpoint, urlParser = _a.urlParser;
-    if (typeof endpoint === "string") {
-        var promisified_1 = Promise.resolve(urlParser(endpoint));
-        return function () { return promisified_1; };
-    }
-    else if (typeof endpoint === "object") {
-        var promisified_2 = Promise.resolve(endpoint);
-        return function () { return promisified_2; };
-    }
-    return endpoint;
-};
-
-var getEndpointFromRegion = function (input) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var _a, tls, region, dnsHostRegex, hostname;
-    var _b;
-    return __generator$1(this, function (_c) {
-        switch (_c.label) {
-            case 0:
-                _a = input.tls, tls = _a === void 0 ? true : _a;
-                return [4, input.region()];
-            case 1:
-                region = _c.sent();
-                dnsHostRegex = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])$/);
-                if (!dnsHostRegex.test(region)) {
-                    throw new Error("Invalid region in client config");
-                }
-                return [4, input.regionInfoProvider(region)];
-            case 2:
-                hostname = ((_b = (_c.sent())) !== null && _b !== void 0 ? _b : {}).hostname;
-                if (!hostname) {
-                    throw new Error("Cannot resolve hostname from client config");
-                }
-                return [2, input.urlParser((tls ? "https:" : "http:") + "//" + hostname)];
-        }
-    });
-}); };
-
-var resolveEndpointsConfig = function (input) {
-    var _a;
-    return (__assign$1(__assign$1({}, input), { tls: (_a = input.tls) !== null && _a !== void 0 ? _a : true, endpoint: input.endpoint
-            ? normalizeEndpoint(__assign$1(__assign$1({}, input), { endpoint: input.endpoint }))
-            : function () { return getEndpointFromRegion(input); }, isCustomEndpoint: input.endpoint ? true : false }));
-};
-
-var REGION_ENV_NAME = "AWS_REGION";
-var REGION_INI_NAME = "region";
-var NODE_REGION_CONFIG_OPTIONS = {
-    environmentVariableSelector: function (env) { return env[REGION_ENV_NAME]; },
-    configFileSelector: function (profile) { return profile[REGION_INI_NAME]; },
-    default: function () {
-        throw new Error("Region is missing");
-    },
-};
-var NODE_REGION_CONFIG_FILE_OPTIONS = {
-    preferredFile: "credentials",
-};
-
-var normalizeRegion = function (region) {
-    if (typeof region === "string") {
-        var promisified_1 = Promise.resolve(region);
-        return function () { return promisified_1; };
-    }
-    return region;
-};
-
-var resolveRegionConfig = function (input) {
-    if (!input.region) {
-        throw new Error("Region is missing");
-    }
-    return __assign$1(__assign$1({}, input), { region: normalizeRegion(input.region) });
-};
-
-var getResolvedPartition = function (region, _a) {
-    var _b;
-    var partitionHash = _a.partitionHash;
-    return (_b = Object.keys(partitionHash || {}).find(function (key) { return partitionHash[key].regions.includes(region); })) !== null && _b !== void 0 ? _b : "aws";
-};
-
-var AWS_TEMPLATE = "{signingService}.{region}.amazonaws.com";
-var getHostnameTemplate = function (region, _a) {
-    var _b, _c;
-    var signingService = _a.signingService, partitionHash = _a.partitionHash;
-    return (_c = (_b = partitionHash[getResolvedPartition(region, { partitionHash: partitionHash })]) === null || _b === void 0 ? void 0 : _b.hostname) !== null && _c !== void 0 ? _c : AWS_TEMPLATE.replace("{signingService}", signingService);
-};
-
-var getResolvedHostname = function (region, _a) {
-    var _b, _c;
-    var signingService = _a.signingService, regionHash = _a.regionHash, partitionHash = _a.partitionHash;
-    return (_c = (_b = regionHash[region]) === null || _b === void 0 ? void 0 : _b.hostname) !== null && _c !== void 0 ? _c : getHostnameTemplate(region, { signingService: signingService, partitionHash: partitionHash }).replace("{region}", region);
-};
-
-var getRegionInfo = function (region, _a) {
-    var _b, _c, _d, _e;
-    var signingService = _a.signingService, regionHash = _a.regionHash, partitionHash = _a.partitionHash;
-    var partition = getResolvedPartition(region, { partitionHash: partitionHash });
-    var resolvedRegion = (_c = (_b = partitionHash[partition]) === null || _b === void 0 ? void 0 : _b.endpoint) !== null && _c !== void 0 ? _c : region;
-    return __assign$1(__assign$1({ partition: partition, signingService: signingService, hostname: getResolvedHostname(resolvedRegion, { signingService: signingService, regionHash: regionHash, partitionHash: partitionHash }) }, (((_d = regionHash[resolvedRegion]) === null || _d === void 0 ? void 0 : _d.signingRegion) && {
-        signingRegion: regionHash[resolvedRegion].signingRegion,
-    })), (((_e = regionHash[resolvedRegion]) === null || _e === void 0 ? void 0 : _e.signingService) && {
-        signingService: regionHash[resolvedRegion].signingService,
-    }));
-};
-
-var resolveEventStreamSerdeConfig = function (input) { return (__assign$1(__assign$1({}, input), { eventStreamMarshaller: input.eventStreamSerdeProvider(input) })); };
-
-var CONTENT_LENGTH_HEADER = "content-length";
-function contentLengthMiddleware(bodyLengthChecker) {
-    var _this = this;
-    return function (next) {
-        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
-            var request, body, headers, length;
-            var _a;
-            return __generator$1(this, function (_b) {
-                request = args.request;
-                if (HttpRequest.isInstance(request)) {
-                    body = request.body, headers = request.headers;
-                    if (body &&
-                        Object.keys(headers)
-                            .map(function (str) { return str.toLowerCase(); })
-                            .indexOf(CONTENT_LENGTH_HEADER) === -1) {
-                        length = bodyLengthChecker(body);
-                        if (length !== undefined) {
-                            request.headers = __assign$1(__assign$1({}, request.headers), (_a = {}, _a[CONTENT_LENGTH_HEADER] = String(length), _a));
-                        }
-                    }
-                }
-                return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
-            });
-        }); };
-    };
-}
-var contentLengthMiddlewareOptions = {
-    step: "build",
-    tags: ["SET_CONTENT_LENGTH", "CONTENT_LENGTH"],
-    name: "contentLengthMiddleware",
-    override: true,
-};
-var getContentLengthPlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(contentLengthMiddleware(options.bodyLengthChecker), contentLengthMiddlewareOptions);
-    },
-}); };
-
-function addExpectContinueMiddleware(options) {
-    var _this = this;
-    return function (next) {
-        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
-            var request;
-            return __generator$1(this, function (_a) {
-                request = args.request;
-                if (HttpRequest.isInstance(request) && request.body && options.runtime === "node") {
-                    request.headers = __assign$1(__assign$1({}, request.headers), { Expect: "100-continue" });
-                }
-                return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
-            });
-        }); };
-    };
-}
-var addExpectContinueMiddlewareOptions = {
-    step: "build",
-    tags: ["SET_EXPECT_HEADER", "EXPECT_HEADER"],
-    name: "addExpectContinueMiddleware",
-    override: true,
-};
-var getAddExpectContinuePlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(addExpectContinueMiddleware(options), addExpectContinueMiddlewareOptions);
-    },
-}); };
-
-function resolveHostHeaderConfig(input) {
-    return input;
-}
-var hostHeaderMiddleware = function (options) {
-    return function (next) {
-        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-            var request, _a, handlerProtocol;
-            return __generator$1(this, function (_b) {
-                if (!HttpRequest.isInstance(args.request))
-                    return [2, next(args)];
-                request = args.request;
-                _a = (options.requestHandler.metadata || {}).handlerProtocol, handlerProtocol = _a === void 0 ? "" : _a;
-                if (handlerProtocol.indexOf("h2") >= 0 && !request.headers[":authority"]) {
-                    delete request.headers["host"];
-                    request.headers[":authority"] = "";
-                }
-                else if (!request.headers["host"]) {
-                    request.headers["host"] = request.hostname;
-                }
-                return [2, next(args)];
-            });
-        }); };
-    };
-};
-var hostHeaderMiddlewareOptions = {
-    name: "hostHeaderMiddleware",
-    step: "build",
-    priority: "low",
-    tags: ["HOST"],
-    override: true,
-};
-var getHostHeaderPlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(hostHeaderMiddleware(options), hostHeaderMiddlewareOptions);
-    },
-}); };
-
-var loggerMiddleware = function () {
-    return function (next, context) {
-        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-            var clientName, commandName, inputFilterSensitiveLog, logger, outputFilterSensitiveLog, response, _a, $metadata, outputWithoutMetadata;
-            return __generator$1(this, function (_b) {
-                switch (_b.label) {
-                    case 0:
-                        clientName = context.clientName, commandName = context.commandName, inputFilterSensitiveLog = context.inputFilterSensitiveLog, logger = context.logger, outputFilterSensitiveLog = context.outputFilterSensitiveLog;
-                        return [4, next(args)];
-                    case 1:
-                        response = _b.sent();
-                        if (!logger) {
-                            return [2, response];
-                        }
-                        if (typeof logger.info === "function") {
-                            _a = response.output, $metadata = _a.$metadata, outputWithoutMetadata = __rest$1(_a, ["$metadata"]);
-                            logger.info({
-                                clientName: clientName,
-                                commandName: commandName,
-                                input: inputFilterSensitiveLog(args.input),
-                                output: outputFilterSensitiveLog(outputWithoutMetadata),
-                                metadata: $metadata,
-                            });
-                        }
-                        return [2, response];
-                }
-            });
-        }); };
-    };
-};
-var loggerMiddlewareOptions = {
-    name: "loggerMiddleware",
-    tags: ["LOGGER"],
-    step: "initialize",
-    override: true,
-};
-var getLoggerPlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(loggerMiddleware(), loggerMiddlewareOptions);
-    },
-}); };
-
-var RETRY_MODES;
-(function (RETRY_MODES) {
-    RETRY_MODES["STANDARD"] = "standard";
-    RETRY_MODES["ADAPTIVE"] = "adaptive";
-})(RETRY_MODES || (RETRY_MODES = {}));
-var DEFAULT_MAX_ATTEMPTS = 3;
-var DEFAULT_RETRY_MODE = RETRY_MODES.STANDARD;
-
-var CLOCK_SKEW_ERROR_CODES = [
-    "AuthFailure",
-    "InvalidSignatureException",
-    "RequestExpired",
-    "RequestInTheFuture",
-    "RequestTimeTooSkewed",
-    "SignatureDoesNotMatch",
-];
-var THROTTLING_ERROR_CODES = [
-    "BandwidthLimitExceeded",
-    "EC2ThrottledException",
-    "LimitExceededException",
-    "PriorRequestNotComplete",
-    "ProvisionedThroughputExceededException",
-    "RequestLimitExceeded",
-    "RequestThrottled",
-    "RequestThrottledException",
-    "SlowDown",
-    "ThrottledException",
-    "Throttling",
-    "ThrottlingException",
-    "TooManyRequestsException",
-    "TransactionInProgressException",
-];
-var TRANSIENT_ERROR_CODES = ["AbortError", "TimeoutError", "RequestTimeout", "RequestTimeoutException"];
-var TRANSIENT_ERROR_STATUS_CODES = [500, 502, 503, 504];
-
-var isRetryableByTrait = function (error) { return error.$retryable !== undefined; };
-var isClockSkewError = function (error) { return CLOCK_SKEW_ERROR_CODES.includes(error.name); };
-var isThrottlingError = function (error) {
-    var _a, _b;
-    return ((_a = error.$metadata) === null || _a === void 0 ? void 0 : _a.httpStatusCode) === 429 ||
-        THROTTLING_ERROR_CODES.includes(error.name) ||
-        ((_b = error.$retryable) === null || _b === void 0 ? void 0 : _b.throttling) == true;
-};
-var isTransientError = function (error) {
-    var _a;
-    return TRANSIENT_ERROR_CODES.includes(error.name) ||
-        TRANSIENT_ERROR_STATUS_CODES.includes(((_a = error.$metadata) === null || _a === void 0 ? void 0 : _a.httpStatusCode) || 0);
-};
-
-var DefaultRateLimiter = (function () {
-    function DefaultRateLimiter(options) {
-        var _a, _b, _c, _d, _e;
-        this.currentCapacity = 0;
-        this.enabled = false;
-        this.lastMaxRate = 0;
-        this.measuredTxRate = 0;
-        this.requestCount = 0;
-        this.lastTimestamp = 0;
-        this.timeWindow = 0;
-        this.beta = (_a = options === null || options === void 0 ? void 0 : options.beta) !== null && _a !== void 0 ? _a : 0.7;
-        this.minCapacity = (_b = options === null || options === void 0 ? void 0 : options.minCapacity) !== null && _b !== void 0 ? _b : 1;
-        this.minFillRate = (_c = options === null || options === void 0 ? void 0 : options.minFillRate) !== null && _c !== void 0 ? _c : 0.5;
-        this.scaleConstant = (_d = options === null || options === void 0 ? void 0 : options.scaleConstant) !== null && _d !== void 0 ? _d : 0.4;
-        this.smooth = (_e = options === null || options === void 0 ? void 0 : options.smooth) !== null && _e !== void 0 ? _e : 0.8;
-        var currentTimeInSeconds = this.getCurrentTimeInSeconds();
-        this.lastThrottleTime = currentTimeInSeconds;
-        this.lastTxRateBucket = Math.floor(this.getCurrentTimeInSeconds());
-        this.fillRate = this.minFillRate;
-        this.maxCapacity = this.minCapacity;
-    }
-    DefaultRateLimiter.prototype.getCurrentTimeInSeconds = function () {
-        return Date.now() / 1000;
-    };
-    DefaultRateLimiter.prototype.getSendToken = function () {
-        return __awaiter$1(this, void 0, void 0, function () {
-            return __generator$1(this, function (_a) {
-                return [2, this.acquireTokenBucket(1)];
-            });
-        });
-    };
-    DefaultRateLimiter.prototype.acquireTokenBucket = function (amount) {
-        return __awaiter$1(this, void 0, void 0, function () {
-            var delay_1;
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (!this.enabled) {
-                            return [2];
-                        }
-                        this.refillTokenBucket();
-                        if (!(amount > this.currentCapacity)) return [3, 2];
-                        delay_1 = ((amount - this.currentCapacity) / this.fillRate) * 1000;
-                        return [4, new Promise(function (resolve) { return setTimeout(resolve, delay_1); })];
-                    case 1:
-                        _a.sent();
-                        _a.label = 2;
-                    case 2:
-                        this.currentCapacity = this.currentCapacity - amount;
-                        return [2];
-                }
-            });
-        });
-    };
-    DefaultRateLimiter.prototype.refillTokenBucket = function () {
-        var timestamp = this.getCurrentTimeInSeconds();
-        if (!this.lastTimestamp) {
-            this.lastTimestamp = timestamp;
-            return;
-        }
-        var fillAmount = (timestamp - this.lastTimestamp) * this.fillRate;
-        this.currentCapacity = Math.min(this.maxCapacity, this.currentCapacity + fillAmount);
-        this.lastTimestamp = timestamp;
-    };
-    DefaultRateLimiter.prototype.updateClientSendingRate = function (response) {
-        var calculatedRate;
-        this.updateMeasuredRate();
-        if (isThrottlingError(response)) {
-            var rateToUse = !this.enabled ? this.measuredTxRate : Math.min(this.measuredTxRate, this.fillRate);
-            this.lastMaxRate = rateToUse;
-            this.calculateTimeWindow();
-            this.lastThrottleTime = this.getCurrentTimeInSeconds();
-            calculatedRate = this.cubicThrottle(rateToUse);
-            this.enableTokenBucket();
-        }
-        else {
-            this.calculateTimeWindow();
-            calculatedRate = this.cubicSuccess(this.getCurrentTimeInSeconds());
-        }
-        var newRate = Math.min(calculatedRate, 2 * this.measuredTxRate);
-        this.updateTokenBucketRate(newRate);
-    };
-    DefaultRateLimiter.prototype.calculateTimeWindow = function () {
-        this.timeWindow = this.getPrecise(Math.pow((this.lastMaxRate * (1 - this.beta)) / this.scaleConstant, 1 / 3));
-    };
-    DefaultRateLimiter.prototype.cubicThrottle = function (rateToUse) {
-        return this.getPrecise(rateToUse * this.beta);
-    };
-    DefaultRateLimiter.prototype.cubicSuccess = function (timestamp) {
-        return this.getPrecise(this.scaleConstant * Math.pow(timestamp - this.lastThrottleTime - this.timeWindow, 3) + this.lastMaxRate);
-    };
-    DefaultRateLimiter.prototype.enableTokenBucket = function () {
-        this.enabled = true;
-    };
-    DefaultRateLimiter.prototype.updateTokenBucketRate = function (newRate) {
-        this.refillTokenBucket();
-        this.fillRate = Math.max(newRate, this.minFillRate);
-        this.maxCapacity = Math.max(newRate, this.minCapacity);
-        this.currentCapacity = Math.min(this.currentCapacity, this.maxCapacity);
-    };
-    DefaultRateLimiter.prototype.updateMeasuredRate = function () {
-        var t = this.getCurrentTimeInSeconds();
-        var timeBucket = Math.floor(t * 2) / 2;
-        this.requestCount++;
-        if (timeBucket > this.lastTxRateBucket) {
-            var currentRate = this.requestCount / (timeBucket - this.lastTxRateBucket);
-            this.measuredTxRate = this.getPrecise(currentRate * this.smooth + this.measuredTxRate * (1 - this.smooth));
-            this.requestCount = 0;
-            this.lastTxRateBucket = timeBucket;
-        }
-    };
-    DefaultRateLimiter.prototype.getPrecise = function (num) {
-        return parseFloat(num.toFixed(8));
-    };
-    return DefaultRateLimiter;
-}());
-
-const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
-
-let poolPtr = rnds8Pool.length;
-function rng() {
-  if (poolPtr > rnds8Pool.length - 16) {
-    crypto__default["default"].randomFillSync(rnds8Pool);
-    poolPtr = 0;
-  }
-
-  return rnds8Pool.slice(poolPtr, poolPtr += 16);
-}
-
-var REGEX = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i;
-
-function validate(uuid) {
-  return typeof uuid === 'string' && REGEX.test(uuid);
-}
-
-/**
- * Convert array of 16 byte values to UUID string format of the form:
- * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
- */
-
-const byteToHex = [];
-
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 0x100).toString(16).substr(1));
-}
-
-function stringify(arr, offset = 0) {
-  // Note: Be careful editing this code!  It's been tuned for performance
-  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
-  const uuid = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase(); // Consistency check for valid UUID.  If this throws, it's likely due to one
-  // of the following:
-  // - One or more input array values don't map to a hex octet (leading to
-  // "undefined" in the uuid)
-  // - Invalid input values for the RFC `version` or `variant` fields
-
-  if (!validate(uuid)) {
-    throw TypeError('Stringified UUID is invalid');
-  }
-
-  return uuid;
-}
-
-function v4(options, buf, offset) {
-  options = options || {};
-  const rnds = options.random || (options.rng || rng)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-
-  rnds[6] = rnds[6] & 0x0f | 0x40;
-  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
-
-  if (buf) {
-    offset = offset || 0;
-
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-
-    return buf;
-  }
-
-  return stringify(rnds);
-}
-
-var DEFAULT_RETRY_DELAY_BASE = 100;
-var MAXIMUM_RETRY_DELAY = 20 * 1000;
-var THROTTLING_RETRY_DELAY_BASE = 500;
-var INITIAL_RETRY_TOKENS = 500;
-var RETRY_COST = 5;
-var TIMEOUT_RETRY_COST = 10;
-var NO_RETRY_INCREMENT = 1;
-var INVOCATION_ID_HEADER = "amz-sdk-invocation-id";
-var REQUEST_HEADER = "amz-sdk-request";
-
-var getDefaultRetryQuota = function (initialRetryTokens, options) {
-    var _a, _b, _c;
-    var MAX_CAPACITY = initialRetryTokens;
-    var noRetryIncrement = (_a = options === null || options === void 0 ? void 0 : options.noRetryIncrement) !== null && _a !== void 0 ? _a : NO_RETRY_INCREMENT;
-    var retryCost = (_b = options === null || options === void 0 ? void 0 : options.retryCost) !== null && _b !== void 0 ? _b : RETRY_COST;
-    var timeoutRetryCost = (_c = options === null || options === void 0 ? void 0 : options.timeoutRetryCost) !== null && _c !== void 0 ? _c : TIMEOUT_RETRY_COST;
-    var availableCapacity = initialRetryTokens;
-    var getCapacityAmount = function (error) { return (error.name === "TimeoutError" ? timeoutRetryCost : retryCost); };
-    var hasRetryTokens = function (error) { return getCapacityAmount(error) <= availableCapacity; };
-    var retrieveRetryTokens = function (error) {
-        if (!hasRetryTokens(error)) {
-            throw new Error("No retry token available");
-        }
-        var capacityAmount = getCapacityAmount(error);
-        availableCapacity -= capacityAmount;
-        return capacityAmount;
-    };
-    var releaseRetryTokens = function (capacityReleaseAmount) {
-        availableCapacity += capacityReleaseAmount !== null && capacityReleaseAmount !== void 0 ? capacityReleaseAmount : noRetryIncrement;
-        availableCapacity = Math.min(availableCapacity, MAX_CAPACITY);
-    };
-    return Object.freeze({
-        hasRetryTokens: hasRetryTokens,
-        retrieveRetryTokens: retrieveRetryTokens,
-        releaseRetryTokens: releaseRetryTokens,
-    });
-};
-
-var defaultDelayDecider = function (delayBase, attempts) {
-    return Math.floor(Math.min(MAXIMUM_RETRY_DELAY, Math.random() * Math.pow(2, attempts) * delayBase));
-};
-
-var defaultRetryDecider = function (error) {
-    if (!error) {
-        return false;
-    }
-    return isRetryableByTrait(error) || isClockSkewError(error) || isThrottlingError(error) || isTransientError(error);
-};
-
-var StandardRetryStrategy = (function () {
-    function StandardRetryStrategy(maxAttemptsProvider, options) {
-        var _a, _b, _c;
-        this.maxAttemptsProvider = maxAttemptsProvider;
-        this.mode = RETRY_MODES.STANDARD;
-        this.retryDecider = (_a = options === null || options === void 0 ? void 0 : options.retryDecider) !== null && _a !== void 0 ? _a : defaultRetryDecider;
-        this.delayDecider = (_b = options === null || options === void 0 ? void 0 : options.delayDecider) !== null && _b !== void 0 ? _b : defaultDelayDecider;
-        this.retryQuota = (_c = options === null || options === void 0 ? void 0 : options.retryQuota) !== null && _c !== void 0 ? _c : getDefaultRetryQuota(INITIAL_RETRY_TOKENS);
-    }
-    StandardRetryStrategy.prototype.shouldRetry = function (error, attempts, maxAttempts) {
-        return attempts < maxAttempts && this.retryDecider(error) && this.retryQuota.hasRetryTokens(error);
-    };
-    StandardRetryStrategy.prototype.getMaxAttempts = function () {
-        return __awaiter$1(this, void 0, void 0, function () {
-            var maxAttempts;
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        _a.trys.push([0, 2, , 3]);
-                        return [4, this.maxAttemptsProvider()];
-                    case 1:
-                        maxAttempts = _a.sent();
-                        return [3, 3];
-                    case 2:
-                        _a.sent();
-                        maxAttempts = DEFAULT_MAX_ATTEMPTS;
-                        return [3, 3];
-                    case 3: return [2, maxAttempts];
-                }
-            });
-        });
-    };
-    StandardRetryStrategy.prototype.retry = function (next, args, options) {
-        return __awaiter$1(this, void 0, void 0, function () {
-            var retryTokenAmount, attempts, totalDelay, maxAttempts, request, _loop_1, this_1, state_1;
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        attempts = 0;
-                        totalDelay = 0;
-                        return [4, this.getMaxAttempts()];
-                    case 1:
-                        maxAttempts = _a.sent();
-                        request = args.request;
-                        if (HttpRequest.isInstance(request)) {
-                            request.headers[INVOCATION_ID_HEADER] = v4();
-                        }
-                        _loop_1 = function () {
-                            var _b, response, output, e_1, err, delay_1;
-                            return __generator$1(this, function (_c) {
-                                switch (_c.label) {
-                                    case 0:
-                                        _c.trys.push([0, 4, , 7]);
-                                        if (HttpRequest.isInstance(request)) {
-                                            request.headers[REQUEST_HEADER] = "attempt=" + (attempts + 1) + "; max=" + maxAttempts;
-                                        }
-                                        if (!(options === null || options === void 0 ? void 0 : options.beforeRequest)) return [3, 2];
-                                        return [4, options.beforeRequest()];
-                                    case 1:
-                                        _c.sent();
-                                        _c.label = 2;
-                                    case 2: return [4, next(args)];
-                                    case 3:
-                                        _b = _c.sent(), response = _b.response, output = _b.output;
-                                        if (options === null || options === void 0 ? void 0 : options.afterRequest) {
-                                            options.afterRequest(response);
-                                        }
-                                        this_1.retryQuota.releaseRetryTokens(retryTokenAmount);
-                                        output.$metadata.attempts = attempts + 1;
-                                        output.$metadata.totalRetryDelay = totalDelay;
-                                        return [2, { value: { response: response, output: output } }];
-                                    case 4:
-                                        e_1 = _c.sent();
-                                        err = asSdkError(e_1);
-                                        attempts++;
-                                        if (!this_1.shouldRetry(err, attempts, maxAttempts)) return [3, 6];
-                                        retryTokenAmount = this_1.retryQuota.retrieveRetryTokens(err);
-                                        delay_1 = this_1.delayDecider(isThrottlingError(err) ? THROTTLING_RETRY_DELAY_BASE : DEFAULT_RETRY_DELAY_BASE, attempts);
-                                        totalDelay += delay_1;
-                                        return [4, new Promise(function (resolve) { return setTimeout(resolve, delay_1); })];
-                                    case 5:
-                                        _c.sent();
-                                        return [2, "continue"];
-                                    case 6:
-                                        if (!err.$metadata) {
-                                            err.$metadata = {};
-                                        }
-                                        err.$metadata.attempts = attempts;
-                                        err.$metadata.totalRetryDelay = totalDelay;
-                                        throw err;
-                                    case 7: return [2];
-                                }
-                            });
-                        };
-                        this_1 = this;
-                        _a.label = 2;
-                    case 2:
-                        return [5, _loop_1()];
-                    case 3:
-                        state_1 = _a.sent();
-                        if (typeof state_1 === "object")
-                            return [2, state_1.value];
-                        return [3, 2];
-                    case 4: return [2];
-                }
-            });
-        });
-    };
-    return StandardRetryStrategy;
-}());
-var asSdkError = function (error) {
-    if (error instanceof Error)
-        return error;
-    if (error instanceof Object)
-        return Object.assign(new Error(), error);
-    if (typeof error === "string")
-        return new Error(error);
-    return new Error("AWS SDK error wrapper for " + error);
-};
-
-var AdaptiveRetryStrategy = (function (_super) {
-    __extends$1(AdaptiveRetryStrategy, _super);
-    function AdaptiveRetryStrategy(maxAttemptsProvider, options) {
-        var _this = this;
-        var _a = options !== null && options !== void 0 ? options : {}, rateLimiter = _a.rateLimiter, superOptions = __rest$1(_a, ["rateLimiter"]);
-        _this = _super.call(this, maxAttemptsProvider, superOptions) || this;
-        _this.rateLimiter = rateLimiter !== null && rateLimiter !== void 0 ? rateLimiter : new DefaultRateLimiter();
-        _this.mode = RETRY_MODES.ADAPTIVE;
-        return _this;
-    }
-    AdaptiveRetryStrategy.prototype.retry = function (next, args) {
-        return __awaiter$1(this, void 0, void 0, function () {
-            var _this = this;
-            return __generator$1(this, function (_a) {
-                return [2, _super.prototype.retry.call(this, next, args, {
-                        beforeRequest: function () { return __awaiter$1(_this, void 0, void 0, function () {
-                            return __generator$1(this, function (_a) {
-                                return [2, this.rateLimiter.getSendToken()];
-                            });
-                        }); },
-                        afterRequest: function (response) {
-                            _this.rateLimiter.updateClientSendingRate(response);
-                        },
-                    })];
-            });
-        });
-    };
-    return AdaptiveRetryStrategy;
-}(StandardRetryStrategy));
-
-var ENV_MAX_ATTEMPTS = "AWS_MAX_ATTEMPTS";
-var CONFIG_MAX_ATTEMPTS = "max_attempts";
-var NODE_MAX_ATTEMPT_CONFIG_OPTIONS = {
-    environmentVariableSelector: function (env) {
-        var value = env[ENV_MAX_ATTEMPTS];
-        if (!value)
-            return undefined;
-        var maxAttempt = parseInt(value);
-        if (Number.isNaN(maxAttempt)) {
-            throw new Error("Environment variable " + ENV_MAX_ATTEMPTS + " mast be a number, got \"" + value + "\"");
-        }
-        return maxAttempt;
-    },
-    configFileSelector: function (profile) {
-        var value = profile[CONFIG_MAX_ATTEMPTS];
-        if (!value)
-            return undefined;
-        var maxAttempt = parseInt(value);
-        if (Number.isNaN(maxAttempt)) {
-            throw new Error("Shared config file entry " + CONFIG_MAX_ATTEMPTS + " mast be a number, got \"" + value + "\"");
-        }
-        return maxAttempt;
-    },
-    default: DEFAULT_MAX_ATTEMPTS,
-};
-var resolveRetryConfig = function (input) {
-    var maxAttempts = normalizeMaxAttempts(input.maxAttempts);
-    return __assign$1(__assign$1({}, input), { maxAttempts: maxAttempts, retryStrategy: function () { return __awaiter$1(void 0, void 0, void 0, function () {
-            var retryMode;
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (input.retryStrategy) {
-                            return [2, input.retryStrategy];
-                        }
-                        return [4, getRetryMode(input.retryMode)];
-                    case 1:
-                        retryMode = _a.sent();
-                        if (retryMode === RETRY_MODES.ADAPTIVE) {
-                            return [2, new AdaptiveRetryStrategy(maxAttempts)];
-                        }
-                        return [2, new StandardRetryStrategy(maxAttempts)];
-                }
-            });
-        }); } });
-};
-var getRetryMode = function (retryMode) { return __awaiter$1(void 0, void 0, void 0, function () {
-    return __generator$1(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                if (typeof retryMode === "string") {
-                    return [2, retryMode];
-                }
-                return [4, retryMode()];
-            case 1: return [2, _a.sent()];
-        }
-    });
-}); };
-var normalizeMaxAttempts = function (maxAttempts) {
-    if (maxAttempts === void 0) { maxAttempts = DEFAULT_MAX_ATTEMPTS; }
-    if (typeof maxAttempts === "number") {
-        var promisified_1 = Promise.resolve(maxAttempts);
-        return function () { return promisified_1; };
-    }
-    return maxAttempts;
-};
-var ENV_RETRY_MODE = "AWS_RETRY_MODE";
-var CONFIG_RETRY_MODE = "retry_mode";
-var NODE_RETRY_MODE_CONFIG_OPTIONS = {
-    environmentVariableSelector: function (env) { return env[ENV_RETRY_MODE]; },
-    configFileSelector: function (profile) { return profile[CONFIG_RETRY_MODE]; },
-    default: DEFAULT_RETRY_MODE,
-};
-
-var retryMiddleware = function (options) {
-    return function (next, context) {
-        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-            var retryStrategy;
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4, options.retryStrategy()];
-                    case 1:
-                        retryStrategy = _a.sent();
-                        if (retryStrategy === null || retryStrategy === void 0 ? void 0 : retryStrategy.mode)
-                            context.userAgent = __spreadArray(__spreadArray([], __read$1((context.userAgent || []))), [["cfg/retry-mode", retryStrategy.mode]]);
-                        return [2, retryStrategy.retry(next, args)];
-                }
-            });
-        }); };
-    };
-};
-var retryMiddlewareOptions = {
-    name: "retryMiddleware",
-    tags: ["RETRY"],
-    step: "finalizeRequest",
-    priority: "high",
-    override: true,
-};
-var getRetryPlugin = function (options) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(retryMiddleware(options), retryMiddlewareOptions);
-    },
-}); };
-
-var ProviderError = (function (_super) {
-    __extends$1(ProviderError, _super);
-    function ProviderError(message, tryNextLink) {
-        if (tryNextLink === void 0) { tryNextLink = true; }
-        var _this = _super.call(this, message) || this;
-        _this.tryNextLink = tryNextLink;
-        return _this;
-    }
-    ProviderError.from = function (error, tryNextLink) {
-        if (tryNextLink === void 0) { tryNextLink = true; }
-        Object.defineProperty(error, "tryNextLink", {
-            value: tryNextLink,
-            configurable: false,
-            enumerable: false,
-            writable: false,
-        });
-        return error;
-    };
-    return ProviderError;
-}(Error));
-var CredentialsProviderError = (function (_super) {
-    __extends$1(CredentialsProviderError, _super);
-    function CredentialsProviderError(message, tryNextLink) {
-        if (tryNextLink === void 0) { tryNextLink = true; }
-        var _this = _super.call(this, message) || this;
-        _this.tryNextLink = tryNextLink;
-        _this.name = "CredentialsProviderError";
-        return _this;
-    }
-    CredentialsProviderError.from = function (error, tryNextLink) {
-        if (tryNextLink === void 0) { tryNextLink = true; }
-        Object.defineProperty(error, "tryNextLink", {
-            value: tryNextLink,
-            configurable: false,
-            enumerable: false,
-            writable: false,
-        });
-        return error;
-    };
-    return CredentialsProviderError;
-}(Error));
-
-function chain() {
-    var providers = [];
-    for (var _i = 0; _i < arguments.length; _i++) {
-        providers[_i] = arguments[_i];
-    }
-    return function () {
-        var e_1, _a;
-        var promise = Promise.reject(new ProviderError("No providers in chain"));
-        var _loop_1 = function (provider) {
-            promise = promise.catch(function (err) {
-                if (err === null || err === void 0 ? void 0 : err.tryNextLink) {
-                    return provider();
-                }
-                throw err;
-            });
-        };
-        try {
-            for (var providers_1 = __values$1(providers), providers_1_1 = providers_1.next(); !providers_1_1.done; providers_1_1 = providers_1.next()) {
-                var provider = providers_1_1.value;
-                _loop_1(provider);
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (providers_1_1 && !providers_1_1.done && (_a = providers_1.return)) _a.call(providers_1);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
-        return promise;
-    };
-}
-
-var fromStatic$1 = function (staticValue) {
-    return function () {
-        return Promise.resolve(staticValue);
-    };
-};
-
-var memoize = function (provider, isExpired, requiresRefresh) {
-    var resolved;
-    var pending;
-    var hasResult;
-    var coalesceProvider = function () { return __awaiter$1(void 0, void 0, void 0, function () {
-        return __generator$1(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    if (!pending) {
-                        pending = provider();
-                    }
-                    _a.label = 1;
-                case 1:
-                    _a.trys.push([1, , 3, 4]);
-                    return [4, pending];
-                case 2:
-                    resolved = _a.sent();
-                    hasResult = true;
-                    return [3, 4];
-                case 3:
-                    pending = undefined;
-                    return [7];
-                case 4: return [2, resolved];
-            }
-        });
-    }); };
-    if (isExpired === undefined) {
-        return function () { return __awaiter$1(void 0, void 0, void 0, function () {
-            return __generator$1(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (!!hasResult) return [3, 2];
-                        return [4, coalesceProvider()];
-                    case 1:
-                        resolved = _a.sent();
-                        _a.label = 2;
-                    case 2: return [2, resolved];
-                }
-            });
-        }); };
-    }
-    var isConstant = false;
-    return function () { return __awaiter$1(void 0, void 0, void 0, function () {
-        return __generator$1(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    if (!!hasResult) return [3, 2];
-                    return [4, coalesceProvider()];
-                case 1:
-                    resolved = _a.sent();
-                    _a.label = 2;
-                case 2:
-                    if (isConstant) {
-                        return [2, resolved];
-                    }
-                    if (requiresRefresh && !requiresRefresh(resolved)) {
-                        isConstant = true;
-                        return [2, resolved];
-                    }
-                    if (!isExpired(resolved)) return [3, 4];
-                    return [4, coalesceProvider()];
-                case 3:
-                    _a.sent();
-                    return [2, resolved];
-                case 4: return [2, resolved];
-            }
-        });
-    }); };
-};
-
 var CREDENTIAL_EXPIRE_WINDOW = 300000;
 var resolveAwsAuthConfig = function (input) {
     var normalizedCreds = input.credentials
@@ -103868,8 +93003,8 @@ var getUserAgentPlugin = function (config) { return ({
     },
 }); };
 
-var name$3 = "@aws-sdk/client-s3";
-var description$3 = "AWS SDK for JavaScript S3 Client for Node.js, Browser and React Native";
+var name$3 = "@aws-sdk/client-sqs";
+var description$3 = "AWS SDK for JavaScript Sqs Client for Node.js, Browser and React Native";
 var version$3 = "3.38.0";
 var scripts$3 = {
 	build: "yarn build:cjs && yarn build:es && yarn build:types",
@@ -103881,9 +93016,7 @@ var scripts$3 = {
 	"clean:dist": "rimraf ./dist",
 	"clean:docs": "rimraf ./docs",
 	"downlevel-dts": "downlevel-dts dist-types dist-types/ts3.4",
-	test: "yarn test:unit",
-	"test:e2e": "ts-mocha test/**/*.ispec.ts && karma start karma.conf.js",
-	"test:unit": "ts-mocha test/**/*.spec.ts"
+	test: "exit 0"
 };
 var main$3 = "./dist-cjs/index.js";
 var types$3 = "./dist-types/index.d.ts";
@@ -103895,27 +93028,17 @@ var dependencies$3 = {
 	"@aws-sdk/client-sts": "3.38.0",
 	"@aws-sdk/config-resolver": "3.38.0",
 	"@aws-sdk/credential-provider-node": "3.38.0",
-	"@aws-sdk/eventstream-serde-browser": "3.38.0",
-	"@aws-sdk/eventstream-serde-config-resolver": "3.38.0",
-	"@aws-sdk/eventstream-serde-node": "3.38.0",
 	"@aws-sdk/fetch-http-handler": "3.38.0",
-	"@aws-sdk/hash-blob-browser": "3.38.0",
 	"@aws-sdk/hash-node": "3.38.0",
-	"@aws-sdk/hash-stream-node": "3.38.0",
 	"@aws-sdk/invalid-dependency": "3.38.0",
 	"@aws-sdk/md5-js": "3.38.0",
-	"@aws-sdk/middleware-apply-body-checksum": "3.38.0",
-	"@aws-sdk/middleware-bucket-endpoint": "3.38.0",
 	"@aws-sdk/middleware-content-length": "3.38.0",
-	"@aws-sdk/middleware-expect-continue": "3.38.0",
 	"@aws-sdk/middleware-host-header": "3.38.0",
-	"@aws-sdk/middleware-location-constraint": "3.38.0",
 	"@aws-sdk/middleware-logger": "3.38.0",
 	"@aws-sdk/middleware-retry": "3.38.0",
-	"@aws-sdk/middleware-sdk-s3": "3.38.0",
+	"@aws-sdk/middleware-sdk-sqs": "3.38.0",
 	"@aws-sdk/middleware-serde": "3.38.0",
 	"@aws-sdk/middleware-signing": "3.38.0",
-	"@aws-sdk/middleware-ssec": "3.38.0",
 	"@aws-sdk/middleware-stack": "3.38.0",
 	"@aws-sdk/middleware-user-agent": "3.38.0",
 	"@aws-sdk/node-config-provider": "3.38.0",
@@ -103932,16 +93055,12 @@ var dependencies$3 = {
 	"@aws-sdk/util-user-agent-node": "3.38.0",
 	"@aws-sdk/util-utf8-browser": "3.37.0",
 	"@aws-sdk/util-utf8-node": "3.37.0",
-	"@aws-sdk/util-waiter": "3.38.0",
-	"@aws-sdk/xml-builder": "3.37.0",
 	entities: "2.2.0",
 	"fast-xml-parser": "3.19.0",
 	tslib: "^2.3.0"
 };
 var devDependencies$3 = {
 	"@aws-sdk/service-client-documentation-generator": "3.38.0",
-	"@types/chai": "^4.2.11",
-	"@types/mocha": "^8.0.4",
 	"@types/node": "^12.7.5",
 	"downlevel-dts": "0.7.0",
 	jest: "^26.1.0",
@@ -103971,11 +93090,11 @@ var license$3 = "Apache-2.0";
 var browser$3 = {
 	"./dist-es/runtimeConfig": "./dist-es/runtimeConfig.browser"
 };
-var homepage$3 = "https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-s3";
+var homepage$3 = "https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sqs";
 var repository$3 = {
 	type: "git",
 	url: "https://github.com/aws/aws-sdk-js-v3.git",
-	directory: "clients/client-s3"
+	directory: "clients/client-sqs"
 };
 var packageInfo$3 = {
 	name: name$3,
@@ -104009,10 +93128,10 @@ var PolicyDescriptorType;
 (function (PolicyDescriptorType) {
     PolicyDescriptorType.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
 })(PolicyDescriptorType || (PolicyDescriptorType = {}));
-var Tag;
+var Tag$1;
 (function (Tag) {
     Tag.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Tag || (Tag = {}));
+})(Tag$1 || (Tag$1 = {}));
 var AssumeRoleRequest;
 (function (AssumeRoleRequest) {
     AssumeRoleRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
@@ -104124,8 +93243,8 @@ var serializeAws_queryAssumeRoleCommand = function (input, context) { return __a
         headers = {
             "content-type": "application/x-www-form-urlencoded",
         };
-        body = buildFormUrlencodedString$1(__assign$1(__assign$1({}, serializeAws_queryAssumeRoleRequest(input, context)), { Action: "AssumeRole", Version: "2011-06-15" }));
-        return [2, buildHttpRpcRequest$1(context, headers, "/", undefined, body)];
+        body = buildFormUrlencodedString(__assign$1(__assign$1({}, serializeAws_queryAssumeRoleRequest(input, context)), { Action: "AssumeRole", Version: "2011-06-15" }));
+        return [2, buildHttpRpcRequest(context, headers, "/", undefined, body)];
     });
 }); };
 var serializeAws_queryAssumeRoleWithWebIdentityCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
@@ -104134,8 +93253,8 @@ var serializeAws_queryAssumeRoleWithWebIdentityCommand = function (input, contex
         headers = {
             "content-type": "application/x-www-form-urlencoded",
         };
-        body = buildFormUrlencodedString$1(__assign$1(__assign$1({}, serializeAws_queryAssumeRoleWithWebIdentityRequest(input, context)), { Action: "AssumeRoleWithWebIdentity", Version: "2011-06-15" }));
-        return [2, buildHttpRpcRequest$1(context, headers, "/", undefined, body)];
+        body = buildFormUrlencodedString(__assign$1(__assign$1({}, serializeAws_queryAssumeRoleWithWebIdentityRequest(input, context)), { Action: "AssumeRoleWithWebIdentity", Version: "2011-06-15" }));
+        return [2, buildHttpRpcRequest(context, headers, "/", undefined, body)];
     });
 }); };
 var deserializeAws_queryAssumeRoleCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
@@ -104168,7 +93287,7 @@ var deserializeAws_queryAssumeRoleCommandError = function (output, context) { re
             case 1:
                 parsedOutput = __assign$1.apply(void 0, _a.concat([(_g.body = _h.sent(), _g)]));
                 errorCode = "UnknownError";
-                errorCode = loadQueryErrorCode$1(output, parsedOutput.body);
+                errorCode = loadQueryErrorCode(output, parsedOutput.body);
                 _b = errorCode;
                 switch (_b) {
                     case "ExpiredTokenException": return [3, 2];
@@ -104248,7 +93367,7 @@ var deserializeAws_queryAssumeRoleWithWebIdentityCommandError = function (output
             case 1:
                 parsedOutput = __assign$1.apply(void 0, _a.concat([(_k.body = _l.sent(), _k)]));
                 errorCode = "UnknownError";
-                errorCode = loadQueryErrorCode$1(output, parsedOutput.body);
+                errorCode = loadQueryErrorCode(output, parsedOutput.body);
                 _b = errorCode;
                 switch (_b) {
                     case "ExpiredTokenException": return [3, 2];
@@ -104731,7 +93850,7 @@ var collectBody$2 = function (streamBody, context) {
 var collectBodyString$2 = function (streamBody, context) {
     return collectBody$2(streamBody, context).then(function (body) { return context.utf8Encoder(body); });
 };
-var buildHttpRpcRequest$1 = function (context, headers, path, resolvedHostname, body) { return __awaiter$1(void 0, void 0, void 0, function () {
+var buildHttpRpcRequest = function (context, headers, path, resolvedHostname, body) { return __awaiter$1(void 0, void 0, void 0, function () {
     var _a, hostname, _b, protocol, port, basePath, contents;
     return __generator$1(this, function (_c) {
         switch (_c.label) {
@@ -104778,7 +93897,7 @@ var parseBody$2 = function (streamBody, context) {
         return {};
     });
 };
-var buildFormUrlencodedString$1 = function (formEntries) {
+var buildFormUrlencodedString = function (formEntries) {
     return Object.entries(formEntries)
         .map(function (_a) {
         var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
@@ -104786,7 +93905,7 @@ var buildFormUrlencodedString$1 = function (formEntries) {
     })
         .join("&");
 };
-var loadQueryErrorCode$1 = function (output, data) {
+var loadQueryErrorCode = function (output, data) {
     if (data.Error.Code !== undefined) {
         return data.Error.Code;
     }
@@ -105113,7 +94232,7 @@ function httpRequest(options) {
                 chunks.push(chunk);
             });
             res.on("end", function () {
-                resolve(buffer.Buffer.concat(chunks));
+                resolve(buffer$1.Buffer.concat(chunks));
                 req.destroy();
             });
         });
@@ -105251,7 +94370,7 @@ var ENV_CONFIG_PATH = "AWS_CONFIG_FILE";
 var swallowError = function () { return ({}); };
 var loadSharedConfigFiles = function (init) {
     if (init === void 0) { init = {}; }
-    var _a = init.filepath, filepath = _a === void 0 ? process.env[ENV_CREDENTIALS_PATH] || require$$1$2.join(getHomeDir(), ".aws", "credentials") : _a, _b = init.configFilepath, configFilepath = _b === void 0 ? process.env[ENV_CONFIG_PATH] || require$$1$2.join(getHomeDir(), ".aws", "config") : _b;
+    var _a = init.filepath, filepath = _a === void 0 ? process.env[ENV_CREDENTIALS_PATH] || path.join(getHomeDir(), ".aws", "credentials") : _a, _b = init.configFilepath, configFilepath = _b === void 0 ? process.env[ENV_CONFIG_PATH] || path.join(getHomeDir(), ".aws", "config") : _b;
     return Promise.all([
         slurpFile(configFilepath).then(parseIni).then(normalizeConfigFile).catch(swallowError),
         slurpFile(filepath).then(parseIni).catch(swallowError),
@@ -105338,7 +94457,7 @@ var slurpFile = function (path) {
     });
 };
 var getHomeDir = function () {
-    var _a = process.env, HOME = _a.HOME, USERPROFILE = _a.USERPROFILE, HOMEPATH = _a.HOMEPATH, _b = _a.HOMEDRIVE, HOMEDRIVE = _b === void 0 ? "C:" + require$$1$2.sep : _b;
+    var _a = process.env, HOME = _a.HOME, USERPROFILE = _a.USERPROFILE, HOMEPATH = _a.HOMEPATH, _b = _a.HOMEDRIVE, HOMEDRIVE = _b === void 0 ? "C:" + path.sep : _b;
     if (HOME)
         return HOME;
     if (USERPROFILE)
@@ -105696,7 +94815,7 @@ var serializeAws_restJson1GetRoleCredentialsCommand = function (input, context) 
             case 0: return [4, context.endpoint()];
             case 1:
                 _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
-                headers = __assign$1({}, (isSerializableHeaderValue(input.accessToken) && { "x-amz-sso_bearer_token": input.accessToken }));
+                headers = __assign$1({}, (isSerializableHeaderValue$1(input.accessToken) && { "x-amz-sso_bearer_token": input.accessToken }));
                 resolvedPath = "" + ((basePath === null || basePath === void 0 ? void 0 : basePath.endsWith("/")) ? basePath.slice(0, -1) : basePath || "") + "/federation/credentials";
                 query = __assign$1(__assign$1({}, (input.roleName !== undefined && { role_name: input.roleName })), (input.accountId !== undefined && { account_id: input.accountId }));
                 return [2, new HttpRequest({
@@ -105889,7 +95008,7 @@ var collectBody$1 = function (streamBody, context) {
 var collectBodyString$1 = function (streamBody, context) {
     return collectBody$1(streamBody, context).then(function (body) { return context.utf8Encoder(body); });
 };
-var isSerializableHeaderValue = function (value) {
+var isSerializableHeaderValue$1 = function (value) {
     return value !== undefined &&
         value !== null &&
         value !== "" &&
@@ -106079,13 +95198,13 @@ var fromArrayBuffer = function (input, offset, length) {
     if (!isArrayBuffer(input)) {
         throw new TypeError("The \"input\" argument must be ArrayBuffer. Received type " + typeof input + " (" + input + ")");
     }
-    return buffer.Buffer.from(input, offset, length);
+    return buffer$1.Buffer.from(input, offset, length);
 };
 var fromString = function (input, encoding) {
     if (typeof input !== "string") {
         throw new TypeError("The \"input\" argument must be of type string. Received type " + typeof input + " (" + input + ")");
     }
-    return encoding ? buffer.Buffer.from(input, encoding) : buffer.Buffer.from(input);
+    return encoding ? buffer$1.Buffer.from(input, encoding) : buffer$1.Buffer.from(input);
 };
 
 var Hash = (function () {
@@ -106101,7 +95220,7 @@ var Hash = (function () {
     return Hash;
 }());
 function castSourceData(toCast, encoding) {
-    if (buffer.Buffer.isBuffer(toCast)) {
+    if (buffer$1.Buffer.isBuffer(toCast)) {
         return toCast;
     }
     if (typeof toCast === "string") {
@@ -106612,7 +95731,7 @@ var resolveSSOCredentials = function (_a) {
                 case 0:
                     hasher = crypto.createHash("sha1");
                     cacheName = hasher.update(ssoStartUrl).digest("hex");
-                    tokenFile = require$$1$2.join(getHomeDir(), ".aws", "sso", "cache", cacheName + ".json");
+                    tokenFile = path.join(getHomeDir(), ".aws", "sso", "cache", cacheName + ".json");
                     try {
                         token = JSON.parse(fs.readFileSync(tokenFile, { encoding: "utf-8" }));
                         if (new Date(token.expiresAt).getTime() - Date.now() <= EXPIRE_WINDOW_MS) {
@@ -107094,6 +96213,2652 @@ var decorateDefaultCredentialProvider = function (provider) {
     return function (input) {
         return provider(__assign$1({ roleAssumer: getDefaultRoleAssumer(input), roleAssumerWithWebIdentity: getDefaultRoleAssumerWithWebIdentity(input) }, input));
     };
+};
+
+var regionHash$1 = {
+    "fips-us-east-1": {
+        hostname: "sqs-fips.us-east-1.amazonaws.com",
+        signingRegion: "us-east-1",
+    },
+    "fips-us-east-2": {
+        hostname: "sqs-fips.us-east-2.amazonaws.com",
+        signingRegion: "us-east-2",
+    },
+    "fips-us-west-1": {
+        hostname: "sqs-fips.us-west-1.amazonaws.com",
+        signingRegion: "us-west-1",
+    },
+    "fips-us-west-2": {
+        hostname: "sqs-fips.us-west-2.amazonaws.com",
+        signingRegion: "us-west-2",
+    },
+    "us-gov-east-1": {
+        hostname: "sqs.us-gov-east-1.amazonaws.com",
+        signingRegion: "us-gov-east-1",
+    },
+    "us-gov-west-1": {
+        hostname: "sqs.us-gov-west-1.amazonaws.com",
+        signingRegion: "us-gov-west-1",
+    },
+};
+var partitionHash$1 = {
+    aws: {
+        regions: [
+            "af-south-1",
+            "ap-east-1",
+            "ap-northeast-1",
+            "ap-northeast-2",
+            "ap-northeast-3",
+            "ap-south-1",
+            "ap-southeast-1",
+            "ap-southeast-2",
+            "ca-central-1",
+            "eu-central-1",
+            "eu-north-1",
+            "eu-south-1",
+            "eu-west-1",
+            "eu-west-2",
+            "eu-west-3",
+            "fips-us-east-1",
+            "fips-us-east-2",
+            "fips-us-west-1",
+            "fips-us-west-2",
+            "me-south-1",
+            "sa-east-1",
+            "us-east-1",
+            "us-east-2",
+            "us-west-1",
+            "us-west-2",
+        ],
+        hostname: "sqs.{region}.amazonaws.com",
+    },
+    "aws-cn": {
+        regions: ["cn-north-1", "cn-northwest-1"],
+        hostname: "sqs.{region}.amazonaws.com.cn",
+    },
+    "aws-iso": {
+        regions: ["us-iso-east-1", "us-iso-west-1"],
+        hostname: "sqs.{region}.c2s.ic.gov",
+    },
+    "aws-iso-b": {
+        regions: ["us-isob-east-1"],
+        hostname: "sqs.{region}.sc2s.sgov.gov",
+    },
+    "aws-us-gov": {
+        regions: ["us-gov-east-1", "us-gov-west-1"],
+        hostname: "sqs.{region}.amazonaws.com",
+    },
+};
+var defaultRegionInfoProvider$1 = function (region, options) { return __awaiter$1(void 0, void 0, void 0, function () {
+    return __generator$1(this, function (_a) {
+        return [2, getRegionInfo(region, __assign$1(__assign$1({}, options), { signingService: "sqs", regionHash: regionHash$1, partitionHash: partitionHash$1 }))];
+    });
+}); };
+
+var getRuntimeConfig$3 = function (config) {
+    var _a, _b, _c, _d, _e;
+    return ({
+        apiVersion: "2012-11-05",
+        disableHostPrefix: (_a = config === null || config === void 0 ? void 0 : config.disableHostPrefix) !== null && _a !== void 0 ? _a : false,
+        logger: (_b = config === null || config === void 0 ? void 0 : config.logger) !== null && _b !== void 0 ? _b : {},
+        regionInfoProvider: (_c = config === null || config === void 0 ? void 0 : config.regionInfoProvider) !== null && _c !== void 0 ? _c : defaultRegionInfoProvider$1,
+        serviceId: (_d = config === null || config === void 0 ? void 0 : config.serviceId) !== null && _d !== void 0 ? _d : "SQS",
+        urlParser: (_e = config === null || config === void 0 ? void 0 : config.urlParser) !== null && _e !== void 0 ? _e : parseUrl,
+    });
+};
+
+var getRuntimeConfig$2 = function (config) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    emitWarningIfUnsupportedVersion(process.version);
+    var clientSharedValues = getRuntimeConfig$3(config);
+    return __assign$1(__assign$1(__assign$1({}, clientSharedValues), config), { runtime: "node", base64Decoder: (_a = config === null || config === void 0 ? void 0 : config.base64Decoder) !== null && _a !== void 0 ? _a : fromBase64, base64Encoder: (_b = config === null || config === void 0 ? void 0 : config.base64Encoder) !== null && _b !== void 0 ? _b : toBase64, bodyLengthChecker: (_c = config === null || config === void 0 ? void 0 : config.bodyLengthChecker) !== null && _c !== void 0 ? _c : calculateBodyLength, credentialDefaultProvider: (_d = config === null || config === void 0 ? void 0 : config.credentialDefaultProvider) !== null && _d !== void 0 ? _d : decorateDefaultCredentialProvider(defaultProvider), defaultUserAgentProvider: (_e = config === null || config === void 0 ? void 0 : config.defaultUserAgentProvider) !== null && _e !== void 0 ? _e : defaultUserAgent({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$3.version }), maxAttempts: (_f = config === null || config === void 0 ? void 0 : config.maxAttempts) !== null && _f !== void 0 ? _f : loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS), md5: (_g = config === null || config === void 0 ? void 0 : config.md5) !== null && _g !== void 0 ? _g : Hash.bind(null, "md5"), region: (_h = config === null || config === void 0 ? void 0 : config.region) !== null && _h !== void 0 ? _h : loadConfig(NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS), requestHandler: (_j = config === null || config === void 0 ? void 0 : config.requestHandler) !== null && _j !== void 0 ? _j : new NodeHttpHandler(), retryMode: (_k = config === null || config === void 0 ? void 0 : config.retryMode) !== null && _k !== void 0 ? _k : loadConfig(NODE_RETRY_MODE_CONFIG_OPTIONS), sha256: (_l = config === null || config === void 0 ? void 0 : config.sha256) !== null && _l !== void 0 ? _l : Hash.bind(null, "sha256"), streamCollector: (_m = config === null || config === void 0 ? void 0 : config.streamCollector) !== null && _m !== void 0 ? _m : streamCollector, utf8Decoder: (_o = config === null || config === void 0 ? void 0 : config.utf8Decoder) !== null && _o !== void 0 ? _o : fromUtf8$3, utf8Encoder: (_p = config === null || config === void 0 ? void 0 : config.utf8Encoder) !== null && _p !== void 0 ? _p : toUtf8$3 });
+};
+
+var SQSClient = (function (_super) {
+    __extends$1(SQSClient, _super);
+    function SQSClient(configuration) {
+        var _this = this;
+        var _config_0 = getRuntimeConfig$2(configuration);
+        var _config_1 = resolveRegionConfig(_config_0);
+        var _config_2 = resolveEndpointsConfig(_config_1);
+        var _config_3 = resolveRetryConfig(_config_2);
+        var _config_4 = resolveHostHeaderConfig(_config_3);
+        var _config_5 = resolveAwsAuthConfig(_config_4);
+        var _config_6 = resolveUserAgentConfig(_config_5);
+        _this = _super.call(this, _config_6) || this;
+        _this.config = _config_6;
+        _this.middlewareStack.use(getRetryPlugin(_this.config));
+        _this.middlewareStack.use(getContentLengthPlugin(_this.config));
+        _this.middlewareStack.use(getHostHeaderPlugin(_this.config));
+        _this.middlewareStack.use(getLoggerPlugin(_this.config));
+        _this.middlewareStack.use(getAwsAuthPlugin(_this.config));
+        _this.middlewareStack.use(getUserAgentPlugin(_this.config));
+        return _this;
+    }
+    SQSClient.prototype.destroy = function () {
+        _super.prototype.destroy.call(this);
+    };
+    return SQSClient;
+}(Client));
+
+const triggerStaticRegeneration = async (options) => {
+    var _a, _b;
+    const { region } = ((_a = options.request.origin) === null || _a === void 0 ? void 0 : _a.s3) || {};
+    const bucketName = s3BucketNameFromEventRequest(options.request);
+    const queueName = options.queueName;
+    if (!bucketName) {
+        throw new Error("Expected bucket name to be defined");
+    }
+    if (!region) {
+        throw new Error("Expected region to be defined");
+    }
+    const sqs = new SQSClient({
+        region,
+        maxAttempts: 1
+    });
+    const regenerationEvent = {
+        region,
+        bucketName,
+        pageS3Path: options.pageS3Path,
+        cloudFrontEventRequest: options.request,
+        basePath: options.basePath,
+        pagePath: options.pagePath
+    };
+    try {
+        // Hash URI for messageGroupId to allow for long URIs, as SQS has limit of 128 characters
+        // MD5 is used since this is only used for grouping purposes
+        const hashedUri = crypto__namespace
+            .createHash("md5")
+            .update(options.request.uri)
+            .digest("hex");
+        await sqs.send(new SendMessageCommand({
+            QueueUrl: `https://sqs.${region}.amazonaws.com/${queueName}`,
+            MessageBody: JSON.stringify(regenerationEvent),
+            // We only want to trigger the regeneration once for every previous
+            // update. This will prevent the case where this page is being
+            // requested again whilst its already started to regenerate.
+            MessageDeduplicationId: (_b = options.eTag) !== null && _b !== void 0 ? _b : (options.lastModified
+                ? new Date(options.lastModified).getTime().toString()
+                : new Date().getTime().toString()),
+            // Only deduplicate based on the object, i.e. we can generate
+            // different pages in parallel, just not the same one
+            MessageGroupId: hashedUri
+        }));
+        return { throttle: false };
+    }
+    catch (error) {
+        if (error.code === "RequestThrottled") {
+            return { throttle: true };
+        }
+        else {
+            throw error;
+        }
+    }
+};
+
+var validate = function (str) {
+    return typeof str === "string" && str.indexOf("arn:") === 0 && str.split(":").length >= 6;
+};
+var parse = function (arn) {
+    var segments = arn.split(":");
+    if (segments.length < 6 || segments[0] !== "arn")
+        throw new Error("Malformed ARN");
+    var _a = __read$1(segments), partition = _a[1], service = _a[2], region = _a[3], accountId = _a[4], resource = _a.slice(5);
+    return {
+        partition: partition,
+        service: service,
+        region: region,
+        accountId: accountId,
+        resource: resource.join(":"),
+    };
+};
+
+var DOMAIN_PATTERN = /^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$/;
+var IP_ADDRESS_PATTERN = /(\d+\.){3}\d+/;
+var DOTS_PATTERN = /\.\./;
+var DOT_PATTERN = /\./;
+var S3_HOSTNAME_PATTERN = /^(.+\.)?s3[.-]([a-z0-9-]+)\./;
+var S3_US_EAST_1_ALTNAME_PATTERN = /^s3(-external-1)?\.amazonaws\.com$/;
+var AWS_PARTITION_SUFFIX = "amazonaws.com";
+var isBucketNameOptions = function (options) { return typeof options.bucketName === "string"; };
+var getPseudoRegion = function (region) { return (isFipsRegion(region) ? region.replace(/fips-|-fips/, "") : region); };
+var isDnsCompatibleBucketName = function (bucketName) {
+    return DOMAIN_PATTERN.test(bucketName) && !IP_ADDRESS_PATTERN.test(bucketName) && !DOTS_PATTERN.test(bucketName);
+};
+var getRegionalSuffix = function (hostname) {
+    var parts = hostname.match(S3_HOSTNAME_PATTERN);
+    return [parts[2], hostname.replace(new RegExp("^" + parts[0]), "")];
+};
+var getSuffix = function (hostname) {
+    return S3_US_EAST_1_ALTNAME_PATTERN.test(hostname) ? ["us-east-1", AWS_PARTITION_SUFFIX] : getRegionalSuffix(hostname);
+};
+var getSuffixForArnEndpoint = function (hostname) {
+    return S3_US_EAST_1_ALTNAME_PATTERN.test(hostname)
+        ? [hostname.replace("." + AWS_PARTITION_SUFFIX, ""), AWS_PARTITION_SUFFIX]
+        : getRegionalSuffix(hostname);
+};
+var validateArnEndpointOptions = function (options) {
+    if (options.pathStyleEndpoint) {
+        throw new Error("Path-style S3 endpoint is not supported when bucket is an ARN");
+    }
+    if (options.accelerateEndpoint) {
+        throw new Error("Accelerate endpoint is not supported when bucket is an ARN");
+    }
+    if (!options.tlsCompatible) {
+        throw new Error("HTTPS is required when bucket is an ARN");
+    }
+};
+var validateService = function (service) {
+    if (service !== "s3" && service !== "s3-outposts" && service !== "s3-object-lambda") {
+        throw new Error("Expect 's3' or 's3-outposts' or 's3-object-lambda' in ARN service component");
+    }
+};
+var validateS3Service = function (service) {
+    if (service !== "s3") {
+        throw new Error("Expect 's3' in Accesspoint ARN service component");
+    }
+};
+var validateOutpostService = function (service) {
+    if (service !== "s3-outposts") {
+        throw new Error("Expect 's3-posts' in Outpost ARN service component");
+    }
+};
+var validatePartition = function (partition, options) {
+    if (partition !== options.clientPartition) {
+        throw new Error("Partition in ARN is incompatible, got \"" + partition + "\" but expected \"" + options.clientPartition + "\"");
+    }
+};
+var validateRegion = function (region, options) {
+    if (region === "") {
+        throw new Error("ARN region is empty");
+    }
+    if (isFipsRegion(options.clientRegion)) {
+        if (!options.allowFipsRegion) {
+            throw new Error("FIPS region is not supported");
+        }
+        else if (!isEqualRegions(region, options.clientRegion)) {
+            throw new Error("Client FIPS region " + options.clientRegion + " doesn't match region " + region + " in ARN");
+        }
+    }
+    if (!options.useArnRegion &&
+        !isEqualRegions(region, options.clientRegion || "") &&
+        !isEqualRegions(region, options.clientSigningRegion || "")) {
+        throw new Error("Region in ARN is incompatible, got " + region + " but expected " + options.clientRegion);
+    }
+};
+var validateRegionalClient = function (region) {
+    if (["s3-external-1", "aws-global"].includes(getPseudoRegion(region))) {
+        throw new Error("Client region " + region + " is not regional");
+    }
+};
+var isFipsRegion = function (region) { return region.startsWith("fips-") || region.endsWith("-fips"); };
+var isEqualRegions = function (regionA, regionB) {
+    return regionA === regionB || getPseudoRegion(regionA) === regionB || regionA === getPseudoRegion(regionB);
+};
+var validateAccountId = function (accountId) {
+    if (!/[0-9]{12}/.exec(accountId)) {
+        throw new Error("Access point ARN accountID does not match regex '[0-9]{12}'");
+    }
+};
+var validateDNSHostLabel = function (label, options) {
+    if (options === void 0) { options = { tlsCompatible: true }; }
+    if (label.length >= 64 ||
+        !/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(label) ||
+        /(\d+\.){3}\d+/.test(label) ||
+        /[.-]{2}/.test(label) ||
+        ((options === null || options === void 0 ? void 0 : options.tlsCompatible) && DOT_PATTERN.test(label))) {
+        throw new Error("Invalid DNS label " + label);
+    }
+};
+var validateCustomEndpoint = function (options) {
+    if (options.isCustomEndpoint) {
+        if (options.dualstackEndpoint)
+            throw new Error("Dualstack endpoint is not supported with custom endpoint");
+        if (options.accelerateEndpoint)
+            throw new Error("Accelerate endpoint is not supported with custom endpoint");
+    }
+};
+var getArnResources = function (resource) {
+    var delimiter = resource.includes(":") ? ":" : "/";
+    var _a = __read$1(resource.split(delimiter)), resourceType = _a[0], rest = _a.slice(1);
+    if (resourceType === "accesspoint") {
+        if (rest.length !== 1 || rest[0] === "") {
+            throw new Error("Access Point ARN should have one resource accesspoint" + delimiter + "{accesspointname}");
+        }
+        return { accesspointName: rest[0] };
+    }
+    else if (resourceType === "outpost") {
+        if (!rest[0] || rest[1] !== "accesspoint" || !rest[2] || rest.length !== 3) {
+            throw new Error("Outpost ARN should have resource outpost" + delimiter + "{outpostId}" + delimiter + "accesspoint" + delimiter + "{accesspointName}");
+        }
+        var _b = __read$1(rest, 3), outpostId = _b[0]; _b[1]; var accesspointName = _b[2];
+        return { outpostId: outpostId, accesspointName: accesspointName };
+    }
+    else {
+        throw new Error("ARN resource should begin with 'accesspoint" + delimiter + "' or 'outpost" + delimiter + "'");
+    }
+};
+var validateNoDualstack = function (dualstackEndpoint) {
+    if (dualstackEndpoint)
+        throw new Error("Dualstack endpoint is not supported with Outpost or Multi-region Access Point ARN.");
+};
+var validateNoFIPS = function (region) {
+    if (isFipsRegion(region !== null && region !== void 0 ? region : ""))
+        throw new Error("FIPS region is not supported with Outpost, got " + region);
+};
+var validateMrapAlias = function (name) {
+    try {
+        name.split(".").forEach(function (label) {
+            validateDNSHostLabel(label);
+        });
+    }
+    catch (e) {
+        throw new Error("\"" + name + "\" is not a DNS compatible name.");
+    }
+};
+
+var bucketHostname = function (options) {
+    validateCustomEndpoint(options);
+    return isBucketNameOptions(options)
+        ?
+            getEndpointFromBucketName(options)
+        :
+            getEndpointFromArn(options);
+};
+var getEndpointFromBucketName = function (_a) {
+    var _b = _a.accelerateEndpoint, accelerateEndpoint = _b === void 0 ? false : _b, region = _a.clientRegion, baseHostname = _a.baseHostname, bucketName = _a.bucketName, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.pathStyleEndpoint, pathStyleEndpoint = _d === void 0 ? false : _d, _e = _a.tlsCompatible, tlsCompatible = _e === void 0 ? true : _e, _f = _a.isCustomEndpoint, isCustomEndpoint = _f === void 0 ? false : _f;
+    var _g = __read$1(isCustomEndpoint ? [region, baseHostname] : getSuffix(baseHostname), 2), clientRegion = _g[0], hostnameSuffix = _g[1];
+    if (pathStyleEndpoint || !isDnsCompatibleBucketName(bucketName) || (tlsCompatible && DOT_PATTERN.test(bucketName))) {
+        return {
+            bucketEndpoint: false,
+            hostname: dualstackEndpoint ? "s3.dualstack." + clientRegion + "." + hostnameSuffix : baseHostname,
+        };
+    }
+    if (accelerateEndpoint) {
+        baseHostname = "s3-accelerate" + (dualstackEndpoint ? ".dualstack" : "") + "." + hostnameSuffix;
+    }
+    else if (dualstackEndpoint) {
+        baseHostname = "s3.dualstack." + clientRegion + "." + hostnameSuffix;
+    }
+    return {
+        bucketEndpoint: true,
+        hostname: bucketName + "." + baseHostname,
+    };
+};
+var getEndpointFromArn = function (options) {
+    var isCustomEndpoint = options.isCustomEndpoint, baseHostname = options.baseHostname, clientRegion = options.clientRegion;
+    var hostnameSuffix = isCustomEndpoint ? baseHostname : getSuffixForArnEndpoint(baseHostname)[1];
+    var pathStyleEndpoint = options.pathStyleEndpoint, _a = options.accelerateEndpoint, accelerateEndpoint = _a === void 0 ? false : _a, _b = options.tlsCompatible, tlsCompatible = _b === void 0 ? true : _b, bucketName = options.bucketName, _c = options.clientPartition, clientPartition = _c === void 0 ? "aws" : _c;
+    validateArnEndpointOptions({ pathStyleEndpoint: pathStyleEndpoint, accelerateEndpoint: accelerateEndpoint, tlsCompatible: tlsCompatible });
+    var service = bucketName.service, partition = bucketName.partition, accountId = bucketName.accountId, region = bucketName.region, resource = bucketName.resource;
+    validateService(service);
+    validatePartition(partition, { clientPartition: clientPartition });
+    validateAccountId(accountId);
+    var _d = getArnResources(resource), accesspointName = _d.accesspointName, outpostId = _d.outpostId;
+    if (service === "s3-object-lambda") {
+        return getEndpointFromObjectLambdaArn(__assign$1(__assign$1({}, options), { tlsCompatible: tlsCompatible, bucketName: bucketName, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
+    }
+    if (region === "") {
+        return getEndpointFromMRAPArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, mrapAlias: accesspointName, hostnameSuffix: hostnameSuffix }));
+    }
+    if (outpostId) {
+        return getEndpointFromOutpostArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, outpostId: outpostId, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
+    }
+    return getEndpointFromAccessPointArn(__assign$1(__assign$1({}, options), { clientRegion: clientRegion, accesspointName: accesspointName, hostnameSuffix: hostnameSuffix }));
+};
+var getEndpointFromObjectLambdaArn = function (_a) {
+    var _b = _a.dualstackEndpoint, dualstackEndpoint = _b === void 0 ? false : _b, _c = _a.tlsCompatible, tlsCompatible = _c === void 0 ? true : _c, useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _d = _a.clientSigningRegion, clientSigningRegion = _d === void 0 ? clientRegion : _d, accesspointName = _a.accesspointName, bucketName = _a.bucketName, hostnameSuffix = _a.hostnameSuffix;
+    var accountId = bucketName.accountId, region = bucketName.region, service = bucketName.service;
+    validateRegionalClient(clientRegion);
+    validateRegion(region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion, allowFipsRegion: true });
+    validateNoDualstack(dualstackEndpoint);
+    var DNSHostLabel = accesspointName + "-" + accountId;
+    validateDNSHostLabel(DNSHostLabel, { tlsCompatible: tlsCompatible });
+    var endpointRegion = useArnRegion ? region : clientRegion;
+    var signingRegion = useArnRegion ? region : clientSigningRegion;
+    return {
+        bucketEndpoint: true,
+        hostname: DNSHostLabel + "." + service + (isFipsRegion(clientRegion) ? "-fips" : "") + "." + getPseudoRegion(endpointRegion) + "." + hostnameSuffix,
+        signingRegion: signingRegion,
+        signingService: service,
+    };
+};
+var getEndpointFromMRAPArn = function (_a) {
+    var disableMultiregionAccessPoints = _a.disableMultiregionAccessPoints, _b = _a.dualstackEndpoint, dualstackEndpoint = _b === void 0 ? false : _b, isCustomEndpoint = _a.isCustomEndpoint, mrapAlias = _a.mrapAlias, hostnameSuffix = _a.hostnameSuffix;
+    if (disableMultiregionAccessPoints === true) {
+        throw new Error("SDK is attempting to use a MRAP ARN. Please enable to feature.");
+    }
+    validateMrapAlias(mrapAlias);
+    validateNoDualstack(dualstackEndpoint);
+    return {
+        bucketEndpoint: true,
+        hostname: "" + mrapAlias + (isCustomEndpoint ? "" : ".accesspoint.s3-global") + "." + hostnameSuffix,
+        signingRegion: "*",
+    };
+};
+var getEndpointFromOutpostArn = function (_a) {
+    var useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _b = _a.clientSigningRegion, clientSigningRegion = _b === void 0 ? clientRegion : _b, bucketName = _a.bucketName, outpostId = _a.outpostId, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.tlsCompatible, tlsCompatible = _d === void 0 ? true : _d, accesspointName = _a.accesspointName, isCustomEndpoint = _a.isCustomEndpoint, hostnameSuffix = _a.hostnameSuffix;
+    validateRegionalClient(clientRegion);
+    validateRegion(bucketName.region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion });
+    var DNSHostLabel = accesspointName + "-" + bucketName.accountId;
+    validateDNSHostLabel(DNSHostLabel, { tlsCompatible: tlsCompatible });
+    var endpointRegion = useArnRegion ? bucketName.region : clientRegion;
+    var signingRegion = useArnRegion ? bucketName.region : clientSigningRegion;
+    validateOutpostService(bucketName.service);
+    validateDNSHostLabel(outpostId, { tlsCompatible: tlsCompatible });
+    validateNoDualstack(dualstackEndpoint);
+    validateNoFIPS(endpointRegion);
+    var hostnamePrefix = DNSHostLabel + "." + outpostId;
+    return {
+        bucketEndpoint: true,
+        hostname: "" + hostnamePrefix + (isCustomEndpoint ? "" : ".s3-outposts." + endpointRegion) + "." + hostnameSuffix,
+        signingRegion: signingRegion,
+        signingService: "s3-outposts",
+    };
+};
+var getEndpointFromAccessPointArn = function (_a) {
+    var useArnRegion = _a.useArnRegion, clientRegion = _a.clientRegion, _b = _a.clientSigningRegion, clientSigningRegion = _b === void 0 ? clientRegion : _b, bucketName = _a.bucketName, _c = _a.dualstackEndpoint, dualstackEndpoint = _c === void 0 ? false : _c, _d = _a.tlsCompatible, tlsCompatible = _d === void 0 ? true : _d, accesspointName = _a.accesspointName, isCustomEndpoint = _a.isCustomEndpoint, hostnameSuffix = _a.hostnameSuffix;
+    validateRegionalClient(clientRegion);
+    validateRegion(bucketName.region, { useArnRegion: useArnRegion, clientRegion: clientRegion, clientSigningRegion: clientSigningRegion, allowFipsRegion: true });
+    var hostnamePrefix = accesspointName + "-" + bucketName.accountId;
+    validateDNSHostLabel(hostnamePrefix, { tlsCompatible: tlsCompatible });
+    var endpointRegion = useArnRegion ? bucketName.region : clientRegion;
+    var signingRegion = useArnRegion ? bucketName.region : clientSigningRegion;
+    validateS3Service(bucketName.service);
+    return {
+        bucketEndpoint: true,
+        hostname: "" + hostnamePrefix + (isCustomEndpoint
+            ? ""
+            : ".s3-accesspoint" + (isFipsRegion(clientRegion) ? "-fips" : "") + (dualstackEndpoint ? ".dualstack" : "") + "." + getPseudoRegion(endpointRegion)) + "." + hostnameSuffix,
+        signingRegion: signingRegion,
+    };
+};
+
+var bucketEndpointMiddleware = function (options) { return function (next, context) { return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var bucketName, replaceBucketInPath, request, bucketArn, clientRegion, _a, _b, partition, _c, signingRegion, useArnRegion, _d, hostname, bucketEndpoint, modifiedSigningRegion, signingService, _e, clientRegion, _f, _g, hostname, bucketEndpoint;
+    var _h;
+    return __generator$1(this, function (_j) {
+        switch (_j.label) {
+            case 0:
+                bucketName = args.input.Bucket;
+                replaceBucketInPath = options.bucketEndpoint;
+                request = args.request;
+                if (!HttpRequest.isInstance(request)) return [3, 9];
+                if (!options.bucketEndpoint) return [3, 1];
+                request.hostname = bucketName;
+                return [3, 8];
+            case 1:
+                if (!validate(bucketName)) return [3, 6];
+                bucketArn = parse(bucketName);
+                _a = getPseudoRegion;
+                return [4, options.region()];
+            case 2:
+                clientRegion = _a.apply(void 0, [_j.sent()]);
+                return [4, options.regionInfoProvider(clientRegion)];
+            case 3:
+                _b = (_j.sent()) || {}, partition = _b.partition, _c = _b.signingRegion, signingRegion = _c === void 0 ? clientRegion : _c;
+                return [4, options.useArnRegion()];
+            case 4:
+                useArnRegion = _j.sent();
+                _e = bucketHostname;
+                _h = {
+                    bucketName: bucketArn,
+                    baseHostname: request.hostname,
+                    accelerateEndpoint: options.useAccelerateEndpoint,
+                    dualstackEndpoint: options.useDualstackEndpoint,
+                    pathStyleEndpoint: options.forcePathStyle,
+                    tlsCompatible: request.protocol === "https:",
+                    useArnRegion: useArnRegion,
+                    clientPartition: partition,
+                    clientSigningRegion: signingRegion,
+                    clientRegion: clientRegion,
+                    isCustomEndpoint: options.isCustomEndpoint
+                };
+                return [4, options.disableMultiregionAccessPoints()];
+            case 5:
+                _d = _e.apply(void 0, [(_h.disableMultiregionAccessPoints = _j.sent(),
+                        _h)]), hostname = _d.hostname, bucketEndpoint = _d.bucketEndpoint, modifiedSigningRegion = _d.signingRegion, signingService = _d.signingService;
+                if (modifiedSigningRegion && modifiedSigningRegion !== signingRegion) {
+                    context["signing_region"] = modifiedSigningRegion;
+                }
+                if (signingService && signingService !== "s3") {
+                    context["signing_service"] = signingService;
+                }
+                request.hostname = hostname;
+                replaceBucketInPath = bucketEndpoint;
+                return [3, 8];
+            case 6:
+                _f = getPseudoRegion;
+                return [4, options.region()];
+            case 7:
+                clientRegion = _f.apply(void 0, [_j.sent()]);
+                _g = bucketHostname({
+                    bucketName: bucketName,
+                    clientRegion: clientRegion,
+                    baseHostname: request.hostname,
+                    accelerateEndpoint: options.useAccelerateEndpoint,
+                    dualstackEndpoint: options.useDualstackEndpoint,
+                    pathStyleEndpoint: options.forcePathStyle,
+                    tlsCompatible: request.protocol === "https:",
+                    isCustomEndpoint: options.isCustomEndpoint,
+                }), hostname = _g.hostname, bucketEndpoint = _g.bucketEndpoint;
+                request.hostname = hostname;
+                replaceBucketInPath = bucketEndpoint;
+                _j.label = 8;
+            case 8:
+                if (replaceBucketInPath) {
+                    request.path = request.path.replace(/^(\/)?[^\/]+/, "");
+                    if (request.path === "") {
+                        request.path = "/";
+                    }
+                }
+                _j.label = 9;
+            case 9: return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
+        }
+    });
+}); }; }; };
+var bucketEndpointMiddlewareOptions = {
+    tags: ["BUCKET_ENDPOINT"],
+    name: "bucketEndpointMiddleware",
+    relation: "before",
+    toMiddleware: "hostHeaderMiddleware",
+    override: true,
+};
+var getBucketEndpointPlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.addRelativeTo(bucketEndpointMiddleware(options), bucketEndpointMiddlewareOptions);
+    },
+}); };
+
+function resolveBucketEndpointConfig(input) {
+    var _a = input.bucketEndpoint, bucketEndpoint = _a === void 0 ? false : _a, _b = input.forcePathStyle, forcePathStyle = _b === void 0 ? false : _b, _c = input.useAccelerateEndpoint, useAccelerateEndpoint = _c === void 0 ? false : _c, _d = input.useDualstackEndpoint, useDualstackEndpoint = _d === void 0 ? false : _d, _e = input.useArnRegion, useArnRegion = _e === void 0 ? false : _e, _f = input.disableMultiregionAccessPoints, disableMultiregionAccessPoints = _f === void 0 ? false : _f;
+    return __assign$1(__assign$1({}, input), { bucketEndpoint: bucketEndpoint, forcePathStyle: forcePathStyle, useAccelerateEndpoint: useAccelerateEndpoint, useDualstackEndpoint: useDualstackEndpoint, useArnRegion: typeof useArnRegion === "function" ? useArnRegion : function () { return Promise.resolve(useArnRegion); }, disableMultiregionAccessPoints: typeof disableMultiregionAccessPoints === "function"
+            ? disableMultiregionAccessPoints
+            : function () { return Promise.resolve(disableMultiregionAccessPoints); } });
+}
+var NODE_USE_ARN_REGION_ENV_NAME = "AWS_S3_USE_ARN_REGION";
+var NODE_USE_ARN_REGION_INI_NAME = "s3_use_arn_region";
+var NODE_USE_ARN_REGION_CONFIG_OPTIONS = {
+    environmentVariableSelector: function (env) {
+        if (!Object.prototype.hasOwnProperty.call(env, NODE_USE_ARN_REGION_ENV_NAME))
+            return undefined;
+        if (env[NODE_USE_ARN_REGION_ENV_NAME] === "true")
+            return true;
+        if (env[NODE_USE_ARN_REGION_ENV_NAME] === "false")
+            return false;
+        throw new Error("Cannot load env " + NODE_USE_ARN_REGION_ENV_NAME + ". Expected \"true\" or \"false\", got " + env[NODE_USE_ARN_REGION_ENV_NAME] + ".");
+    },
+    configFileSelector: function (profile) {
+        if (!Object.prototype.hasOwnProperty.call(profile, NODE_USE_ARN_REGION_INI_NAME))
+            return undefined;
+        if (profile[NODE_USE_ARN_REGION_INI_NAME] === "true")
+            return true;
+        if (profile[NODE_USE_ARN_REGION_INI_NAME] === "false")
+            return false;
+        throw new Error("Cannot load shared config entry " + NODE_USE_ARN_REGION_INI_NAME + ". Expected \"true\" or \"false\", got " + profile[NODE_USE_ARN_REGION_INI_NAME] + ".");
+    },
+    default: false,
+};
+
+var AbortIncompleteMultipartUpload;
+(function (AbortIncompleteMultipartUpload) {
+    AbortIncompleteMultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AbortIncompleteMultipartUpload || (AbortIncompleteMultipartUpload = {}));
+var AbortMultipartUploadOutput;
+(function (AbortMultipartUploadOutput) {
+    AbortMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AbortMultipartUploadOutput || (AbortMultipartUploadOutput = {}));
+var AbortMultipartUploadRequest;
+(function (AbortMultipartUploadRequest) {
+    AbortMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AbortMultipartUploadRequest || (AbortMultipartUploadRequest = {}));
+var NoSuchUpload;
+(function (NoSuchUpload) {
+    NoSuchUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NoSuchUpload || (NoSuchUpload = {}));
+var AccelerateConfiguration;
+(function (AccelerateConfiguration) {
+    AccelerateConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AccelerateConfiguration || (AccelerateConfiguration = {}));
+var Grantee;
+(function (Grantee) {
+    Grantee.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Grantee || (Grantee = {}));
+var Grant;
+(function (Grant) {
+    Grant.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Grant || (Grant = {}));
+var Owner;
+(function (Owner) {
+    Owner.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Owner || (Owner = {}));
+var AccessControlPolicy;
+(function (AccessControlPolicy) {
+    AccessControlPolicy.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AccessControlPolicy || (AccessControlPolicy = {}));
+var AccessControlTranslation;
+(function (AccessControlTranslation) {
+    AccessControlTranslation.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AccessControlTranslation || (AccessControlTranslation = {}));
+var CompleteMultipartUploadOutput;
+(function (CompleteMultipartUploadOutput) {
+    CompleteMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
+})(CompleteMultipartUploadOutput || (CompleteMultipartUploadOutput = {}));
+var CompletedPart;
+(function (CompletedPart) {
+    CompletedPart.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CompletedPart || (CompletedPart = {}));
+var CompletedMultipartUpload;
+(function (CompletedMultipartUpload) {
+    CompletedMultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CompletedMultipartUpload || (CompletedMultipartUpload = {}));
+var CompleteMultipartUploadRequest;
+(function (CompleteMultipartUploadRequest) {
+    CompleteMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CompleteMultipartUploadRequest || (CompleteMultipartUploadRequest = {}));
+var CopyObjectResult;
+(function (CopyObjectResult) {
+    CopyObjectResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CopyObjectResult || (CopyObjectResult = {}));
+var CopyObjectOutput;
+(function (CopyObjectOutput) {
+    CopyObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
+})(CopyObjectOutput || (CopyObjectOutput = {}));
+var CopyObjectRequest;
+(function (CopyObjectRequest) {
+    CopyObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING })), (obj.CopySourceSSECustomerKey && { CopySourceSSECustomerKey: SENSITIVE_STRING }))); };
+})(CopyObjectRequest || (CopyObjectRequest = {}));
+var ObjectNotInActiveTierError;
+(function (ObjectNotInActiveTierError) {
+    ObjectNotInActiveTierError.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectNotInActiveTierError || (ObjectNotInActiveTierError = {}));
+var BucketAlreadyExists;
+(function (BucketAlreadyExists) {
+    BucketAlreadyExists.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BucketAlreadyExists || (BucketAlreadyExists = {}));
+var BucketAlreadyOwnedByYou;
+(function (BucketAlreadyOwnedByYou) {
+    BucketAlreadyOwnedByYou.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BucketAlreadyOwnedByYou || (BucketAlreadyOwnedByYou = {}));
+var CreateBucketOutput;
+(function (CreateBucketOutput) {
+    CreateBucketOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CreateBucketOutput || (CreateBucketOutput = {}));
+var CreateBucketConfiguration;
+(function (CreateBucketConfiguration) {
+    CreateBucketConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CreateBucketConfiguration || (CreateBucketConfiguration = {}));
+var CreateBucketRequest;
+(function (CreateBucketRequest) {
+    CreateBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CreateBucketRequest || (CreateBucketRequest = {}));
+var CreateMultipartUploadOutput;
+(function (CreateMultipartUploadOutput) {
+    CreateMultipartUploadOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
+})(CreateMultipartUploadOutput || (CreateMultipartUploadOutput = {}));
+var CreateMultipartUploadRequest;
+(function (CreateMultipartUploadRequest) {
+    CreateMultipartUploadRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
+})(CreateMultipartUploadRequest || (CreateMultipartUploadRequest = {}));
+var DeleteBucketRequest;
+(function (DeleteBucketRequest) {
+    DeleteBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketRequest || (DeleteBucketRequest = {}));
+var DeleteBucketAnalyticsConfigurationRequest;
+(function (DeleteBucketAnalyticsConfigurationRequest) {
+    DeleteBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketAnalyticsConfigurationRequest || (DeleteBucketAnalyticsConfigurationRequest = {}));
+var DeleteBucketCorsRequest;
+(function (DeleteBucketCorsRequest) {
+    DeleteBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketCorsRequest || (DeleteBucketCorsRequest = {}));
+var DeleteBucketEncryptionRequest;
+(function (DeleteBucketEncryptionRequest) {
+    DeleteBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketEncryptionRequest || (DeleteBucketEncryptionRequest = {}));
+var DeleteBucketIntelligentTieringConfigurationRequest;
+(function (DeleteBucketIntelligentTieringConfigurationRequest) {
+    DeleteBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketIntelligentTieringConfigurationRequest || (DeleteBucketIntelligentTieringConfigurationRequest = {}));
+var DeleteBucketInventoryConfigurationRequest;
+(function (DeleteBucketInventoryConfigurationRequest) {
+    DeleteBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketInventoryConfigurationRequest || (DeleteBucketInventoryConfigurationRequest = {}));
+var DeleteBucketLifecycleRequest;
+(function (DeleteBucketLifecycleRequest) {
+    DeleteBucketLifecycleRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketLifecycleRequest || (DeleteBucketLifecycleRequest = {}));
+var DeleteBucketMetricsConfigurationRequest;
+(function (DeleteBucketMetricsConfigurationRequest) {
+    DeleteBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketMetricsConfigurationRequest || (DeleteBucketMetricsConfigurationRequest = {}));
+var DeleteBucketOwnershipControlsRequest;
+(function (DeleteBucketOwnershipControlsRequest) {
+    DeleteBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketOwnershipControlsRequest || (DeleteBucketOwnershipControlsRequest = {}));
+var DeleteBucketPolicyRequest;
+(function (DeleteBucketPolicyRequest) {
+    DeleteBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketPolicyRequest || (DeleteBucketPolicyRequest = {}));
+var DeleteBucketReplicationRequest;
+(function (DeleteBucketReplicationRequest) {
+    DeleteBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketReplicationRequest || (DeleteBucketReplicationRequest = {}));
+var DeleteBucketTaggingRequest;
+(function (DeleteBucketTaggingRequest) {
+    DeleteBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketTaggingRequest || (DeleteBucketTaggingRequest = {}));
+var DeleteBucketWebsiteRequest;
+(function (DeleteBucketWebsiteRequest) {
+    DeleteBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteBucketWebsiteRequest || (DeleteBucketWebsiteRequest = {}));
+var DeleteObjectOutput;
+(function (DeleteObjectOutput) {
+    DeleteObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectOutput || (DeleteObjectOutput = {}));
+var DeleteObjectRequest;
+(function (DeleteObjectRequest) {
+    DeleteObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectRequest || (DeleteObjectRequest = {}));
+var DeletedObject;
+(function (DeletedObject) {
+    DeletedObject.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeletedObject || (DeletedObject = {}));
+var _Error;
+(function (_Error) {
+    _Error.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(_Error || (_Error = {}));
+var DeleteObjectsOutput;
+(function (DeleteObjectsOutput) {
+    DeleteObjectsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectsOutput || (DeleteObjectsOutput = {}));
+var ObjectIdentifier;
+(function (ObjectIdentifier) {
+    ObjectIdentifier.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectIdentifier || (ObjectIdentifier = {}));
+var Delete;
+(function (Delete) {
+    Delete.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Delete || (Delete = {}));
+var DeleteObjectsRequest;
+(function (DeleteObjectsRequest) {
+    DeleteObjectsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectsRequest || (DeleteObjectsRequest = {}));
+var DeleteObjectTaggingOutput;
+(function (DeleteObjectTaggingOutput) {
+    DeleteObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectTaggingOutput || (DeleteObjectTaggingOutput = {}));
+var DeleteObjectTaggingRequest;
+(function (DeleteObjectTaggingRequest) {
+    DeleteObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteObjectTaggingRequest || (DeleteObjectTaggingRequest = {}));
+var DeletePublicAccessBlockRequest;
+(function (DeletePublicAccessBlockRequest) {
+    DeletePublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeletePublicAccessBlockRequest || (DeletePublicAccessBlockRequest = {}));
+var GetBucketAccelerateConfigurationOutput;
+(function (GetBucketAccelerateConfigurationOutput) {
+    GetBucketAccelerateConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketAccelerateConfigurationOutput || (GetBucketAccelerateConfigurationOutput = {}));
+var GetBucketAccelerateConfigurationRequest;
+(function (GetBucketAccelerateConfigurationRequest) {
+    GetBucketAccelerateConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketAccelerateConfigurationRequest || (GetBucketAccelerateConfigurationRequest = {}));
+var GetBucketAclOutput;
+(function (GetBucketAclOutput) {
+    GetBucketAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketAclOutput || (GetBucketAclOutput = {}));
+var GetBucketAclRequest;
+(function (GetBucketAclRequest) {
+    GetBucketAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketAclRequest || (GetBucketAclRequest = {}));
+var Tag;
+(function (Tag) {
+    Tag.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Tag || (Tag = {}));
+var AnalyticsAndOperator;
+(function (AnalyticsAndOperator) {
+    AnalyticsAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AnalyticsAndOperator || (AnalyticsAndOperator = {}));
+var AnalyticsFilter;
+(function (AnalyticsFilter) {
+    AnalyticsFilter.visit = function (value, visitor) {
+        if (value.Prefix !== undefined)
+            return visitor.Prefix(value.Prefix);
+        if (value.Tag !== undefined)
+            return visitor.Tag(value.Tag);
+        if (value.And !== undefined)
+            return visitor.And(value.And);
+        return visitor._(value.$unknown[0], value.$unknown[1]);
+    };
+    AnalyticsFilter.filterSensitiveLog = function (obj) {
+        var _a;
+        if (obj.Prefix !== undefined)
+            return { Prefix: obj.Prefix };
+        if (obj.Tag !== undefined)
+            return { Tag: Tag.filterSensitiveLog(obj.Tag) };
+        if (obj.And !== undefined)
+            return { And: AnalyticsAndOperator.filterSensitiveLog(obj.And) };
+        if (obj.$unknown !== undefined)
+            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
+    };
+})(AnalyticsFilter || (AnalyticsFilter = {}));
+var AnalyticsS3BucketDestination;
+(function (AnalyticsS3BucketDestination) {
+    AnalyticsS3BucketDestination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AnalyticsS3BucketDestination || (AnalyticsS3BucketDestination = {}));
+var AnalyticsExportDestination;
+(function (AnalyticsExportDestination) {
+    AnalyticsExportDestination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(AnalyticsExportDestination || (AnalyticsExportDestination = {}));
+var StorageClassAnalysisDataExport;
+(function (StorageClassAnalysisDataExport) {
+    StorageClassAnalysisDataExport.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(StorageClassAnalysisDataExport || (StorageClassAnalysisDataExport = {}));
+var StorageClassAnalysis;
+(function (StorageClassAnalysis) {
+    StorageClassAnalysis.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(StorageClassAnalysis || (StorageClassAnalysis = {}));
+var AnalyticsConfiguration;
+(function (AnalyticsConfiguration) {
+    AnalyticsConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: AnalyticsFilter.filterSensitiveLog(obj.Filter) }))); };
+})(AnalyticsConfiguration || (AnalyticsConfiguration = {}));
+var GetBucketAnalyticsConfigurationOutput;
+(function (GetBucketAnalyticsConfigurationOutput) {
+    GetBucketAnalyticsConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfiguration && {
+        AnalyticsConfiguration: AnalyticsConfiguration.filterSensitiveLog(obj.AnalyticsConfiguration),
+    }))); };
+})(GetBucketAnalyticsConfigurationOutput || (GetBucketAnalyticsConfigurationOutput = {}));
+var GetBucketAnalyticsConfigurationRequest;
+(function (GetBucketAnalyticsConfigurationRequest) {
+    GetBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketAnalyticsConfigurationRequest || (GetBucketAnalyticsConfigurationRequest = {}));
+var CORSRule;
+(function (CORSRule) {
+    CORSRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CORSRule || (CORSRule = {}));
+var GetBucketCorsOutput;
+(function (GetBucketCorsOutput) {
+    GetBucketCorsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketCorsOutput || (GetBucketCorsOutput = {}));
+var GetBucketCorsRequest;
+(function (GetBucketCorsRequest) {
+    GetBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketCorsRequest || (GetBucketCorsRequest = {}));
+var ServerSideEncryptionByDefault;
+(function (ServerSideEncryptionByDefault) {
+    ServerSideEncryptionByDefault.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.KMSMasterKeyID && { KMSMasterKeyID: SENSITIVE_STRING }))); };
+})(ServerSideEncryptionByDefault || (ServerSideEncryptionByDefault = {}));
+var ServerSideEncryptionRule;
+(function (ServerSideEncryptionRule) {
+    ServerSideEncryptionRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ApplyServerSideEncryptionByDefault && {
+        ApplyServerSideEncryptionByDefault: ServerSideEncryptionByDefault.filterSensitiveLog(obj.ApplyServerSideEncryptionByDefault),
+    }))); };
+})(ServerSideEncryptionRule || (ServerSideEncryptionRule = {}));
+var ServerSideEncryptionConfiguration;
+(function (ServerSideEncryptionConfiguration) {
+    ServerSideEncryptionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return ServerSideEncryptionRule.filterSensitiveLog(item); }) }))); };
+})(ServerSideEncryptionConfiguration || (ServerSideEncryptionConfiguration = {}));
+var GetBucketEncryptionOutput;
+(function (GetBucketEncryptionOutput) {
+    GetBucketEncryptionOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ServerSideEncryptionConfiguration && {
+        ServerSideEncryptionConfiguration: ServerSideEncryptionConfiguration.filterSensitiveLog(obj.ServerSideEncryptionConfiguration),
+    }))); };
+})(GetBucketEncryptionOutput || (GetBucketEncryptionOutput = {}));
+var GetBucketEncryptionRequest;
+(function (GetBucketEncryptionRequest) {
+    GetBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketEncryptionRequest || (GetBucketEncryptionRequest = {}));
+var IntelligentTieringAndOperator;
+(function (IntelligentTieringAndOperator) {
+    IntelligentTieringAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(IntelligentTieringAndOperator || (IntelligentTieringAndOperator = {}));
+var IntelligentTieringFilter;
+(function (IntelligentTieringFilter) {
+    IntelligentTieringFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(IntelligentTieringFilter || (IntelligentTieringFilter = {}));
+var Tiering;
+(function (Tiering) {
+    Tiering.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Tiering || (Tiering = {}));
+var IntelligentTieringConfiguration;
+(function (IntelligentTieringConfiguration) {
+    IntelligentTieringConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(IntelligentTieringConfiguration || (IntelligentTieringConfiguration = {}));
+var GetBucketIntelligentTieringConfigurationOutput;
+(function (GetBucketIntelligentTieringConfigurationOutput) {
+    GetBucketIntelligentTieringConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketIntelligentTieringConfigurationOutput || (GetBucketIntelligentTieringConfigurationOutput = {}));
+var GetBucketIntelligentTieringConfigurationRequest;
+(function (GetBucketIntelligentTieringConfigurationRequest) {
+    GetBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketIntelligentTieringConfigurationRequest || (GetBucketIntelligentTieringConfigurationRequest = {}));
+var SSEKMS;
+(function (SSEKMS) {
+    SSEKMS.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.KeyId && { KeyId: SENSITIVE_STRING }))); };
+})(SSEKMS || (SSEKMS = {}));
+var SSES3;
+(function (SSES3) {
+    SSES3.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SSES3 || (SSES3 = {}));
+var InventoryEncryption;
+(function (InventoryEncryption) {
+    InventoryEncryption.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMS && { SSEKMS: SSEKMS.filterSensitiveLog(obj.SSEKMS) }))); };
+})(InventoryEncryption || (InventoryEncryption = {}));
+var InventoryS3BucketDestination;
+(function (InventoryS3BucketDestination) {
+    InventoryS3BucketDestination.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Encryption && { Encryption: InventoryEncryption.filterSensitiveLog(obj.Encryption) }))); };
+})(InventoryS3BucketDestination || (InventoryS3BucketDestination = {}));
+var InventoryDestination;
+(function (InventoryDestination) {
+    InventoryDestination.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.S3BucketDestination && {
+        S3BucketDestination: InventoryS3BucketDestination.filterSensitiveLog(obj.S3BucketDestination),
+    }))); };
+})(InventoryDestination || (InventoryDestination = {}));
+var InventoryFilter;
+(function (InventoryFilter) {
+    InventoryFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InventoryFilter || (InventoryFilter = {}));
+var InventorySchedule;
+(function (InventorySchedule) {
+    InventorySchedule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InventorySchedule || (InventorySchedule = {}));
+var InventoryConfiguration;
+(function (InventoryConfiguration) {
+    InventoryConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Destination && { Destination: InventoryDestination.filterSensitiveLog(obj.Destination) }))); };
+})(InventoryConfiguration || (InventoryConfiguration = {}));
+var GetBucketInventoryConfigurationOutput;
+(function (GetBucketInventoryConfigurationOutput) {
+    GetBucketInventoryConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfiguration && {
+        InventoryConfiguration: InventoryConfiguration.filterSensitiveLog(obj.InventoryConfiguration),
+    }))); };
+})(GetBucketInventoryConfigurationOutput || (GetBucketInventoryConfigurationOutput = {}));
+var GetBucketInventoryConfigurationRequest;
+(function (GetBucketInventoryConfigurationRequest) {
+    GetBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketInventoryConfigurationRequest || (GetBucketInventoryConfigurationRequest = {}));
+var LifecycleExpiration;
+(function (LifecycleExpiration) {
+    LifecycleExpiration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(LifecycleExpiration || (LifecycleExpiration = {}));
+var LifecycleRuleAndOperator;
+(function (LifecycleRuleAndOperator) {
+    LifecycleRuleAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(LifecycleRuleAndOperator || (LifecycleRuleAndOperator = {}));
+var LifecycleRuleFilter;
+(function (LifecycleRuleFilter) {
+    LifecycleRuleFilter.visit = function (value, visitor) {
+        if (value.Prefix !== undefined)
+            return visitor.Prefix(value.Prefix);
+        if (value.Tag !== undefined)
+            return visitor.Tag(value.Tag);
+        if (value.And !== undefined)
+            return visitor.And(value.And);
+        return visitor._(value.$unknown[0], value.$unknown[1]);
+    };
+    LifecycleRuleFilter.filterSensitiveLog = function (obj) {
+        var _a;
+        if (obj.Prefix !== undefined)
+            return { Prefix: obj.Prefix };
+        if (obj.Tag !== undefined)
+            return { Tag: Tag.filterSensitiveLog(obj.Tag) };
+        if (obj.And !== undefined)
+            return { And: LifecycleRuleAndOperator.filterSensitiveLog(obj.And) };
+        if (obj.$unknown !== undefined)
+            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
+    };
+})(LifecycleRuleFilter || (LifecycleRuleFilter = {}));
+var NoncurrentVersionExpiration;
+(function (NoncurrentVersionExpiration) {
+    NoncurrentVersionExpiration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NoncurrentVersionExpiration || (NoncurrentVersionExpiration = {}));
+var NoncurrentVersionTransition;
+(function (NoncurrentVersionTransition) {
+    NoncurrentVersionTransition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NoncurrentVersionTransition || (NoncurrentVersionTransition = {}));
+var Transition;
+(function (Transition) {
+    Transition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Transition || (Transition = {}));
+var LifecycleRule;
+(function (LifecycleRule) {
+    LifecycleRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: LifecycleRuleFilter.filterSensitiveLog(obj.Filter) }))); };
+})(LifecycleRule || (LifecycleRule = {}));
+var GetBucketLifecycleConfigurationOutput;
+(function (GetBucketLifecycleConfigurationOutput) {
+    GetBucketLifecycleConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return LifecycleRule.filterSensitiveLog(item); }) }))); };
+})(GetBucketLifecycleConfigurationOutput || (GetBucketLifecycleConfigurationOutput = {}));
+var GetBucketLifecycleConfigurationRequest;
+(function (GetBucketLifecycleConfigurationRequest) {
+    GetBucketLifecycleConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketLifecycleConfigurationRequest || (GetBucketLifecycleConfigurationRequest = {}));
+var GetBucketLocationOutput;
+(function (GetBucketLocationOutput) {
+    GetBucketLocationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketLocationOutput || (GetBucketLocationOutput = {}));
+var GetBucketLocationRequest;
+(function (GetBucketLocationRequest) {
+    GetBucketLocationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketLocationRequest || (GetBucketLocationRequest = {}));
+var TargetGrant;
+(function (TargetGrant) {
+    TargetGrant.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(TargetGrant || (TargetGrant = {}));
+var LoggingEnabled;
+(function (LoggingEnabled) {
+    LoggingEnabled.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(LoggingEnabled || (LoggingEnabled = {}));
+var GetBucketLoggingOutput;
+(function (GetBucketLoggingOutput) {
+    GetBucketLoggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketLoggingOutput || (GetBucketLoggingOutput = {}));
+var GetBucketLoggingRequest;
+(function (GetBucketLoggingRequest) {
+    GetBucketLoggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketLoggingRequest || (GetBucketLoggingRequest = {}));
+var MetricsAndOperator;
+(function (MetricsAndOperator) {
+    MetricsAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(MetricsAndOperator || (MetricsAndOperator = {}));
+var MetricsFilter;
+(function (MetricsFilter) {
+    MetricsFilter.visit = function (value, visitor) {
+        if (value.Prefix !== undefined)
+            return visitor.Prefix(value.Prefix);
+        if (value.Tag !== undefined)
+            return visitor.Tag(value.Tag);
+        if (value.AccessPointArn !== undefined)
+            return visitor.AccessPointArn(value.AccessPointArn);
+        if (value.And !== undefined)
+            return visitor.And(value.And);
+        return visitor._(value.$unknown[0], value.$unknown[1]);
+    };
+    MetricsFilter.filterSensitiveLog = function (obj) {
+        var _a;
+        if (obj.Prefix !== undefined)
+            return { Prefix: obj.Prefix };
+        if (obj.Tag !== undefined)
+            return { Tag: Tag.filterSensitiveLog(obj.Tag) };
+        if (obj.AccessPointArn !== undefined)
+            return { AccessPointArn: obj.AccessPointArn };
+        if (obj.And !== undefined)
+            return { And: MetricsAndOperator.filterSensitiveLog(obj.And) };
+        if (obj.$unknown !== undefined)
+            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
+    };
+})(MetricsFilter || (MetricsFilter = {}));
+var MetricsConfiguration;
+(function (MetricsConfiguration) {
+    MetricsConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: MetricsFilter.filterSensitiveLog(obj.Filter) }))); };
+})(MetricsConfiguration || (MetricsConfiguration = {}));
+var GetBucketMetricsConfigurationOutput;
+(function (GetBucketMetricsConfigurationOutput) {
+    GetBucketMetricsConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfiguration && {
+        MetricsConfiguration: MetricsConfiguration.filterSensitiveLog(obj.MetricsConfiguration),
+    }))); };
+})(GetBucketMetricsConfigurationOutput || (GetBucketMetricsConfigurationOutput = {}));
+var GetBucketMetricsConfigurationRequest;
+(function (GetBucketMetricsConfigurationRequest) {
+    GetBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketMetricsConfigurationRequest || (GetBucketMetricsConfigurationRequest = {}));
+var GetBucketNotificationConfigurationRequest;
+(function (GetBucketNotificationConfigurationRequest) {
+    GetBucketNotificationConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketNotificationConfigurationRequest || (GetBucketNotificationConfigurationRequest = {}));
+var FilterRule;
+(function (FilterRule) {
+    FilterRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(FilterRule || (FilterRule = {}));
+var S3KeyFilter;
+(function (S3KeyFilter) {
+    S3KeyFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(S3KeyFilter || (S3KeyFilter = {}));
+var NotificationConfigurationFilter;
+(function (NotificationConfigurationFilter) {
+    NotificationConfigurationFilter.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NotificationConfigurationFilter || (NotificationConfigurationFilter = {}));
+var LambdaFunctionConfiguration;
+(function (LambdaFunctionConfiguration) {
+    LambdaFunctionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(LambdaFunctionConfiguration || (LambdaFunctionConfiguration = {}));
+var QueueConfiguration;
+(function (QueueConfiguration) {
+    QueueConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(QueueConfiguration || (QueueConfiguration = {}));
+var TopicConfiguration;
+(function (TopicConfiguration) {
+    TopicConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(TopicConfiguration || (TopicConfiguration = {}));
+var NotificationConfiguration;
+(function (NotificationConfiguration) {
+    NotificationConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NotificationConfiguration || (NotificationConfiguration = {}));
+var OwnershipControlsRule;
+(function (OwnershipControlsRule) {
+    OwnershipControlsRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(OwnershipControlsRule || (OwnershipControlsRule = {}));
+var OwnershipControls;
+(function (OwnershipControls) {
+    OwnershipControls.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(OwnershipControls || (OwnershipControls = {}));
+var GetBucketOwnershipControlsOutput;
+(function (GetBucketOwnershipControlsOutput) {
+    GetBucketOwnershipControlsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketOwnershipControlsOutput || (GetBucketOwnershipControlsOutput = {}));
+var GetBucketOwnershipControlsRequest;
+(function (GetBucketOwnershipControlsRequest) {
+    GetBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketOwnershipControlsRequest || (GetBucketOwnershipControlsRequest = {}));
+var GetBucketPolicyOutput;
+(function (GetBucketPolicyOutput) {
+    GetBucketPolicyOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketPolicyOutput || (GetBucketPolicyOutput = {}));
+var GetBucketPolicyRequest;
+(function (GetBucketPolicyRequest) {
+    GetBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketPolicyRequest || (GetBucketPolicyRequest = {}));
+var PolicyStatus;
+(function (PolicyStatus) {
+    PolicyStatus.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PolicyStatus || (PolicyStatus = {}));
+var GetBucketPolicyStatusOutput;
+(function (GetBucketPolicyStatusOutput) {
+    GetBucketPolicyStatusOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketPolicyStatusOutput || (GetBucketPolicyStatusOutput = {}));
+var GetBucketPolicyStatusRequest;
+(function (GetBucketPolicyStatusRequest) {
+    GetBucketPolicyStatusRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketPolicyStatusRequest || (GetBucketPolicyStatusRequest = {}));
+var DeleteMarkerReplication;
+(function (DeleteMarkerReplication) {
+    DeleteMarkerReplication.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMarkerReplication || (DeleteMarkerReplication = {}));
+var EncryptionConfiguration;
+(function (EncryptionConfiguration) {
+    EncryptionConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(EncryptionConfiguration || (EncryptionConfiguration = {}));
+var ReplicationTimeValue;
+(function (ReplicationTimeValue) {
+    ReplicationTimeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReplicationTimeValue || (ReplicationTimeValue = {}));
+var Metrics;
+(function (Metrics) {
+    Metrics.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Metrics || (Metrics = {}));
+var ReplicationTime;
+(function (ReplicationTime) {
+    ReplicationTime.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReplicationTime || (ReplicationTime = {}));
+var Destination;
+(function (Destination) {
+    Destination.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Destination || (Destination = {}));
+var ExistingObjectReplication;
+(function (ExistingObjectReplication) {
+    ExistingObjectReplication.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ExistingObjectReplication || (ExistingObjectReplication = {}));
+var ReplicationRuleAndOperator;
+(function (ReplicationRuleAndOperator) {
+    ReplicationRuleAndOperator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReplicationRuleAndOperator || (ReplicationRuleAndOperator = {}));
+var ReplicationRuleFilter;
+(function (ReplicationRuleFilter) {
+    ReplicationRuleFilter.visit = function (value, visitor) {
+        if (value.Prefix !== undefined)
+            return visitor.Prefix(value.Prefix);
+        if (value.Tag !== undefined)
+            return visitor.Tag(value.Tag);
+        if (value.And !== undefined)
+            return visitor.And(value.And);
+        return visitor._(value.$unknown[0], value.$unknown[1]);
+    };
+    ReplicationRuleFilter.filterSensitiveLog = function (obj) {
+        var _a;
+        if (obj.Prefix !== undefined)
+            return { Prefix: obj.Prefix };
+        if (obj.Tag !== undefined)
+            return { Tag: Tag.filterSensitiveLog(obj.Tag) };
+        if (obj.And !== undefined)
+            return { And: ReplicationRuleAndOperator.filterSensitiveLog(obj.And) };
+        if (obj.$unknown !== undefined)
+            return _a = {}, _a[obj.$unknown[0]] = "UNKNOWN", _a;
+    };
+})(ReplicationRuleFilter || (ReplicationRuleFilter = {}));
+var ReplicaModifications;
+(function (ReplicaModifications) {
+    ReplicaModifications.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ReplicaModifications || (ReplicaModifications = {}));
+var SseKmsEncryptedObjects;
+(function (SseKmsEncryptedObjects) {
+    SseKmsEncryptedObjects.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SseKmsEncryptedObjects || (SseKmsEncryptedObjects = {}));
+var SourceSelectionCriteria;
+(function (SourceSelectionCriteria) {
+    SourceSelectionCriteria.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(SourceSelectionCriteria || (SourceSelectionCriteria = {}));
+var ReplicationRule;
+(function (ReplicationRule) {
+    ReplicationRule.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Filter && { Filter: ReplicationRuleFilter.filterSensitiveLog(obj.Filter) }))); };
+})(ReplicationRule || (ReplicationRule = {}));
+var ReplicationConfiguration;
+(function (ReplicationConfiguration) {
+    ReplicationConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return ReplicationRule.filterSensitiveLog(item); }) }))); };
+})(ReplicationConfiguration || (ReplicationConfiguration = {}));
+var GetBucketReplicationOutput;
+(function (GetBucketReplicationOutput) {
+    GetBucketReplicationOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ReplicationConfiguration && {
+        ReplicationConfiguration: ReplicationConfiguration.filterSensitiveLog(obj.ReplicationConfiguration),
+    }))); };
+})(GetBucketReplicationOutput || (GetBucketReplicationOutput = {}));
+var GetBucketReplicationRequest;
+(function (GetBucketReplicationRequest) {
+    GetBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketReplicationRequest || (GetBucketReplicationRequest = {}));
+var GetBucketRequestPaymentOutput;
+(function (GetBucketRequestPaymentOutput) {
+    GetBucketRequestPaymentOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketRequestPaymentOutput || (GetBucketRequestPaymentOutput = {}));
+var GetBucketRequestPaymentRequest;
+(function (GetBucketRequestPaymentRequest) {
+    GetBucketRequestPaymentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketRequestPaymentRequest || (GetBucketRequestPaymentRequest = {}));
+var GetBucketTaggingOutput;
+(function (GetBucketTaggingOutput) {
+    GetBucketTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketTaggingOutput || (GetBucketTaggingOutput = {}));
+var GetBucketTaggingRequest;
+(function (GetBucketTaggingRequest) {
+    GetBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketTaggingRequest || (GetBucketTaggingRequest = {}));
+var GetBucketVersioningOutput;
+(function (GetBucketVersioningOutput) {
+    GetBucketVersioningOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketVersioningOutput || (GetBucketVersioningOutput = {}));
+var GetBucketVersioningRequest;
+(function (GetBucketVersioningRequest) {
+    GetBucketVersioningRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketVersioningRequest || (GetBucketVersioningRequest = {}));
+var ErrorDocument;
+(function (ErrorDocument) {
+    ErrorDocument.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ErrorDocument || (ErrorDocument = {}));
+var IndexDocument;
+(function (IndexDocument) {
+    IndexDocument.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(IndexDocument || (IndexDocument = {}));
+var RedirectAllRequestsTo;
+(function (RedirectAllRequestsTo) {
+    RedirectAllRequestsTo.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(RedirectAllRequestsTo || (RedirectAllRequestsTo = {}));
+var Condition;
+(function (Condition) {
+    Condition.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Condition || (Condition = {}));
+var Redirect;
+(function (Redirect) {
+    Redirect.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Redirect || (Redirect = {}));
+var RoutingRule;
+(function (RoutingRule) {
+    RoutingRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(RoutingRule || (RoutingRule = {}));
+var GetBucketWebsiteOutput;
+(function (GetBucketWebsiteOutput) {
+    GetBucketWebsiteOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketWebsiteOutput || (GetBucketWebsiteOutput = {}));
+var GetBucketWebsiteRequest;
+(function (GetBucketWebsiteRequest) {
+    GetBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetBucketWebsiteRequest || (GetBucketWebsiteRequest = {}));
+var GetObjectOutput;
+(function (GetObjectOutput) {
+    GetObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
+})(GetObjectOutput || (GetObjectOutput = {}));
+var GetObjectRequest;
+(function (GetObjectRequest) {
+    GetObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING }))); };
+})(GetObjectRequest || (GetObjectRequest = {}));
+var InvalidObjectState;
+(function (InvalidObjectState) {
+    InvalidObjectState.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(InvalidObjectState || (InvalidObjectState = {}));
+var NoSuchKey;
+(function (NoSuchKey) {
+    NoSuchKey.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NoSuchKey || (NoSuchKey = {}));
+var GetObjectAclOutput;
+(function (GetObjectAclOutput) {
+    GetObjectAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectAclOutput || (GetObjectAclOutput = {}));
+var GetObjectAclRequest;
+(function (GetObjectAclRequest) {
+    GetObjectAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectAclRequest || (GetObjectAclRequest = {}));
+var ObjectLockLegalHold;
+(function (ObjectLockLegalHold) {
+    ObjectLockLegalHold.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectLockLegalHold || (ObjectLockLegalHold = {}));
+var GetObjectLegalHoldOutput;
+(function (GetObjectLegalHoldOutput) {
+    GetObjectLegalHoldOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectLegalHoldOutput || (GetObjectLegalHoldOutput = {}));
+var GetObjectLegalHoldRequest;
+(function (GetObjectLegalHoldRequest) {
+    GetObjectLegalHoldRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectLegalHoldRequest || (GetObjectLegalHoldRequest = {}));
+var DefaultRetention;
+(function (DefaultRetention) {
+    DefaultRetention.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DefaultRetention || (DefaultRetention = {}));
+var ObjectLockRule;
+(function (ObjectLockRule) {
+    ObjectLockRule.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectLockRule || (ObjectLockRule = {}));
+var ObjectLockConfiguration;
+(function (ObjectLockConfiguration) {
+    ObjectLockConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectLockConfiguration || (ObjectLockConfiguration = {}));
+var GetObjectLockConfigurationOutput;
+(function (GetObjectLockConfigurationOutput) {
+    GetObjectLockConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectLockConfigurationOutput || (GetObjectLockConfigurationOutput = {}));
+var GetObjectLockConfigurationRequest;
+(function (GetObjectLockConfigurationRequest) {
+    GetObjectLockConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectLockConfigurationRequest || (GetObjectLockConfigurationRequest = {}));
+var ObjectLockRetention;
+(function (ObjectLockRetention) {
+    ObjectLockRetention.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectLockRetention || (ObjectLockRetention = {}));
+var GetObjectRetentionOutput;
+(function (GetObjectRetentionOutput) {
+    GetObjectRetentionOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectRetentionOutput || (GetObjectRetentionOutput = {}));
+var GetObjectRetentionRequest;
+(function (GetObjectRetentionRequest) {
+    GetObjectRetentionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectRetentionRequest || (GetObjectRetentionRequest = {}));
+var GetObjectTaggingOutput;
+(function (GetObjectTaggingOutput) {
+    GetObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectTaggingOutput || (GetObjectTaggingOutput = {}));
+var GetObjectTaggingRequest;
+(function (GetObjectTaggingRequest) {
+    GetObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectTaggingRequest || (GetObjectTaggingRequest = {}));
+var GetObjectTorrentOutput;
+(function (GetObjectTorrentOutput) {
+    GetObjectTorrentOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectTorrentOutput || (GetObjectTorrentOutput = {}));
+var GetObjectTorrentRequest;
+(function (GetObjectTorrentRequest) {
+    GetObjectTorrentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetObjectTorrentRequest || (GetObjectTorrentRequest = {}));
+var PublicAccessBlockConfiguration;
+(function (PublicAccessBlockConfiguration) {
+    PublicAccessBlockConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PublicAccessBlockConfiguration || (PublicAccessBlockConfiguration = {}));
+var GetPublicAccessBlockOutput;
+(function (GetPublicAccessBlockOutput) {
+    GetPublicAccessBlockOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetPublicAccessBlockOutput || (GetPublicAccessBlockOutput = {}));
+var GetPublicAccessBlockRequest;
+(function (GetPublicAccessBlockRequest) {
+    GetPublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GetPublicAccessBlockRequest || (GetPublicAccessBlockRequest = {}));
+var HeadBucketRequest;
+(function (HeadBucketRequest) {
+    HeadBucketRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(HeadBucketRequest || (HeadBucketRequest = {}));
+var NotFound;
+(function (NotFound) {
+    NotFound.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NotFound || (NotFound = {}));
+var HeadObjectOutput;
+(function (HeadObjectOutput) {
+    HeadObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING }))); };
+})(HeadObjectOutput || (HeadObjectOutput = {}));
+var HeadObjectRequest;
+(function (HeadObjectRequest) {
+    HeadObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING }))); };
+})(HeadObjectRequest || (HeadObjectRequest = {}));
+var ListBucketAnalyticsConfigurationsOutput;
+(function (ListBucketAnalyticsConfigurationsOutput) {
+    ListBucketAnalyticsConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfigurationList && {
+        AnalyticsConfigurationList: obj.AnalyticsConfigurationList.map(function (item) {
+            return AnalyticsConfiguration.filterSensitiveLog(item);
+        }),
+    }))); };
+})(ListBucketAnalyticsConfigurationsOutput || (ListBucketAnalyticsConfigurationsOutput = {}));
+var ListBucketAnalyticsConfigurationsRequest;
+(function (ListBucketAnalyticsConfigurationsRequest) {
+    ListBucketAnalyticsConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketAnalyticsConfigurationsRequest || (ListBucketAnalyticsConfigurationsRequest = {}));
+var ListBucketIntelligentTieringConfigurationsOutput;
+(function (ListBucketIntelligentTieringConfigurationsOutput) {
+    ListBucketIntelligentTieringConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketIntelligentTieringConfigurationsOutput || (ListBucketIntelligentTieringConfigurationsOutput = {}));
+var ListBucketIntelligentTieringConfigurationsRequest;
+(function (ListBucketIntelligentTieringConfigurationsRequest) {
+    ListBucketIntelligentTieringConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketIntelligentTieringConfigurationsRequest || (ListBucketIntelligentTieringConfigurationsRequest = {}));
+var ListBucketInventoryConfigurationsOutput;
+(function (ListBucketInventoryConfigurationsOutput) {
+    ListBucketInventoryConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfigurationList && {
+        InventoryConfigurationList: obj.InventoryConfigurationList.map(function (item) {
+            return InventoryConfiguration.filterSensitiveLog(item);
+        }),
+    }))); };
+})(ListBucketInventoryConfigurationsOutput || (ListBucketInventoryConfigurationsOutput = {}));
+var ListBucketInventoryConfigurationsRequest;
+(function (ListBucketInventoryConfigurationsRequest) {
+    ListBucketInventoryConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketInventoryConfigurationsRequest || (ListBucketInventoryConfigurationsRequest = {}));
+var ListBucketMetricsConfigurationsOutput;
+(function (ListBucketMetricsConfigurationsOutput) {
+    ListBucketMetricsConfigurationsOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfigurationList && {
+        MetricsConfigurationList: obj.MetricsConfigurationList.map(function (item) {
+            return MetricsConfiguration.filterSensitiveLog(item);
+        }),
+    }))); };
+})(ListBucketMetricsConfigurationsOutput || (ListBucketMetricsConfigurationsOutput = {}));
+var ListBucketMetricsConfigurationsRequest;
+(function (ListBucketMetricsConfigurationsRequest) {
+    ListBucketMetricsConfigurationsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketMetricsConfigurationsRequest || (ListBucketMetricsConfigurationsRequest = {}));
+var Bucket;
+(function (Bucket) {
+    Bucket.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Bucket || (Bucket = {}));
+var ListBucketsOutput;
+(function (ListBucketsOutput) {
+    ListBucketsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListBucketsOutput || (ListBucketsOutput = {}));
+var CommonPrefix;
+(function (CommonPrefix) {
+    CommonPrefix.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CommonPrefix || (CommonPrefix = {}));
+var Initiator;
+(function (Initiator) {
+    Initiator.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Initiator || (Initiator = {}));
+var MultipartUpload;
+(function (MultipartUpload) {
+    MultipartUpload.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(MultipartUpload || (MultipartUpload = {}));
+var ListMultipartUploadsOutput;
+(function (ListMultipartUploadsOutput) {
+    ListMultipartUploadsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListMultipartUploadsOutput || (ListMultipartUploadsOutput = {}));
+var ListMultipartUploadsRequest;
+(function (ListMultipartUploadsRequest) {
+    ListMultipartUploadsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListMultipartUploadsRequest || (ListMultipartUploadsRequest = {}));
+var _Object;
+(function (_Object) {
+    _Object.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(_Object || (_Object = {}));
+var ListObjectsOutput;
+(function (ListObjectsOutput) {
+    ListObjectsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectsOutput || (ListObjectsOutput = {}));
+var ListObjectsRequest;
+(function (ListObjectsRequest) {
+    ListObjectsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectsRequest || (ListObjectsRequest = {}));
+var NoSuchBucket;
+(function (NoSuchBucket) {
+    NoSuchBucket.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(NoSuchBucket || (NoSuchBucket = {}));
+var ListObjectsV2Output;
+(function (ListObjectsV2Output) {
+    ListObjectsV2Output.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectsV2Output || (ListObjectsV2Output = {}));
+var ListObjectsV2Request;
+(function (ListObjectsV2Request) {
+    ListObjectsV2Request.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectsV2Request || (ListObjectsV2Request = {}));
+var DeleteMarkerEntry;
+(function (DeleteMarkerEntry) {
+    DeleteMarkerEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(DeleteMarkerEntry || (DeleteMarkerEntry = {}));
+var ObjectVersion;
+(function (ObjectVersion) {
+    ObjectVersion.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectVersion || (ObjectVersion = {}));
+var ListObjectVersionsOutput;
+(function (ListObjectVersionsOutput) {
+    ListObjectVersionsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectVersionsOutput || (ListObjectVersionsOutput = {}));
+var ListObjectVersionsRequest;
+(function (ListObjectVersionsRequest) {
+    ListObjectVersionsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListObjectVersionsRequest || (ListObjectVersionsRequest = {}));
+var Part;
+(function (Part) {
+    Part.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Part || (Part = {}));
+var ListPartsOutput;
+(function (ListPartsOutput) {
+    ListPartsOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListPartsOutput || (ListPartsOutput = {}));
+var ListPartsRequest;
+(function (ListPartsRequest) {
+    ListPartsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ListPartsRequest || (ListPartsRequest = {}));
+var PutBucketAccelerateConfigurationRequest;
+(function (PutBucketAccelerateConfigurationRequest) {
+    PutBucketAccelerateConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketAccelerateConfigurationRequest || (PutBucketAccelerateConfigurationRequest = {}));
+var PutBucketAclRequest;
+(function (PutBucketAclRequest) {
+    PutBucketAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketAclRequest || (PutBucketAclRequest = {}));
+var PutBucketAnalyticsConfigurationRequest;
+(function (PutBucketAnalyticsConfigurationRequest) {
+    PutBucketAnalyticsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.AnalyticsConfiguration && {
+        AnalyticsConfiguration: AnalyticsConfiguration.filterSensitiveLog(obj.AnalyticsConfiguration),
+    }))); };
+})(PutBucketAnalyticsConfigurationRequest || (PutBucketAnalyticsConfigurationRequest = {}));
+var CORSConfiguration;
+(function (CORSConfiguration) {
+    CORSConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(CORSConfiguration || (CORSConfiguration = {}));
+var PutBucketCorsRequest;
+(function (PutBucketCorsRequest) {
+    PutBucketCorsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketCorsRequest || (PutBucketCorsRequest = {}));
+var PutBucketEncryptionRequest;
+(function (PutBucketEncryptionRequest) {
+    PutBucketEncryptionRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ServerSideEncryptionConfiguration && {
+        ServerSideEncryptionConfiguration: ServerSideEncryptionConfiguration.filterSensitiveLog(obj.ServerSideEncryptionConfiguration),
+    }))); };
+})(PutBucketEncryptionRequest || (PutBucketEncryptionRequest = {}));
+var PutBucketIntelligentTieringConfigurationRequest;
+(function (PutBucketIntelligentTieringConfigurationRequest) {
+    PutBucketIntelligentTieringConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketIntelligentTieringConfigurationRequest || (PutBucketIntelligentTieringConfigurationRequest = {}));
+var PutBucketInventoryConfigurationRequest;
+(function (PutBucketInventoryConfigurationRequest) {
+    PutBucketInventoryConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.InventoryConfiguration && {
+        InventoryConfiguration: InventoryConfiguration.filterSensitiveLog(obj.InventoryConfiguration),
+    }))); };
+})(PutBucketInventoryConfigurationRequest || (PutBucketInventoryConfigurationRequest = {}));
+var BucketLifecycleConfiguration;
+(function (BucketLifecycleConfiguration) {
+    BucketLifecycleConfiguration.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.Rules && { Rules: obj.Rules.map(function (item) { return LifecycleRule.filterSensitiveLog(item); }) }))); };
+})(BucketLifecycleConfiguration || (BucketLifecycleConfiguration = {}));
+var PutBucketLifecycleConfigurationRequest;
+(function (PutBucketLifecycleConfigurationRequest) {
+    PutBucketLifecycleConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.LifecycleConfiguration && {
+        LifecycleConfiguration: BucketLifecycleConfiguration.filterSensitiveLog(obj.LifecycleConfiguration),
+    }))); };
+})(PutBucketLifecycleConfigurationRequest || (PutBucketLifecycleConfigurationRequest = {}));
+var BucketLoggingStatus;
+(function (BucketLoggingStatus) {
+    BucketLoggingStatus.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(BucketLoggingStatus || (BucketLoggingStatus = {}));
+var PutBucketLoggingRequest;
+(function (PutBucketLoggingRequest) {
+    PutBucketLoggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketLoggingRequest || (PutBucketLoggingRequest = {}));
+var PutBucketMetricsConfigurationRequest;
+(function (PutBucketMetricsConfigurationRequest) {
+    PutBucketMetricsConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.MetricsConfiguration && {
+        MetricsConfiguration: MetricsConfiguration.filterSensitiveLog(obj.MetricsConfiguration),
+    }))); };
+})(PutBucketMetricsConfigurationRequest || (PutBucketMetricsConfigurationRequest = {}));
+var PutBucketNotificationConfigurationRequest;
+(function (PutBucketNotificationConfigurationRequest) {
+    PutBucketNotificationConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketNotificationConfigurationRequest || (PutBucketNotificationConfigurationRequest = {}));
+var PutBucketOwnershipControlsRequest;
+(function (PutBucketOwnershipControlsRequest) {
+    PutBucketOwnershipControlsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketOwnershipControlsRequest || (PutBucketOwnershipControlsRequest = {}));
+var PutBucketPolicyRequest;
+(function (PutBucketPolicyRequest) {
+    PutBucketPolicyRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketPolicyRequest || (PutBucketPolicyRequest = {}));
+var PutBucketReplicationRequest;
+(function (PutBucketReplicationRequest) {
+    PutBucketReplicationRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1({}, obj), (obj.ReplicationConfiguration && {
+        ReplicationConfiguration: ReplicationConfiguration.filterSensitiveLog(obj.ReplicationConfiguration),
+    }))); };
+})(PutBucketReplicationRequest || (PutBucketReplicationRequest = {}));
+var RequestPaymentConfiguration;
+(function (RequestPaymentConfiguration) {
+    RequestPaymentConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(RequestPaymentConfiguration || (RequestPaymentConfiguration = {}));
+var PutBucketRequestPaymentRequest;
+(function (PutBucketRequestPaymentRequest) {
+    PutBucketRequestPaymentRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketRequestPaymentRequest || (PutBucketRequestPaymentRequest = {}));
+var Tagging;
+(function (Tagging) {
+    Tagging.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(Tagging || (Tagging = {}));
+var PutBucketTaggingRequest;
+(function (PutBucketTaggingRequest) {
+    PutBucketTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketTaggingRequest || (PutBucketTaggingRequest = {}));
+var VersioningConfiguration;
+(function (VersioningConfiguration) {
+    VersioningConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(VersioningConfiguration || (VersioningConfiguration = {}));
+var PutBucketVersioningRequest;
+(function (PutBucketVersioningRequest) {
+    PutBucketVersioningRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketVersioningRequest || (PutBucketVersioningRequest = {}));
+var WebsiteConfiguration;
+(function (WebsiteConfiguration) {
+    WebsiteConfiguration.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(WebsiteConfiguration || (WebsiteConfiguration = {}));
+var PutBucketWebsiteRequest;
+(function (PutBucketWebsiteRequest) {
+    PutBucketWebsiteRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutBucketWebsiteRequest || (PutBucketWebsiteRequest = {}));
+var PutObjectOutput;
+(function (PutObjectOutput) {
+    PutObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1({}, obj), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
+})(PutObjectOutput || (PutObjectOutput = {}));
+var PutObjectRequest;
+(function (PutObjectRequest) {
+    PutObjectRequest.filterSensitiveLog = function (obj) { return (__assign$1(__assign$1(__assign$1(__assign$1({}, obj), (obj.SSECustomerKey && { SSECustomerKey: SENSITIVE_STRING })), (obj.SSEKMSKeyId && { SSEKMSKeyId: SENSITIVE_STRING })), (obj.SSEKMSEncryptionContext && { SSEKMSEncryptionContext: SENSITIVE_STRING }))); };
+})(PutObjectRequest || (PutObjectRequest = {}));
+var PutObjectAclOutput;
+(function (PutObjectAclOutput) {
+    PutObjectAclOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectAclOutput || (PutObjectAclOutput = {}));
+var PutObjectAclRequest;
+(function (PutObjectAclRequest) {
+    PutObjectAclRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectAclRequest || (PutObjectAclRequest = {}));
+var PutObjectLegalHoldOutput;
+(function (PutObjectLegalHoldOutput) {
+    PutObjectLegalHoldOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectLegalHoldOutput || (PutObjectLegalHoldOutput = {}));
+var PutObjectLegalHoldRequest;
+(function (PutObjectLegalHoldRequest) {
+    PutObjectLegalHoldRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectLegalHoldRequest || (PutObjectLegalHoldRequest = {}));
+var PutObjectLockConfigurationOutput;
+(function (PutObjectLockConfigurationOutput) {
+    PutObjectLockConfigurationOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectLockConfigurationOutput || (PutObjectLockConfigurationOutput = {}));
+var PutObjectLockConfigurationRequest;
+(function (PutObjectLockConfigurationRequest) {
+    PutObjectLockConfigurationRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectLockConfigurationRequest || (PutObjectLockConfigurationRequest = {}));
+var PutObjectRetentionOutput;
+(function (PutObjectRetentionOutput) {
+    PutObjectRetentionOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectRetentionOutput || (PutObjectRetentionOutput = {}));
+var PutObjectRetentionRequest;
+(function (PutObjectRetentionRequest) {
+    PutObjectRetentionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectRetentionRequest || (PutObjectRetentionRequest = {}));
+var PutObjectTaggingOutput;
+(function (PutObjectTaggingOutput) {
+    PutObjectTaggingOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectTaggingOutput || (PutObjectTaggingOutput = {}));
+var PutObjectTaggingRequest;
+(function (PutObjectTaggingRequest) {
+    PutObjectTaggingRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutObjectTaggingRequest || (PutObjectTaggingRequest = {}));
+var PutPublicAccessBlockRequest;
+(function (PutPublicAccessBlockRequest) {
+    PutPublicAccessBlockRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(PutPublicAccessBlockRequest || (PutPublicAccessBlockRequest = {}));
+var ObjectAlreadyInActiveTierError;
+(function (ObjectAlreadyInActiveTierError) {
+    ObjectAlreadyInActiveTierError.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(ObjectAlreadyInActiveTierError || (ObjectAlreadyInActiveTierError = {}));
+var RestoreObjectOutput;
+(function (RestoreObjectOutput) {
+    RestoreObjectOutput.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(RestoreObjectOutput || (RestoreObjectOutput = {}));
+var GlacierJobParameters;
+(function (GlacierJobParameters) {
+    GlacierJobParameters.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
+})(GlacierJobParameters || (GlacierJobParameters = {}));
+
+var serializeAws_restXmlGetObjectCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var _a, hostname, _b, protocol, port, basePath, headers, resolvedPath, labelValue, labelValue, query, body;
+    return __generator$1(this, function (_c) {
+        switch (_c.label) {
+            case 0: return [4, context.endpoint()];
+            case 1:
+                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
+                headers = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({}, (isSerializableHeaderValue(input.IfMatch) && { "if-match": input.IfMatch })), (isSerializableHeaderValue(input.IfModifiedSince) && {
+                    "if-modified-since": dateToUtcString(input.IfModifiedSince).toString(),
+                })), (isSerializableHeaderValue(input.IfNoneMatch) && { "if-none-match": input.IfNoneMatch })), (isSerializableHeaderValue(input.IfUnmodifiedSince) && {
+                    "if-unmodified-since": dateToUtcString(input.IfUnmodifiedSince).toString(),
+                })), (isSerializableHeaderValue(input.Range) && { range: input.Range })), (isSerializableHeaderValue(input.SSECustomerAlgorithm) && {
+                    "x-amz-server-side-encryption-customer-algorithm": input.SSECustomerAlgorithm,
+                })), (isSerializableHeaderValue(input.SSECustomerKey) && {
+                    "x-amz-server-side-encryption-customer-key": input.SSECustomerKey,
+                })), (isSerializableHeaderValue(input.SSECustomerKeyMD5) && {
+                    "x-amz-server-side-encryption-customer-key-md5": input.SSECustomerKeyMD5,
+                })), (isSerializableHeaderValue(input.RequestPayer) && { "x-amz-request-payer": input.RequestPayer })), (isSerializableHeaderValue(input.ExpectedBucketOwner) && {
+                    "x-amz-expected-bucket-owner": input.ExpectedBucketOwner,
+                }));
+                resolvedPath = "" + ((basePath === null || basePath === void 0 ? void 0 : basePath.endsWith("/")) ? basePath.slice(0, -1) : basePath || "") + "/{Bucket}/{Key+}";
+                if (input.Bucket !== undefined) {
+                    labelValue = input.Bucket;
+                    if (labelValue.length <= 0) {
+                        throw new Error("Empty value provided for input HTTP label: Bucket.");
+                    }
+                    resolvedPath = resolvedPath.replace("{Bucket}", extendedEncodeURIComponent(labelValue));
+                }
+                else {
+                    throw new Error("No value provided for input HTTP label: Bucket.");
+                }
+                if (input.Key !== undefined) {
+                    labelValue = input.Key;
+                    if (labelValue.length <= 0) {
+                        throw new Error("Empty value provided for input HTTP label: Key.");
+                    }
+                    resolvedPath = resolvedPath.replace("{Key+}", labelValue
+                        .split("/")
+                        .map(function (segment) { return extendedEncodeURIComponent(segment); })
+                        .join("/"));
+                }
+                else {
+                    throw new Error("No value provided for input HTTP label: Key.");
+                }
+                query = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({ "x-id": "GetObject" }, (input.ResponseCacheControl !== undefined && { "response-cache-control": input.ResponseCacheControl })), (input.ResponseContentDisposition !== undefined && {
+                    "response-content-disposition": input.ResponseContentDisposition,
+                })), (input.ResponseContentEncoding !== undefined && { "response-content-encoding": input.ResponseContentEncoding })), (input.ResponseContentLanguage !== undefined && { "response-content-language": input.ResponseContentLanguage })), (input.ResponseContentType !== undefined && { "response-content-type": input.ResponseContentType })), (input.ResponseExpires !== undefined && {
+                    "response-expires": dateToUtcString(input.ResponseExpires).toString(),
+                })), (input.VersionId !== undefined && { versionId: input.VersionId })), (input.PartNumber !== undefined && { partNumber: input.PartNumber.toString() }));
+                return [2, new HttpRequest({
+                        protocol: protocol,
+                        hostname: hostname,
+                        port: port,
+                        method: "GET",
+                        headers: headers,
+                        path: resolvedPath,
+                        query: query,
+                        body: body,
+                    })];
+        }
+    });
+}); };
+var serializeAws_restXmlPutObjectCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var _a, hostname, _b, protocol, port, basePath, headers, resolvedPath, labelValue, labelValue, query, body, contents;
+    return __generator$1(this, function (_c) {
+        switch (_c.label) {
+            case 0: return [4, context.endpoint()];
+            case 1:
+                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
+                headers = __assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1(__assign$1({ "content-type": "application/octet-stream" }, (isSerializableHeaderValue(input.ACL) && { "x-amz-acl": input.ACL })), (isSerializableHeaderValue(input.CacheControl) && { "cache-control": input.CacheControl })), (isSerializableHeaderValue(input.ContentDisposition) && { "content-disposition": input.ContentDisposition })), (isSerializableHeaderValue(input.ContentEncoding) && { "content-encoding": input.ContentEncoding })), (isSerializableHeaderValue(input.ContentLanguage) && { "content-language": input.ContentLanguage })), (isSerializableHeaderValue(input.ContentLength) && { "content-length": input.ContentLength.toString() })), (isSerializableHeaderValue(input.ContentMD5) && { "content-md5": input.ContentMD5 })), (isSerializableHeaderValue(input.ContentType) && { "content-type": input.ContentType })), (isSerializableHeaderValue(input.Expires) && { expires: dateToUtcString(input.Expires).toString() })), (isSerializableHeaderValue(input.GrantFullControl) && { "x-amz-grant-full-control": input.GrantFullControl })), (isSerializableHeaderValue(input.GrantRead) && { "x-amz-grant-read": input.GrantRead })), (isSerializableHeaderValue(input.GrantReadACP) && { "x-amz-grant-read-acp": input.GrantReadACP })), (isSerializableHeaderValue(input.GrantWriteACP) && { "x-amz-grant-write-acp": input.GrantWriteACP })), (isSerializableHeaderValue(input.ServerSideEncryption) && {
+                    "x-amz-server-side-encryption": input.ServerSideEncryption,
+                })), (isSerializableHeaderValue(input.StorageClass) && { "x-amz-storage-class": input.StorageClass })), (isSerializableHeaderValue(input.WebsiteRedirectLocation) && {
+                    "x-amz-website-redirect-location": input.WebsiteRedirectLocation,
+                })), (isSerializableHeaderValue(input.SSECustomerAlgorithm) && {
+                    "x-amz-server-side-encryption-customer-algorithm": input.SSECustomerAlgorithm,
+                })), (isSerializableHeaderValue(input.SSECustomerKey) && {
+                    "x-amz-server-side-encryption-customer-key": input.SSECustomerKey,
+                })), (isSerializableHeaderValue(input.SSECustomerKeyMD5) && {
+                    "x-amz-server-side-encryption-customer-key-md5": input.SSECustomerKeyMD5,
+                })), (isSerializableHeaderValue(input.SSEKMSKeyId) && {
+                    "x-amz-server-side-encryption-aws-kms-key-id": input.SSEKMSKeyId,
+                })), (isSerializableHeaderValue(input.SSEKMSEncryptionContext) && {
+                    "x-amz-server-side-encryption-context": input.SSEKMSEncryptionContext,
+                })), (isSerializableHeaderValue(input.BucketKeyEnabled) && {
+                    "x-amz-server-side-encryption-bucket-key-enabled": input.BucketKeyEnabled.toString(),
+                })), (isSerializableHeaderValue(input.RequestPayer) && { "x-amz-request-payer": input.RequestPayer })), (isSerializableHeaderValue(input.Tagging) && { "x-amz-tagging": input.Tagging })), (isSerializableHeaderValue(input.ObjectLockMode) && { "x-amz-object-lock-mode": input.ObjectLockMode })), (isSerializableHeaderValue(input.ObjectLockRetainUntilDate) && {
+                    "x-amz-object-lock-retain-until-date": (input.ObjectLockRetainUntilDate.toISOString().split(".")[0] + "Z").toString(),
+                })), (isSerializableHeaderValue(input.ObjectLockLegalHoldStatus) && {
+                    "x-amz-object-lock-legal-hold": input.ObjectLockLegalHoldStatus,
+                })), (isSerializableHeaderValue(input.ExpectedBucketOwner) && {
+                    "x-amz-expected-bucket-owner": input.ExpectedBucketOwner,
+                })), (input.Metadata !== undefined &&
+                    Object.keys(input.Metadata).reduce(function (acc, suffix) {
+                        var _a;
+                        return (__assign$1(__assign$1({}, acc), (_a = {}, _a["x-amz-meta-" + suffix.toLowerCase()] = input.Metadata[suffix], _a)));
+                    }, {})));
+                resolvedPath = "" + ((basePath === null || basePath === void 0 ? void 0 : basePath.endsWith("/")) ? basePath.slice(0, -1) : basePath || "") + "/{Bucket}/{Key+}";
+                if (input.Bucket !== undefined) {
+                    labelValue = input.Bucket;
+                    if (labelValue.length <= 0) {
+                        throw new Error("Empty value provided for input HTTP label: Bucket.");
+                    }
+                    resolvedPath = resolvedPath.replace("{Bucket}", extendedEncodeURIComponent(labelValue));
+                }
+                else {
+                    throw new Error("No value provided for input HTTP label: Bucket.");
+                }
+                if (input.Key !== undefined) {
+                    labelValue = input.Key;
+                    if (labelValue.length <= 0) {
+                        throw new Error("Empty value provided for input HTTP label: Key.");
+                    }
+                    resolvedPath = resolvedPath.replace("{Key+}", labelValue
+                        .split("/")
+                        .map(function (segment) { return extendedEncodeURIComponent(segment); })
+                        .join("/"));
+                }
+                else {
+                    throw new Error("No value provided for input HTTP label: Key.");
+                }
+                query = {
+                    "x-id": "PutObject",
+                };
+                if (input.Body !== undefined) {
+                    body = input.Body;
+                }
+                if (input.Body !== undefined) {
+                    contents = input.Body;
+                    body = contents;
+                }
+                return [2, new HttpRequest({
+                        protocol: protocol,
+                        hostname: hostname,
+                        port: port,
+                        method: "PUT",
+                        headers: headers,
+                        path: resolvedPath,
+                        query: query,
+                        body: body,
+                    })];
+        }
+    });
+}); };
+var deserializeAws_restXmlGetObjectCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var contents, data;
+    return __generator$1(this, function (_a) {
+        if (output.statusCode !== 200 && output.statusCode >= 300) {
+            return [2, deserializeAws_restXmlGetObjectCommandError(output, context)];
+        }
+        contents = {
+            $metadata: deserializeMetadata(output),
+            AcceptRanges: undefined,
+            Body: undefined,
+            BucketKeyEnabled: undefined,
+            CacheControl: undefined,
+            ContentDisposition: undefined,
+            ContentEncoding: undefined,
+            ContentLanguage: undefined,
+            ContentLength: undefined,
+            ContentRange: undefined,
+            ContentType: undefined,
+            DeleteMarker: undefined,
+            ETag: undefined,
+            Expiration: undefined,
+            Expires: undefined,
+            LastModified: undefined,
+            Metadata: undefined,
+            MissingMeta: undefined,
+            ObjectLockLegalHoldStatus: undefined,
+            ObjectLockMode: undefined,
+            ObjectLockRetainUntilDate: undefined,
+            PartsCount: undefined,
+            ReplicationStatus: undefined,
+            RequestCharged: undefined,
+            Restore: undefined,
+            SSECustomerAlgorithm: undefined,
+            SSECustomerKeyMD5: undefined,
+            SSEKMSKeyId: undefined,
+            ServerSideEncryption: undefined,
+            StorageClass: undefined,
+            TagCount: undefined,
+            VersionId: undefined,
+            WebsiteRedirectLocation: undefined,
+        };
+        if (output.headers["x-amz-delete-marker"] !== undefined) {
+            contents.DeleteMarker = parseBoolean(output.headers["x-amz-delete-marker"]);
+        }
+        if (output.headers["accept-ranges"] !== undefined) {
+            contents.AcceptRanges = output.headers["accept-ranges"];
+        }
+        if (output.headers["x-amz-expiration"] !== undefined) {
+            contents.Expiration = output.headers["x-amz-expiration"];
+        }
+        if (output.headers["x-amz-restore"] !== undefined) {
+            contents.Restore = output.headers["x-amz-restore"];
+        }
+        if (output.headers["last-modified"] !== undefined) {
+            contents.LastModified = expectNonNull(parseRfc7231DateTime(output.headers["last-modified"]));
+        }
+        if (output.headers["content-length"] !== undefined) {
+            contents.ContentLength = strictParseLong(output.headers["content-length"]);
+        }
+        if (output.headers["etag"] !== undefined) {
+            contents.ETag = output.headers["etag"];
+        }
+        if (output.headers["x-amz-missing-meta"] !== undefined) {
+            contents.MissingMeta = strictParseInt32(output.headers["x-amz-missing-meta"]);
+        }
+        if (output.headers["x-amz-version-id"] !== undefined) {
+            contents.VersionId = output.headers["x-amz-version-id"];
+        }
+        if (output.headers["cache-control"] !== undefined) {
+            contents.CacheControl = output.headers["cache-control"];
+        }
+        if (output.headers["content-disposition"] !== undefined) {
+            contents.ContentDisposition = output.headers["content-disposition"];
+        }
+        if (output.headers["content-encoding"] !== undefined) {
+            contents.ContentEncoding = output.headers["content-encoding"];
+        }
+        if (output.headers["content-language"] !== undefined) {
+            contents.ContentLanguage = output.headers["content-language"];
+        }
+        if (output.headers["content-range"] !== undefined) {
+            contents.ContentRange = output.headers["content-range"];
+        }
+        if (output.headers["content-type"] !== undefined) {
+            contents.ContentType = output.headers["content-type"];
+        }
+        if (output.headers["expires"] !== undefined) {
+            contents.Expires = expectNonNull(parseRfc7231DateTime(output.headers["expires"]));
+        }
+        if (output.headers["x-amz-website-redirect-location"] !== undefined) {
+            contents.WebsiteRedirectLocation = output.headers["x-amz-website-redirect-location"];
+        }
+        if (output.headers["x-amz-server-side-encryption"] !== undefined) {
+            contents.ServerSideEncryption = output.headers["x-amz-server-side-encryption"];
+        }
+        if (output.headers["x-amz-server-side-encryption-customer-algorithm"] !== undefined) {
+            contents.SSECustomerAlgorithm = output.headers["x-amz-server-side-encryption-customer-algorithm"];
+        }
+        if (output.headers["x-amz-server-side-encryption-customer-key-md5"] !== undefined) {
+            contents.SSECustomerKeyMD5 = output.headers["x-amz-server-side-encryption-customer-key-md5"];
+        }
+        if (output.headers["x-amz-server-side-encryption-aws-kms-key-id"] !== undefined) {
+            contents.SSEKMSKeyId = output.headers["x-amz-server-side-encryption-aws-kms-key-id"];
+        }
+        if (output.headers["x-amz-server-side-encryption-bucket-key-enabled"] !== undefined) {
+            contents.BucketKeyEnabled = parseBoolean(output.headers["x-amz-server-side-encryption-bucket-key-enabled"]);
+        }
+        if (output.headers["x-amz-storage-class"] !== undefined) {
+            contents.StorageClass = output.headers["x-amz-storage-class"];
+        }
+        if (output.headers["x-amz-request-charged"] !== undefined) {
+            contents.RequestCharged = output.headers["x-amz-request-charged"];
+        }
+        if (output.headers["x-amz-replication-status"] !== undefined) {
+            contents.ReplicationStatus = output.headers["x-amz-replication-status"];
+        }
+        if (output.headers["x-amz-mp-parts-count"] !== undefined) {
+            contents.PartsCount = strictParseInt32(output.headers["x-amz-mp-parts-count"]);
+        }
+        if (output.headers["x-amz-tagging-count"] !== undefined) {
+            contents.TagCount = strictParseInt32(output.headers["x-amz-tagging-count"]);
+        }
+        if (output.headers["x-amz-object-lock-mode"] !== undefined) {
+            contents.ObjectLockMode = output.headers["x-amz-object-lock-mode"];
+        }
+        if (output.headers["x-amz-object-lock-retain-until-date"] !== undefined) {
+            contents.ObjectLockRetainUntilDate = expectNonNull(parseRfc3339DateTime(output.headers["x-amz-object-lock-retain-until-date"]));
+        }
+        if (output.headers["x-amz-object-lock-legal-hold"] !== undefined) {
+            contents.ObjectLockLegalHoldStatus = output.headers["x-amz-object-lock-legal-hold"];
+        }
+        Object.keys(output.headers).forEach(function (header) {
+            if (contents.Metadata === undefined) {
+                contents.Metadata = {};
+            }
+            if (header.startsWith("x-amz-meta-")) {
+                contents.Metadata[header.substring(11)] = output.headers[header];
+            }
+        });
+        data = output.body;
+        contents.Body = data;
+        return [2, Promise.resolve(contents)];
+    });
+}); };
+var deserializeAws_restXmlGetObjectCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var parsedOutput, _a, response, errorCode, _b, _c, _d, parsedBody, message;
+    var _e;
+    return __generator$1(this, function (_f) {
+        switch (_f.label) {
+            case 0:
+                _a = [__assign$1({}, output)];
+                _e = {};
+                return [4, parseBody(output.body, context)];
+            case 1:
+                parsedOutput = __assign$1.apply(void 0, _a.concat([(_e.body = _f.sent(), _e)]));
+                errorCode = "UnknownError";
+                errorCode = loadRestXmlErrorCode(output, parsedOutput.body);
+                _b = errorCode;
+                switch (_b) {
+                    case "InvalidObjectState": return [3, 2];
+                    case "com.amazonaws.s3#InvalidObjectState": return [3, 2];
+                    case "NoSuchKey": return [3, 4];
+                    case "com.amazonaws.s3#NoSuchKey": return [3, 4];
+                }
+                return [3, 6];
+            case 2:
+                _c = [{}];
+                return [4, deserializeAws_restXmlInvalidObjectStateResponse(parsedOutput)];
+            case 3:
+                response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _c.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata(output) }]);
+                return [3, 7];
+            case 4:
+                _d = [{}];
+                return [4, deserializeAws_restXmlNoSuchKeyResponse(parsedOutput)];
+            case 5:
+                response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _d.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata(output) }]);
+                return [3, 7];
+            case 6:
+                parsedBody = parsedOutput.body;
+                errorCode = parsedBody.code || parsedBody.Code || errorCode;
+                response = __assign$1(__assign$1({}, parsedBody), { name: "" + errorCode, message: parsedBody.message || parsedBody.Message || errorCode, $fault: "client", $metadata: deserializeMetadata(output) });
+                _f.label = 7;
+            case 7:
+                message = response.message || response.Message || errorCode;
+                response.message = message;
+                delete response.Message;
+                return [2, Promise.reject(Object.assign(new Error(message), response))];
+        }
+    });
+}); };
+var deserializeAws_restXmlPutObjectCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var contents;
+    return __generator$1(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                if (output.statusCode !== 200 && output.statusCode >= 300) {
+                    return [2, deserializeAws_restXmlPutObjectCommandError(output, context)];
+                }
+                contents = {
+                    $metadata: deserializeMetadata(output),
+                    BucketKeyEnabled: undefined,
+                    ETag: undefined,
+                    Expiration: undefined,
+                    RequestCharged: undefined,
+                    SSECustomerAlgorithm: undefined,
+                    SSECustomerKeyMD5: undefined,
+                    SSEKMSEncryptionContext: undefined,
+                    SSEKMSKeyId: undefined,
+                    ServerSideEncryption: undefined,
+                    VersionId: undefined,
+                };
+                if (output.headers["x-amz-expiration"] !== undefined) {
+                    contents.Expiration = output.headers["x-amz-expiration"];
+                }
+                if (output.headers["etag"] !== undefined) {
+                    contents.ETag = output.headers["etag"];
+                }
+                if (output.headers["x-amz-server-side-encryption"] !== undefined) {
+                    contents.ServerSideEncryption = output.headers["x-amz-server-side-encryption"];
+                }
+                if (output.headers["x-amz-version-id"] !== undefined) {
+                    contents.VersionId = output.headers["x-amz-version-id"];
+                }
+                if (output.headers["x-amz-server-side-encryption-customer-algorithm"] !== undefined) {
+                    contents.SSECustomerAlgorithm = output.headers["x-amz-server-side-encryption-customer-algorithm"];
+                }
+                if (output.headers["x-amz-server-side-encryption-customer-key-md5"] !== undefined) {
+                    contents.SSECustomerKeyMD5 = output.headers["x-amz-server-side-encryption-customer-key-md5"];
+                }
+                if (output.headers["x-amz-server-side-encryption-aws-kms-key-id"] !== undefined) {
+                    contents.SSEKMSKeyId = output.headers["x-amz-server-side-encryption-aws-kms-key-id"];
+                }
+                if (output.headers["x-amz-server-side-encryption-context"] !== undefined) {
+                    contents.SSEKMSEncryptionContext = output.headers["x-amz-server-side-encryption-context"];
+                }
+                if (output.headers["x-amz-server-side-encryption-bucket-key-enabled"] !== undefined) {
+                    contents.BucketKeyEnabled = parseBoolean(output.headers["x-amz-server-side-encryption-bucket-key-enabled"]);
+                }
+                if (output.headers["x-amz-request-charged"] !== undefined) {
+                    contents.RequestCharged = output.headers["x-amz-request-charged"];
+                }
+                return [4, collectBody(output.body, context)];
+            case 1:
+                _a.sent();
+                return [2, Promise.resolve(contents)];
+        }
+    });
+}); };
+var deserializeAws_restXmlPutObjectCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var parsedOutput, _a, response, errorCode, parsedBody, message;
+    var _b;
+    return __generator$1(this, function (_c) {
+        switch (_c.label) {
+            case 0:
+                _a = [__assign$1({}, output)];
+                _b = {};
+                return [4, parseBody(output.body, context)];
+            case 1:
+                parsedOutput = __assign$1.apply(void 0, _a.concat([(_b.body = _c.sent(), _b)]));
+                errorCode = "UnknownError";
+                errorCode = loadRestXmlErrorCode(output, parsedOutput.body);
+                switch (errorCode) {
+                    default:
+                        parsedBody = parsedOutput.body;
+                        errorCode = parsedBody.code || parsedBody.Code || errorCode;
+                        response = __assign$1(__assign$1({}, parsedBody), { name: "" + errorCode, message: parsedBody.message || parsedBody.Message || errorCode, $fault: "client", $metadata: deserializeMetadata(output) });
+                }
+                message = response.message || response.Message || errorCode;
+                response.message = message;
+                delete response.Message;
+                return [2, Promise.reject(Object.assign(new Error(message), response))];
+        }
+    });
+}); };
+var deserializeAws_restXmlInvalidObjectStateResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var contents, data;
+    return __generator$1(this, function (_a) {
+        contents = {
+            name: "InvalidObjectState",
+            $fault: "client",
+            $metadata: deserializeMetadata(parsedOutput),
+            AccessTier: undefined,
+            StorageClass: undefined,
+        };
+        data = parsedOutput.body;
+        if (data["AccessTier"] !== undefined) {
+            contents.AccessTier = expectString(data["AccessTier"]);
+        }
+        if (data["StorageClass"] !== undefined) {
+            contents.StorageClass = expectString(data["StorageClass"]);
+        }
+        return [2, contents];
+    });
+}); };
+var deserializeAws_restXmlNoSuchKeyResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
+    var contents;
+    return __generator$1(this, function (_a) {
+        contents = {
+            name: "NoSuchKey",
+            $fault: "client",
+            $metadata: deserializeMetadata(parsedOutput),
+        };
+        return [2, contents];
+    });
+}); };
+var deserializeMetadata = function (output) {
+    var _a;
+    return ({
+        httpStatusCode: output.statusCode,
+        requestId: (_a = output.headers["x-amzn-requestid"]) !== null && _a !== void 0 ? _a : output.headers["x-amzn-request-id"],
+        extendedRequestId: output.headers["x-amz-id-2"],
+        cfId: output.headers["x-amz-cf-id"],
+    });
+};
+var collectBody = function (streamBody, context) {
+    if (streamBody === void 0) { streamBody = new Uint8Array(); }
+    if (streamBody instanceof Uint8Array) {
+        return Promise.resolve(streamBody);
+    }
+    return context.streamCollector(streamBody) || Promise.resolve(new Uint8Array());
+};
+var collectBodyString = function (streamBody, context) {
+    return collectBody(streamBody, context).then(function (body) { return context.utf8Encoder(body); });
+};
+var isSerializableHeaderValue = function (value) {
+    return value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        (!Object.getOwnPropertyNames(value).includes("length") || value.length != 0) &&
+        (!Object.getOwnPropertyNames(value).includes("size") || value.size != 0);
+};
+var parseBody = function (streamBody, context) {
+    return collectBodyString(streamBody, context).then(function (encoded) {
+        if (encoded.length) {
+            var parsedObj = parser.parse(encoded, {
+                attributeNamePrefix: "",
+                ignoreAttributes: false,
+                parseNodeValue: false,
+                trimValues: false,
+                tagValueProcessor: function (val) { return (val.trim() === "" && val.includes("\n") ? "" : lib.decodeHTML(val)); },
+            });
+            var textNodeName = "#text";
+            var key = Object.keys(parsedObj)[0];
+            var parsedObjToReturn = parsedObj[key];
+            if (parsedObjToReturn[textNodeName]) {
+                parsedObjToReturn[key] = parsedObjToReturn[textNodeName];
+                delete parsedObjToReturn[textNodeName];
+            }
+            return getValueFromTextNode(parsedObjToReturn);
+        }
+        return {};
+    });
+};
+var loadRestXmlErrorCode = function (output, data) {
+    if (data.Code !== undefined) {
+        return data.Code;
+    }
+    if (output.statusCode == 404) {
+        return "NotFound";
+    }
+    return "";
+};
+
+var S3SignatureV4 = (function () {
+    function S3SignatureV4(options) {
+        this.sigv4Signer = new SignatureV4(options);
+        this.signerOptions = options;
+    }
+    S3SignatureV4.prototype.sign = function (requestToSign, options) {
+        if (options === void 0) { options = {}; }
+        return __awaiter$1(this, void 0, void 0, function () {
+            return __generator$1(this, function (_a) {
+                if (options.signingRegion === "*") {
+                    if (this.signerOptions.runtime !== "node")
+                        throw new Error("This request requires signing with SigV4Asymmetric algorithm. It's only available in Node.js");
+                    return [2, this.getSigv4aSigner().sign(requestToSign, options)];
+                }
+                return [2, this.sigv4Signer.sign(requestToSign, options)];
+            });
+        });
+    };
+    S3SignatureV4.prototype.presign = function (originalRequest, options) {
+        if (options === void 0) { options = {}; }
+        return __awaiter$1(this, void 0, void 0, function () {
+            return __generator$1(this, function (_a) {
+                if (options.signingRegion === "*") {
+                    if (this.signerOptions.runtime !== "node")
+                        throw new Error("This request requires signing with SigV4Asymmetric algorithm. It's only available in Node.js");
+                    return [2, this.getSigv4aSigner().presign(originalRequest, options)];
+                }
+                return [2, this.sigv4Signer.presign(originalRequest, options)];
+            });
+        });
+    };
+    S3SignatureV4.prototype.getSigv4aSigner = function () {
+        if (!this.sigv4aSigner) {
+            var CrtSignerV4_1;
+            try {
+                CrtSignerV4_1 = require("@aws-sdk/signature-v4-crt").CrtSignerV4;
+                if (typeof CrtSignerV4_1 !== "function")
+                    throw new Error();
+            }
+            catch (e) {
+                e.message =
+                    e.message + "\nPlease check if you have installed \"@aws-sdk/signature-v4-crt\" package explicitly. \n" +
+                        "For more information please go to https://github.com/aws/aws-sdk-js-v3#known-issues";
+                throw e;
+            }
+            this.sigv4aSigner = new CrtSignerV4_1(__assign$1(__assign$1({}, this.signerOptions), { signingAlgorithm: 1 }));
+        }
+        return this.sigv4aSigner;
+    };
+    return S3SignatureV4;
+}());
+
+var useRegionalEndpointMiddleware = function (config) {
+    return function (next) {
+        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
+            var request, _a;
+            return __generator$1(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        request = args.request;
+                        if (!HttpRequest.isInstance(request) || config.isCustomEndpoint)
+                            return [2, next(__assign$1({}, args))];
+                        if (!(request.hostname === "s3.amazonaws.com")) return [3, 1];
+                        request.hostname = "s3.us-east-1.amazonaws.com";
+                        return [3, 3];
+                    case 1:
+                        _a = "aws-global";
+                        return [4, config.region()];
+                    case 2:
+                        if (_a === (_b.sent())) {
+                            request.hostname = "s3.amazonaws.com";
+                        }
+                        _b.label = 3;
+                    case 3: return [2, next(__assign$1({}, args))];
+                }
+            });
+        }); };
+    };
+};
+var useRegionalEndpointMiddlewareOptions = {
+    step: "build",
+    tags: ["USE_REGIONAL_ENDPOINT", "S3"],
+    name: "useRegionalEndpointMiddleware",
+    override: true,
+};
+var getUseRegionalEndpointPlugin = function (config) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(useRegionalEndpointMiddleware(config), useRegionalEndpointMiddlewareOptions);
+    },
+}); };
+
+function validateBucketNameMiddleware() {
+    var _this = this;
+    return function (next) {
+        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
+            var Bucket, err;
+            return __generator$1(this, function (_a) {
+                Bucket = args.input.Bucket;
+                if (typeof Bucket === "string" && !validate(Bucket) && Bucket.indexOf("/") >= 0) {
+                    err = new Error("Bucket name shouldn't contain '/', received '" + Bucket + "'");
+                    err.name = "InvalidBucketName";
+                    throw err;
+                }
+                return [2, next(__assign$1({}, args))];
+            });
+        }); };
+    };
+}
+var validateBucketNameMiddlewareOptions = {
+    step: "initialize",
+    tags: ["VALIDATE_BUCKET_NAME"],
+    name: "validateBucketNameMiddleware",
+    override: true,
+};
+var getValidateBucketNamePlugin = function (unused) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(validateBucketNameMiddleware(), validateBucketNameMiddlewareOptions);
+    },
+}); };
+
+function ssecMiddleware(options) {
+    var _this = this;
+    return function (next) {
+        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
+            var input, properties, properties_1, properties_1_1, prop, value, valueView, encoded, hash, _a, _b, _c, _d, e_1_1;
+            var e_1, _e, _f;
+            return __generator$1(this, function (_g) {
+                switch (_g.label) {
+                    case 0:
+                        input = __assign$1({}, args.input);
+                        properties = [
+                            {
+                                target: "SSECustomerKey",
+                                hash: "SSECustomerKeyMD5",
+                            },
+                            {
+                                target: "CopySourceSSECustomerKey",
+                                hash: "CopySourceSSECustomerKeyMD5",
+                            },
+                        ];
+                        _g.label = 1;
+                    case 1:
+                        _g.trys.push([1, 6, 7, 8]);
+                        properties_1 = __values$1(properties), properties_1_1 = properties_1.next();
+                        _g.label = 2;
+                    case 2:
+                        if (!!properties_1_1.done) return [3, 5];
+                        prop = properties_1_1.value;
+                        value = input[prop.target];
+                        if (!value) return [3, 4];
+                        valueView = ArrayBuffer.isView(value)
+                            ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+                            : typeof value === "string"
+                                ? options.utf8Decoder(value)
+                                : new Uint8Array(value);
+                        encoded = options.base64Encoder(valueView);
+                        hash = new options.md5();
+                        hash.update(valueView);
+                        _a = [__assign$1({}, input)];
+                        _f = {}, _f[prop.target] = encoded;
+                        _b = prop.hash;
+                        _d = (_c = options).base64Encoder;
+                        return [4, hash.digest()];
+                    case 3:
+                        input = __assign$1.apply(void 0, _a.concat([(_f[_b] = _d.apply(_c, [_g.sent()]), _f)]));
+                        _g.label = 4;
+                    case 4:
+                        properties_1_1 = properties_1.next();
+                        return [3, 2];
+                    case 5: return [3, 8];
+                    case 6:
+                        e_1_1 = _g.sent();
+                        e_1 = { error: e_1_1 };
+                        return [3, 8];
+                    case 7:
+                        try {
+                            if (properties_1_1 && !properties_1_1.done && (_e = properties_1.return)) _e.call(properties_1);
+                        }
+                        finally { if (e_1) throw e_1.error; }
+                        return [7];
+                    case 8: return [2, next(__assign$1(__assign$1({}, args), { input: input }))];
+                }
+            });
+        }); };
+    };
+}
+var ssecMiddlewareOptions = {
+    name: "ssecMiddleware",
+    step: "initialize",
+    tags: ["SSE"],
+    override: true,
+};
+var getSsecPlugin = function (config) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(ssecMiddleware(config), ssecMiddlewareOptions);
+    },
+}); };
+
+var GetObjectCommand = (function (_super) {
+    __extends$1(GetObjectCommand, _super);
+    function GetObjectCommand(input) {
+        var _this = _super.call(this) || this;
+        _this.input = input;
+        return _this;
+    }
+    GetObjectCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
+        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
+        this.middlewareStack.use(getSsecPlugin(configuration));
+        this.middlewareStack.use(getBucketEndpointPlugin(configuration));
+        var stack = clientStack.concat(this.middlewareStack);
+        var logger = configuration.logger;
+        var clientName = "S3Client";
+        var commandName = "GetObjectCommand";
+        var handlerExecutionContext = {
+            logger: logger,
+            clientName: clientName,
+            commandName: commandName,
+            inputFilterSensitiveLog: GetObjectRequest.filterSensitiveLog,
+            outputFilterSensitiveLog: GetObjectOutput.filterSensitiveLog,
+        };
+        var requestHandler = configuration.requestHandler;
+        return stack.resolve(function (request) {
+            return requestHandler.handle(request.request, options || {});
+        }, handlerExecutionContext);
+    };
+    GetObjectCommand.prototype.serialize = function (input, context) {
+        return serializeAws_restXmlGetObjectCommand(input, context);
+    };
+    GetObjectCommand.prototype.deserialize = function (output, context) {
+        return deserializeAws_restXmlGetObjectCommand(output, context);
+    };
+    return GetObjectCommand;
+}(Command));
+
+var PutObjectCommand = (function (_super) {
+    __extends$1(PutObjectCommand, _super);
+    function PutObjectCommand(input) {
+        var _this = _super.call(this) || this;
+        _this.input = input;
+        return _this;
+    }
+    PutObjectCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
+        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
+        this.middlewareStack.use(getSsecPlugin(configuration));
+        this.middlewareStack.use(getBucketEndpointPlugin(configuration));
+        var stack = clientStack.concat(this.middlewareStack);
+        var logger = configuration.logger;
+        var clientName = "S3Client";
+        var commandName = "PutObjectCommand";
+        var handlerExecutionContext = {
+            logger: logger,
+            clientName: clientName,
+            commandName: commandName,
+            inputFilterSensitiveLog: PutObjectRequest.filterSensitiveLog,
+            outputFilterSensitiveLog: PutObjectOutput.filterSensitiveLog,
+        };
+        var requestHandler = configuration.requestHandler;
+        return stack.resolve(function (request) {
+            return requestHandler.handle(request.request, options || {});
+        }, handlerExecutionContext);
+    };
+    PutObjectCommand.prototype.serialize = function (input, context) {
+        return serializeAws_restXmlPutObjectCommand(input, context);
+    };
+    PutObjectCommand.prototype.deserialize = function (output, context) {
+        return deserializeAws_restXmlPutObjectCommand(output, context);
+    };
+    return PutObjectCommand;
+}(Command));
+
+var resolveEventStreamSerdeConfig = function (input) { return (__assign$1(__assign$1({}, input), { eventStreamMarshaller: input.eventStreamSerdeProvider(input) })); };
+
+function addExpectContinueMiddleware(options) {
+    var _this = this;
+    return function (next) {
+        return function (args) { return __awaiter$1(_this, void 0, void 0, function () {
+            var request;
+            return __generator$1(this, function (_a) {
+                request = args.request;
+                if (HttpRequest.isInstance(request) && request.body && options.runtime === "node") {
+                    request.headers = __assign$1(__assign$1({}, request.headers), { Expect: "100-continue" });
+                }
+                return [2, next(__assign$1(__assign$1({}, args), { request: request }))];
+            });
+        }); };
+    };
+}
+var addExpectContinueMiddlewareOptions = {
+    step: "build",
+    tags: ["SET_EXPECT_HEADER", "EXPECT_HEADER"],
+    name: "addExpectContinueMiddleware",
+    override: true,
+};
+var getAddExpectContinuePlugin = function (options) { return ({
+    applyToStack: function (clientStack) {
+        clientStack.add(addExpectContinueMiddleware(options), addExpectContinueMiddlewareOptions);
+    },
+}); };
+
+var name = "@aws-sdk/client-s3";
+var description = "AWS SDK for JavaScript S3 Client for Node.js, Browser and React Native";
+var version = "3.38.0";
+var scripts = {
+	build: "yarn build:cjs && yarn build:es && yarn build:types",
+	"build:cjs": "tsc -p tsconfig.json",
+	"build:docs": "yarn clean:docs && typedoc ./",
+	"build:es": "tsc -p tsconfig.es.json",
+	"build:types": "tsc -p tsconfig.types.json",
+	clean: "yarn clean:dist && yarn clean:docs",
+	"clean:dist": "rimraf ./dist",
+	"clean:docs": "rimraf ./docs",
+	"downlevel-dts": "downlevel-dts dist-types dist-types/ts3.4",
+	test: "yarn test:unit",
+	"test:e2e": "ts-mocha test/**/*.ispec.ts && karma start karma.conf.js",
+	"test:unit": "ts-mocha test/**/*.spec.ts"
+};
+var main = "./dist-cjs/index.js";
+var types = "./dist-types/index.d.ts";
+var module$1 = "./dist-es/index.js";
+var sideEffects = false;
+var dependencies = {
+	"@aws-crypto/sha256-browser": "^1.0.0",
+	"@aws-crypto/sha256-js": "^1.0.0",
+	"@aws-sdk/client-sts": "3.38.0",
+	"@aws-sdk/config-resolver": "3.38.0",
+	"@aws-sdk/credential-provider-node": "3.38.0",
+	"@aws-sdk/eventstream-serde-browser": "3.38.0",
+	"@aws-sdk/eventstream-serde-config-resolver": "3.38.0",
+	"@aws-sdk/eventstream-serde-node": "3.38.0",
+	"@aws-sdk/fetch-http-handler": "3.38.0",
+	"@aws-sdk/hash-blob-browser": "3.38.0",
+	"@aws-sdk/hash-node": "3.38.0",
+	"@aws-sdk/hash-stream-node": "3.38.0",
+	"@aws-sdk/invalid-dependency": "3.38.0",
+	"@aws-sdk/md5-js": "3.38.0",
+	"@aws-sdk/middleware-apply-body-checksum": "3.38.0",
+	"@aws-sdk/middleware-bucket-endpoint": "3.38.0",
+	"@aws-sdk/middleware-content-length": "3.38.0",
+	"@aws-sdk/middleware-expect-continue": "3.38.0",
+	"@aws-sdk/middleware-host-header": "3.38.0",
+	"@aws-sdk/middleware-location-constraint": "3.38.0",
+	"@aws-sdk/middleware-logger": "3.38.0",
+	"@aws-sdk/middleware-retry": "3.38.0",
+	"@aws-sdk/middleware-sdk-s3": "3.38.0",
+	"@aws-sdk/middleware-serde": "3.38.0",
+	"@aws-sdk/middleware-signing": "3.38.0",
+	"@aws-sdk/middleware-ssec": "3.38.0",
+	"@aws-sdk/middleware-stack": "3.38.0",
+	"@aws-sdk/middleware-user-agent": "3.38.0",
+	"@aws-sdk/node-config-provider": "3.38.0",
+	"@aws-sdk/node-http-handler": "3.38.0",
+	"@aws-sdk/protocol-http": "3.38.0",
+	"@aws-sdk/smithy-client": "3.38.0",
+	"@aws-sdk/types": "3.38.0",
+	"@aws-sdk/url-parser": "3.38.0",
+	"@aws-sdk/util-base64-browser": "3.37.0",
+	"@aws-sdk/util-base64-node": "3.37.0",
+	"@aws-sdk/util-body-length-browser": "3.37.0",
+	"@aws-sdk/util-body-length-node": "3.37.0",
+	"@aws-sdk/util-user-agent-browser": "3.38.0",
+	"@aws-sdk/util-user-agent-node": "3.38.0",
+	"@aws-sdk/util-utf8-browser": "3.37.0",
+	"@aws-sdk/util-utf8-node": "3.37.0",
+	"@aws-sdk/util-waiter": "3.38.0",
+	"@aws-sdk/xml-builder": "3.37.0",
+	entities: "2.2.0",
+	"fast-xml-parser": "3.19.0",
+	tslib: "^2.3.0"
+};
+var devDependencies = {
+	"@aws-sdk/service-client-documentation-generator": "3.38.0",
+	"@types/chai": "^4.2.11",
+	"@types/mocha": "^8.0.4",
+	"@types/node": "^12.7.5",
+	"downlevel-dts": "0.7.0",
+	jest: "^26.1.0",
+	rimraf: "^3.0.0",
+	"ts-jest": "^26.4.1",
+	typedoc: "^0.19.2",
+	typescript: "~4.3.5"
+};
+var engines = {
+	node: ">=10.0.0"
+};
+var typesVersions = {
+	"<4.0": {
+		"dist-types/*": [
+			"dist-types/ts3.4/*"
+		]
+	}
+};
+var files = [
+	"dist-*"
+];
+var author = {
+	name: "AWS SDK for JavaScript Team",
+	url: "https://aws.amazon.com/javascript/"
+};
+var license = "Apache-2.0";
+var browser = {
+	"./dist-es/runtimeConfig": "./dist-es/runtimeConfig.browser"
+};
+var homepage = "https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-s3";
+var repository = {
+	type: "git",
+	url: "https://github.com/aws/aws-sdk-js-v3.git",
+	directory: "clients/client-s3"
+};
+var packageInfo = {
+	name: name,
+	description: description,
+	version: version,
+	scripts: scripts,
+	main: main,
+	types: types,
+	module: module$1,
+	sideEffects: sideEffects,
+	dependencies: dependencies,
+	devDependencies: devDependencies,
+	engines: engines,
+	typesVersions: typesVersions,
+	files: files,
+	author: author,
+	license: license,
+	browser: browser,
+	"react-native": {
+	"./dist-es/runtimeConfig": "./dist-es/runtimeConfig.native"
+},
+	homepage: homepage,
+	repository: repository
 };
 
 /*! *****************************************************************************
@@ -108340,7 +100105,7 @@ function isReadStream(stream) {
     return typeof stream.path === "string";
 }
 
-var regionHash$1 = {
+var regionHash = {
     "accesspoint-af-south-1": {
         hostname: "s3-accesspoint.af-south-1.amazonaws.com",
     },
@@ -108480,7 +100245,7 @@ var regionHash$1 = {
         hostname: "s3.us-west-2.amazonaws.com",
     },
 };
-var partitionHash$1 = {
+var partitionHash = {
     aws: {
         regions: [
             "accesspoint-af-south-1",
@@ -108560,19 +100325,19 @@ var partitionHash$1 = {
         hostname: "s3.{region}.amazonaws.com",
     },
 };
-var defaultRegionInfoProvider$1 = function (region, options) { return __awaiter$1(void 0, void 0, void 0, function () {
+var defaultRegionInfoProvider = function (region, options) { return __awaiter$1(void 0, void 0, void 0, function () {
     return __generator$1(this, function (_a) {
-        return [2, getRegionInfo(region, __assign$1(__assign$1({}, options), { signingService: "s3", regionHash: regionHash$1, partitionHash: partitionHash$1 }))];
+        return [2, getRegionInfo(region, __assign$1(__assign$1({}, options), { signingService: "s3", regionHash: regionHash, partitionHash: partitionHash }))];
     });
 }); };
 
-var getRuntimeConfig$3 = function (config) {
+var getRuntimeConfig$1 = function (config) {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     return ({
         apiVersion: "2006-03-01",
         disableHostPrefix: (_a = config === null || config === void 0 ? void 0 : config.disableHostPrefix) !== null && _a !== void 0 ? _a : false,
         logger: (_b = config === null || config === void 0 ? void 0 : config.logger) !== null && _b !== void 0 ? _b : {},
-        regionInfoProvider: (_c = config === null || config === void 0 ? void 0 : config.regionInfoProvider) !== null && _c !== void 0 ? _c : defaultRegionInfoProvider$1,
+        regionInfoProvider: (_c = config === null || config === void 0 ? void 0 : config.regionInfoProvider) !== null && _c !== void 0 ? _c : defaultRegionInfoProvider,
         serviceId: (_d = config === null || config === void 0 ? void 0 : config.serviceId) !== null && _d !== void 0 ? _d : "S3",
         signerConstructor: (_e = config === null || config === void 0 ? void 0 : config.signerConstructor) !== null && _e !== void 0 ? _e : S3SignatureV4,
         signingEscapePath: (_f = config === null || config === void 0 ? void 0 : config.signingEscapePath) !== null && _f !== void 0 ? _f : false,
@@ -108581,18 +100346,18 @@ var getRuntimeConfig$3 = function (config) {
     });
 };
 
-var getRuntimeConfig$2 = function (config) {
+var getRuntimeConfig = function (config) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
     emitWarningIfUnsupportedVersion(process.version);
-    var clientSharedValues = getRuntimeConfig$3(config);
-    return __assign$1(__assign$1(__assign$1({}, clientSharedValues), config), { runtime: "node", base64Decoder: (_a = config === null || config === void 0 ? void 0 : config.base64Decoder) !== null && _a !== void 0 ? _a : fromBase64, base64Encoder: (_b = config === null || config === void 0 ? void 0 : config.base64Encoder) !== null && _b !== void 0 ? _b : toBase64, bodyLengthChecker: (_c = config === null || config === void 0 ? void 0 : config.bodyLengthChecker) !== null && _c !== void 0 ? _c : calculateBodyLength, credentialDefaultProvider: (_d = config === null || config === void 0 ? void 0 : config.credentialDefaultProvider) !== null && _d !== void 0 ? _d : decorateDefaultCredentialProvider(defaultProvider), defaultUserAgentProvider: (_e = config === null || config === void 0 ? void 0 : config.defaultUserAgentProvider) !== null && _e !== void 0 ? _e : defaultUserAgent({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo$3.version }), eventStreamSerdeProvider: (_f = config === null || config === void 0 ? void 0 : config.eventStreamSerdeProvider) !== null && _f !== void 0 ? _f : eventStreamSerdeProvider, maxAttempts: (_g = config === null || config === void 0 ? void 0 : config.maxAttempts) !== null && _g !== void 0 ? _g : loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS), md5: (_h = config === null || config === void 0 ? void 0 : config.md5) !== null && _h !== void 0 ? _h : Hash.bind(null, "md5"), region: (_j = config === null || config === void 0 ? void 0 : config.region) !== null && _j !== void 0 ? _j : loadConfig(NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS), requestHandler: (_k = config === null || config === void 0 ? void 0 : config.requestHandler) !== null && _k !== void 0 ? _k : new NodeHttpHandler(), retryMode: (_l = config === null || config === void 0 ? void 0 : config.retryMode) !== null && _l !== void 0 ? _l : loadConfig(NODE_RETRY_MODE_CONFIG_OPTIONS), sha256: (_m = config === null || config === void 0 ? void 0 : config.sha256) !== null && _m !== void 0 ? _m : Hash.bind(null, "sha256"), streamCollector: (_o = config === null || config === void 0 ? void 0 : config.streamCollector) !== null && _o !== void 0 ? _o : streamCollector, streamHasher: (_p = config === null || config === void 0 ? void 0 : config.streamHasher) !== null && _p !== void 0 ? _p : fileStreamHasher, useArnRegion: (_q = config === null || config === void 0 ? void 0 : config.useArnRegion) !== null && _q !== void 0 ? _q : loadConfig(NODE_USE_ARN_REGION_CONFIG_OPTIONS), utf8Decoder: (_r = config === null || config === void 0 ? void 0 : config.utf8Decoder) !== null && _r !== void 0 ? _r : fromUtf8$3, utf8Encoder: (_s = config === null || config === void 0 ? void 0 : config.utf8Encoder) !== null && _s !== void 0 ? _s : toUtf8$3 });
+    var clientSharedValues = getRuntimeConfig$1(config);
+    return __assign$1(__assign$1(__assign$1({}, clientSharedValues), config), { runtime: "node", base64Decoder: (_a = config === null || config === void 0 ? void 0 : config.base64Decoder) !== null && _a !== void 0 ? _a : fromBase64, base64Encoder: (_b = config === null || config === void 0 ? void 0 : config.base64Encoder) !== null && _b !== void 0 ? _b : toBase64, bodyLengthChecker: (_c = config === null || config === void 0 ? void 0 : config.bodyLengthChecker) !== null && _c !== void 0 ? _c : calculateBodyLength, credentialDefaultProvider: (_d = config === null || config === void 0 ? void 0 : config.credentialDefaultProvider) !== null && _d !== void 0 ? _d : decorateDefaultCredentialProvider(defaultProvider), defaultUserAgentProvider: (_e = config === null || config === void 0 ? void 0 : config.defaultUserAgentProvider) !== null && _e !== void 0 ? _e : defaultUserAgent({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }), eventStreamSerdeProvider: (_f = config === null || config === void 0 ? void 0 : config.eventStreamSerdeProvider) !== null && _f !== void 0 ? _f : eventStreamSerdeProvider, maxAttempts: (_g = config === null || config === void 0 ? void 0 : config.maxAttempts) !== null && _g !== void 0 ? _g : loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS), md5: (_h = config === null || config === void 0 ? void 0 : config.md5) !== null && _h !== void 0 ? _h : Hash.bind(null, "md5"), region: (_j = config === null || config === void 0 ? void 0 : config.region) !== null && _j !== void 0 ? _j : loadConfig(NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS), requestHandler: (_k = config === null || config === void 0 ? void 0 : config.requestHandler) !== null && _k !== void 0 ? _k : new NodeHttpHandler(), retryMode: (_l = config === null || config === void 0 ? void 0 : config.retryMode) !== null && _l !== void 0 ? _l : loadConfig(NODE_RETRY_MODE_CONFIG_OPTIONS), sha256: (_m = config === null || config === void 0 ? void 0 : config.sha256) !== null && _m !== void 0 ? _m : Hash.bind(null, "sha256"), streamCollector: (_o = config === null || config === void 0 ? void 0 : config.streamCollector) !== null && _o !== void 0 ? _o : streamCollector, streamHasher: (_p = config === null || config === void 0 ? void 0 : config.streamHasher) !== null && _p !== void 0 ? _p : fileStreamHasher, useArnRegion: (_q = config === null || config === void 0 ? void 0 : config.useArnRegion) !== null && _q !== void 0 ? _q : loadConfig(NODE_USE_ARN_REGION_CONFIG_OPTIONS), utf8Decoder: (_r = config === null || config === void 0 ? void 0 : config.utf8Decoder) !== null && _r !== void 0 ? _r : fromUtf8$3, utf8Encoder: (_s = config === null || config === void 0 ? void 0 : config.utf8Encoder) !== null && _s !== void 0 ? _s : toUtf8$3 });
 };
 
 var S3Client = (function (_super) {
     __extends$1(S3Client, _super);
     function S3Client(configuration) {
         var _this = this;
-        var _config_0 = getRuntimeConfig$2(configuration);
+        var _config_0 = getRuntimeConfig(configuration);
         var _config_1 = resolveRegionConfig(_config_0);
         var _config_2 = resolveEndpointsConfig(_config_1);
         var _config_3 = resolveRetryConfig(_config_2);
@@ -108620,1159 +100385,784 @@ var S3Client = (function (_super) {
     return S3Client;
 }(Client));
 
-var AddPermissionRequest;
-(function (AddPermissionRequest) {
-    AddPermissionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(AddPermissionRequest || (AddPermissionRequest = {}));
-var OverLimit;
-(function (OverLimit) {
-    OverLimit.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(OverLimit || (OverLimit = {}));
-var ChangeMessageVisibilityRequest;
-(function (ChangeMessageVisibilityRequest) {
-    ChangeMessageVisibilityRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ChangeMessageVisibilityRequest || (ChangeMessageVisibilityRequest = {}));
-var MessageNotInflight;
-(function (MessageNotInflight) {
-    MessageNotInflight.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(MessageNotInflight || (MessageNotInflight = {}));
-var ReceiptHandleIsInvalid;
-(function (ReceiptHandleIsInvalid) {
-    ReceiptHandleIsInvalid.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReceiptHandleIsInvalid || (ReceiptHandleIsInvalid = {}));
-var BatchEntryIdsNotDistinct;
-(function (BatchEntryIdsNotDistinct) {
-    BatchEntryIdsNotDistinct.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BatchEntryIdsNotDistinct || (BatchEntryIdsNotDistinct = {}));
-var ChangeMessageVisibilityBatchRequestEntry;
-(function (ChangeMessageVisibilityBatchRequestEntry) {
-    ChangeMessageVisibilityBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ChangeMessageVisibilityBatchRequestEntry || (ChangeMessageVisibilityBatchRequestEntry = {}));
-var ChangeMessageVisibilityBatchRequest;
-(function (ChangeMessageVisibilityBatchRequest) {
-    ChangeMessageVisibilityBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ChangeMessageVisibilityBatchRequest || (ChangeMessageVisibilityBatchRequest = {}));
-var BatchResultErrorEntry;
-(function (BatchResultErrorEntry) {
-    BatchResultErrorEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BatchResultErrorEntry || (BatchResultErrorEntry = {}));
-var ChangeMessageVisibilityBatchResultEntry;
-(function (ChangeMessageVisibilityBatchResultEntry) {
-    ChangeMessageVisibilityBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ChangeMessageVisibilityBatchResultEntry || (ChangeMessageVisibilityBatchResultEntry = {}));
-var ChangeMessageVisibilityBatchResult;
-(function (ChangeMessageVisibilityBatchResult) {
-    ChangeMessageVisibilityBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ChangeMessageVisibilityBatchResult || (ChangeMessageVisibilityBatchResult = {}));
-var EmptyBatchRequest;
-(function (EmptyBatchRequest) {
-    EmptyBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(EmptyBatchRequest || (EmptyBatchRequest = {}));
-var InvalidBatchEntryId;
-(function (InvalidBatchEntryId) {
-    InvalidBatchEntryId.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InvalidBatchEntryId || (InvalidBatchEntryId = {}));
-var TooManyEntriesInBatchRequest;
-(function (TooManyEntriesInBatchRequest) {
-    TooManyEntriesInBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(TooManyEntriesInBatchRequest || (TooManyEntriesInBatchRequest = {}));
-var CreateQueueRequest;
-(function (CreateQueueRequest) {
-    CreateQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CreateQueueRequest || (CreateQueueRequest = {}));
-var CreateQueueResult;
-(function (CreateQueueResult) {
-    CreateQueueResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(CreateQueueResult || (CreateQueueResult = {}));
-var QueueDeletedRecently;
-(function (QueueDeletedRecently) {
-    QueueDeletedRecently.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(QueueDeletedRecently || (QueueDeletedRecently = {}));
-var QueueNameExists;
-(function (QueueNameExists) {
-    QueueNameExists.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(QueueNameExists || (QueueNameExists = {}));
-var DeleteMessageRequest;
-(function (DeleteMessageRequest) {
-    DeleteMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMessageRequest || (DeleteMessageRequest = {}));
-var InvalidIdFormat;
-(function (InvalidIdFormat) {
-    InvalidIdFormat.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InvalidIdFormat || (InvalidIdFormat = {}));
-var DeleteMessageBatchRequestEntry;
-(function (DeleteMessageBatchRequestEntry) {
-    DeleteMessageBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMessageBatchRequestEntry || (DeleteMessageBatchRequestEntry = {}));
-var DeleteMessageBatchRequest;
-(function (DeleteMessageBatchRequest) {
-    DeleteMessageBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMessageBatchRequest || (DeleteMessageBatchRequest = {}));
-var DeleteMessageBatchResultEntry;
-(function (DeleteMessageBatchResultEntry) {
-    DeleteMessageBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMessageBatchResultEntry || (DeleteMessageBatchResultEntry = {}));
-var DeleteMessageBatchResult;
-(function (DeleteMessageBatchResult) {
-    DeleteMessageBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteMessageBatchResult || (DeleteMessageBatchResult = {}));
-var DeleteQueueRequest;
-(function (DeleteQueueRequest) {
-    DeleteQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(DeleteQueueRequest || (DeleteQueueRequest = {}));
-var GetQueueAttributesRequest;
-(function (GetQueueAttributesRequest) {
-    GetQueueAttributesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetQueueAttributesRequest || (GetQueueAttributesRequest = {}));
-var GetQueueAttributesResult;
-(function (GetQueueAttributesResult) {
-    GetQueueAttributesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetQueueAttributesResult || (GetQueueAttributesResult = {}));
-var InvalidAttributeName;
-(function (InvalidAttributeName) {
-    InvalidAttributeName.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InvalidAttributeName || (InvalidAttributeName = {}));
-var GetQueueUrlRequest;
-(function (GetQueueUrlRequest) {
-    GetQueueUrlRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetQueueUrlRequest || (GetQueueUrlRequest = {}));
-var GetQueueUrlResult;
-(function (GetQueueUrlResult) {
-    GetQueueUrlResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(GetQueueUrlResult || (GetQueueUrlResult = {}));
-var QueueDoesNotExist;
-(function (QueueDoesNotExist) {
-    QueueDoesNotExist.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(QueueDoesNotExist || (QueueDoesNotExist = {}));
-var ListDeadLetterSourceQueuesRequest;
-(function (ListDeadLetterSourceQueuesRequest) {
-    ListDeadLetterSourceQueuesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListDeadLetterSourceQueuesRequest || (ListDeadLetterSourceQueuesRequest = {}));
-var ListDeadLetterSourceQueuesResult;
-(function (ListDeadLetterSourceQueuesResult) {
-    ListDeadLetterSourceQueuesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListDeadLetterSourceQueuesResult || (ListDeadLetterSourceQueuesResult = {}));
-var ListQueuesRequest;
-(function (ListQueuesRequest) {
-    ListQueuesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListQueuesRequest || (ListQueuesRequest = {}));
-var ListQueuesResult;
-(function (ListQueuesResult) {
-    ListQueuesResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListQueuesResult || (ListQueuesResult = {}));
-var ListQueueTagsRequest;
-(function (ListQueueTagsRequest) {
-    ListQueueTagsRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListQueueTagsRequest || (ListQueueTagsRequest = {}));
-var ListQueueTagsResult;
-(function (ListQueueTagsResult) {
-    ListQueueTagsResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ListQueueTagsResult || (ListQueueTagsResult = {}));
-var PurgeQueueInProgress;
-(function (PurgeQueueInProgress) {
-    PurgeQueueInProgress.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PurgeQueueInProgress || (PurgeQueueInProgress = {}));
-var PurgeQueueRequest;
-(function (PurgeQueueRequest) {
-    PurgeQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(PurgeQueueRequest || (PurgeQueueRequest = {}));
-var ReceiveMessageRequest;
-(function (ReceiveMessageRequest) {
-    ReceiveMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReceiveMessageRequest || (ReceiveMessageRequest = {}));
-var MessageAttributeValue;
-(function (MessageAttributeValue) {
-    MessageAttributeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(MessageAttributeValue || (MessageAttributeValue = {}));
-var Message;
-(function (Message) {
-    Message.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(Message || (Message = {}));
-var ReceiveMessageResult;
-(function (ReceiveMessageResult) {
-    ReceiveMessageResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(ReceiveMessageResult || (ReceiveMessageResult = {}));
-var RemovePermissionRequest;
-(function (RemovePermissionRequest) {
-    RemovePermissionRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(RemovePermissionRequest || (RemovePermissionRequest = {}));
-var InvalidMessageContents;
-(function (InvalidMessageContents) {
-    InvalidMessageContents.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(InvalidMessageContents || (InvalidMessageContents = {}));
-var MessageSystemAttributeValue;
-(function (MessageSystemAttributeValue) {
-    MessageSystemAttributeValue.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(MessageSystemAttributeValue || (MessageSystemAttributeValue = {}));
-var SendMessageRequest;
-(function (SendMessageRequest) {
-    SendMessageRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageRequest || (SendMessageRequest = {}));
-var SendMessageResult;
-(function (SendMessageResult) {
-    SendMessageResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageResult || (SendMessageResult = {}));
-var UnsupportedOperation;
-(function (UnsupportedOperation) {
-    UnsupportedOperation.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(UnsupportedOperation || (UnsupportedOperation = {}));
-var BatchRequestTooLong;
-(function (BatchRequestTooLong) {
-    BatchRequestTooLong.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(BatchRequestTooLong || (BatchRequestTooLong = {}));
-var SendMessageBatchRequestEntry;
-(function (SendMessageBatchRequestEntry) {
-    SendMessageBatchRequestEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageBatchRequestEntry || (SendMessageBatchRequestEntry = {}));
-var SendMessageBatchRequest;
-(function (SendMessageBatchRequest) {
-    SendMessageBatchRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageBatchRequest || (SendMessageBatchRequest = {}));
-var SendMessageBatchResultEntry;
-(function (SendMessageBatchResultEntry) {
-    SendMessageBatchResultEntry.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageBatchResultEntry || (SendMessageBatchResultEntry = {}));
-var SendMessageBatchResult;
-(function (SendMessageBatchResult) {
-    SendMessageBatchResult.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SendMessageBatchResult || (SendMessageBatchResult = {}));
-var SetQueueAttributesRequest;
-(function (SetQueueAttributesRequest) {
-    SetQueueAttributesRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(SetQueueAttributesRequest || (SetQueueAttributesRequest = {}));
-var TagQueueRequest;
-(function (TagQueueRequest) {
-    TagQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(TagQueueRequest || (TagQueueRequest = {}));
-var UntagQueueRequest;
-(function (UntagQueueRequest) {
-    UntagQueueRequest.filterSensitiveLog = function (obj) { return (__assign$1({}, obj)); };
-})(UntagQueueRequest || (UntagQueueRequest = {}));
-
-var serializeAws_querySendMessageCommand = function (input, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var headers, body;
-    return __generator$1(this, function (_a) {
-        headers = {
-            "content-type": "application/x-www-form-urlencoded",
-        };
-        body = buildFormUrlencodedString(__assign$1(__assign$1({}, serializeAws_querySendMessageRequest(input, context)), { Action: "SendMessage", Version: "2012-11-05" }));
-        return [2, buildHttpRpcRequest(context, headers, "/", undefined, body)];
-    });
-}); };
-var deserializeAws_querySendMessageCommand = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var data, contents, response;
-    return __generator$1(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                if (output.statusCode >= 300) {
-                    return [2, deserializeAws_querySendMessageCommandError(output, context)];
-                }
-                return [4, parseBody(output.body, context)];
-            case 1:
-                data = _a.sent();
-                contents = {};
-                contents = deserializeAws_querySendMessageResult(data.SendMessageResult);
-                response = __assign$1({ $metadata: deserializeMetadata(output) }, contents);
-                return [2, Promise.resolve(response)];
-        }
-    });
-}); };
-var deserializeAws_querySendMessageCommandError = function (output, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var parsedOutput, _a, response, errorCode, _b, _c, _d, parsedBody, message;
-    var _e;
-    return __generator$1(this, function (_f) {
-        switch (_f.label) {
-            case 0:
-                _a = [__assign$1({}, output)];
-                _e = {};
-                return [4, parseBody(output.body, context)];
-            case 1:
-                parsedOutput = __assign$1.apply(void 0, _a.concat([(_e.body = _f.sent(), _e)]));
-                errorCode = "UnknownError";
-                errorCode = loadQueryErrorCode(output, parsedOutput.body);
-                _b = errorCode;
-                switch (_b) {
-                    case "InvalidMessageContents": return [3, 2];
-                    case "com.amazonaws.sqs#InvalidMessageContents": return [3, 2];
-                    case "UnsupportedOperation": return [3, 4];
-                    case "com.amazonaws.sqs#UnsupportedOperation": return [3, 4];
-                }
-                return [3, 6];
-            case 2:
-                _c = [{}];
-                return [4, deserializeAws_queryInvalidMessageContentsResponse(parsedOutput)];
-            case 3:
-                response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _c.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata(output) }]);
-                return [3, 7];
-            case 4:
-                _d = [{}];
-                return [4, deserializeAws_queryUnsupportedOperationResponse(parsedOutput)];
-            case 5:
-                response = __assign$1.apply(void 0, [__assign$1.apply(void 0, _d.concat([(_f.sent())])), { name: errorCode, $metadata: deserializeMetadata(output) }]);
-                return [3, 7];
-            case 6:
-                parsedBody = parsedOutput.body;
-                errorCode = parsedBody.Error.code || parsedBody.Error.Code || errorCode;
-                response = __assign$1(__assign$1({}, parsedBody.Error), { name: "" + errorCode, message: parsedBody.Error.message || parsedBody.Error.Message || errorCode, $fault: "client", $metadata: deserializeMetadata(output) });
-                _f.label = 7;
-            case 7:
-                message = response.message || response.Message || errorCode;
-                response.message = message;
-                delete response.Message;
-                return [2, Promise.reject(Object.assign(new Error(message), response))];
-        }
-    });
-}); };
-var deserializeAws_queryInvalidMessageContentsResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var body, deserialized, contents;
-    return __generator$1(this, function (_a) {
-        body = parsedOutput.body;
-        deserialized = deserializeAws_queryInvalidMessageContents(body.Error);
-        contents = __assign$1({ name: "InvalidMessageContents", $fault: "client", $metadata: deserializeMetadata(parsedOutput) }, deserialized);
-        return [2, contents];
-    });
-}); };
-var deserializeAws_queryUnsupportedOperationResponse = function (parsedOutput, context) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var body, deserialized, contents;
-    return __generator$1(this, function (_a) {
-        body = parsedOutput.body;
-        deserialized = deserializeAws_queryUnsupportedOperation(body.Error);
-        contents = __assign$1({ name: "UnsupportedOperation", $fault: "client", $metadata: deserializeMetadata(parsedOutput) }, deserialized);
-        return [2, contents];
-    });
-}); };
-var serializeAws_queryBinaryList = function (input, context) {
-    var e_4, _a;
-    var entries = {};
-    var counter = 1;
-    try {
-        for (var input_4 = __values$1(input), input_4_1 = input_4.next(); !input_4_1.done; input_4_1 = input_4.next()) {
-            var entry = input_4_1.value;
-            if (entry === null) {
-                continue;
-            }
-            entries["BinaryListValue." + counter] = context.base64Encoder(entry);
-            counter++;
-        }
-    }
-    catch (e_4_1) { e_4 = { error: e_4_1 }; }
-    finally {
-        try {
-            if (input_4_1 && !input_4_1.done && (_a = input_4.return)) _a.call(input_4);
-        }
-        finally { if (e_4) throw e_4.error; }
-    }
-    return entries;
-};
-var serializeAws_queryMessageAttributeValue = function (input, context) {
-    var entries = {};
-    if (input.StringValue !== undefined && input.StringValue !== null) {
-        entries["StringValue"] = input.StringValue;
-    }
-    if (input.BinaryValue !== undefined && input.BinaryValue !== null) {
-        entries["BinaryValue"] = context.base64Encoder(input.BinaryValue);
-    }
-    if (input.StringListValues !== undefined && input.StringListValues !== null) {
-        var memberEntries = serializeAws_queryStringList(input.StringListValues);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "StringListValue." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.BinaryListValues !== undefined && input.BinaryListValues !== null) {
-        var memberEntries = serializeAws_queryBinaryList(input.BinaryListValues, context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "BinaryListValue." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.DataType !== undefined && input.DataType !== null) {
-        entries["DataType"] = input.DataType;
-    }
-    return entries;
-};
-var serializeAws_queryMessageBodyAttributeMap = function (input, context) {
-    var entries = {};
-    var counter = 1;
-    Object.keys(input)
-        .filter(function (key) { return input[key] != null; })
-        .forEach(function (key) {
-        entries["entry." + counter + ".Name"] = key;
-        var memberEntries = serializeAws_queryMessageAttributeValue(input[key], context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            entries["entry." + counter + ".Value." + key] = value;
-        });
-        counter++;
-    });
-    return entries;
-};
-var serializeAws_queryMessageBodySystemAttributeMap = function (input, context) {
-    var entries = {};
-    var counter = 1;
-    Object.keys(input)
-        .filter(function (key) { return input[key] != null; })
-        .forEach(function (key) {
-        entries["entry." + counter + ".Name"] = key;
-        var memberEntries = serializeAws_queryMessageSystemAttributeValue(input[key], context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            entries["entry." + counter + ".Value." + key] = value;
-        });
-        counter++;
-    });
-    return entries;
-};
-var serializeAws_queryMessageSystemAttributeValue = function (input, context) {
-    var entries = {};
-    if (input.StringValue !== undefined && input.StringValue !== null) {
-        entries["StringValue"] = input.StringValue;
-    }
-    if (input.BinaryValue !== undefined && input.BinaryValue !== null) {
-        entries["BinaryValue"] = context.base64Encoder(input.BinaryValue);
-    }
-    if (input.StringListValues !== undefined && input.StringListValues !== null) {
-        var memberEntries = serializeAws_queryStringList(input.StringListValues);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "StringListValue." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.BinaryListValues !== undefined && input.BinaryListValues !== null) {
-        var memberEntries = serializeAws_queryBinaryList(input.BinaryListValues, context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "BinaryListValue." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.DataType !== undefined && input.DataType !== null) {
-        entries["DataType"] = input.DataType;
-    }
-    return entries;
-};
-var serializeAws_querySendMessageRequest = function (input, context) {
-    var entries = {};
-    if (input.QueueUrl !== undefined && input.QueueUrl !== null) {
-        entries["QueueUrl"] = input.QueueUrl;
-    }
-    if (input.MessageBody !== undefined && input.MessageBody !== null) {
-        entries["MessageBody"] = input.MessageBody;
-    }
-    if (input.DelaySeconds !== undefined && input.DelaySeconds !== null) {
-        entries["DelaySeconds"] = input.DelaySeconds;
-    }
-    if (input.MessageAttributes !== undefined && input.MessageAttributes !== null) {
-        var memberEntries = serializeAws_queryMessageBodyAttributeMap(input.MessageAttributes, context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "MessageAttribute." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.MessageSystemAttributes !== undefined && input.MessageSystemAttributes !== null) {
-        var memberEntries = serializeAws_queryMessageBodySystemAttributeMap(input.MessageSystemAttributes, context);
-        Object.entries(memberEntries).forEach(function (_a) {
-            var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-            var loc = "MessageSystemAttribute." + key.substring(key.indexOf(".") + 1);
-            entries[loc] = value;
-        });
-    }
-    if (input.MessageDeduplicationId !== undefined && input.MessageDeduplicationId !== null) {
-        entries["MessageDeduplicationId"] = input.MessageDeduplicationId;
-    }
-    if (input.MessageGroupId !== undefined && input.MessageGroupId !== null) {
-        entries["MessageGroupId"] = input.MessageGroupId;
-    }
-    return entries;
-};
-var serializeAws_queryStringList = function (input, context) {
-    var e_9, _a;
-    var entries = {};
-    var counter = 1;
-    try {
-        for (var input_9 = __values$1(input), input_9_1 = input_9.next(); !input_9_1.done; input_9_1 = input_9.next()) {
-            var entry = input_9_1.value;
-            if (entry === null) {
-                continue;
-            }
-            entries["StringListValue." + counter] = entry;
-            counter++;
-        }
-    }
-    catch (e_9_1) { e_9 = { error: e_9_1 }; }
-    finally {
-        try {
-            if (input_9_1 && !input_9_1.done && (_a = input_9.return)) _a.call(input_9);
-        }
-        finally { if (e_9) throw e_9.error; }
-    }
-    return entries;
-};
-var deserializeAws_queryInvalidMessageContents = function (output, context) {
-    var contents = {};
-    return contents;
-};
-var deserializeAws_querySendMessageResult = function (output, context) {
-    var contents = {
-        MD5OfMessageBody: undefined,
-        MD5OfMessageAttributes: undefined,
-        MD5OfMessageSystemAttributes: undefined,
-        MessageId: undefined,
-        SequenceNumber: undefined,
-    };
-    if (output["MD5OfMessageBody"] !== undefined) {
-        contents.MD5OfMessageBody = expectString(output["MD5OfMessageBody"]);
-    }
-    if (output["MD5OfMessageAttributes"] !== undefined) {
-        contents.MD5OfMessageAttributes = expectString(output["MD5OfMessageAttributes"]);
-    }
-    if (output["MD5OfMessageSystemAttributes"] !== undefined) {
-        contents.MD5OfMessageSystemAttributes = expectString(output["MD5OfMessageSystemAttributes"]);
-    }
-    if (output["MessageId"] !== undefined) {
-        contents.MessageId = expectString(output["MessageId"]);
-    }
-    if (output["SequenceNumber"] !== undefined) {
-        contents.SequenceNumber = expectString(output["SequenceNumber"]);
-    }
-    return contents;
-};
-var deserializeAws_queryUnsupportedOperation = function (output, context) {
-    var contents = {};
-    return contents;
-};
-var deserializeMetadata = function (output) {
-    var _a;
-    return ({
-        httpStatusCode: output.statusCode,
-        requestId: (_a = output.headers["x-amzn-requestid"]) !== null && _a !== void 0 ? _a : output.headers["x-amzn-request-id"],
-        extendedRequestId: output.headers["x-amz-id-2"],
-        cfId: output.headers["x-amz-cf-id"],
-    });
-};
-var collectBody = function (streamBody, context) {
-    if (streamBody === void 0) { streamBody = new Uint8Array(); }
-    if (streamBody instanceof Uint8Array) {
-        return Promise.resolve(streamBody);
-    }
-    return context.streamCollector(streamBody) || Promise.resolve(new Uint8Array());
-};
-var collectBodyString = function (streamBody, context) {
-    return collectBody(streamBody, context).then(function (body) { return context.utf8Encoder(body); });
-};
-var buildHttpRpcRequest = function (context, headers, path, resolvedHostname, body) { return __awaiter$1(void 0, void 0, void 0, function () {
-    var _a, hostname, _b, protocol, port, basePath, contents;
-    return __generator$1(this, function (_c) {
-        switch (_c.label) {
-            case 0: return [4, context.endpoint()];
-            case 1:
-                _a = _c.sent(), hostname = _a.hostname, _b = _a.protocol, protocol = _b === void 0 ? "https" : _b, port = _a.port, basePath = _a.path;
-                contents = {
-                    protocol: protocol,
-                    hostname: hostname,
-                    port: port,
-                    method: "POST",
-                    path: basePath.endsWith("/") ? basePath.slice(0, -1) + path : basePath + path,
-                    headers: headers,
-                };
-                if (resolvedHostname !== undefined) {
-                    contents.hostname = resolvedHostname;
-                }
-                if (body !== undefined) {
-                    contents.body = body;
-                }
-                return [2, new HttpRequest(contents)];
-        }
-    });
-}); };
-var parseBody = function (streamBody, context) {
-    return collectBodyString(streamBody, context).then(function (encoded) {
-        if (encoded.length) {
-            var parsedObj = parser.parse(encoded, {
-                attributeNamePrefix: "",
-                ignoreAttributes: false,
-                parseNodeValue: false,
-                trimValues: false,
-                tagValueProcessor: function (val) { return (val.trim() === "" && val.includes("\n") ? "" : lib.decodeHTML(val)); },
-            });
-            var textNodeName = "#text";
-            var key = Object.keys(parsedObj)[0];
-            var parsedObjToReturn = parsedObj[key];
-            if (parsedObjToReturn[textNodeName]) {
-                parsedObjToReturn[key] = parsedObjToReturn[textNodeName];
-                delete parsedObjToReturn[textNodeName];
-            }
-            return getValueFromTextNode(parsedObjToReturn);
-        }
-        return {};
-    });
-};
-var buildFormUrlencodedString = function (formEntries) {
-    return Object.entries(formEntries)
-        .map(function (_a) {
-        var _b = __read$1(_a, 2), key = _b[0], value = _b[1];
-        return extendedEncodeURIComponent(key) + "=" + extendedEncodeURIComponent(value);
-    })
-        .join("&");
-};
-var loadQueryErrorCode = function (output, data) {
-    if (data.Error.Code !== undefined) {
-        return data.Error.Code;
-    }
-    if (output.statusCode == 404) {
-        return "NotFound";
-    }
-    return "";
-};
-
-var sendMessageMiddleware = function (options) {
-    return function (next) {
-        return function (args) { return __awaiter$1(void 0, void 0, void 0, function () {
-            var resp, output, hash, _a, _b;
-            return __generator$1(this, function (_c) {
-                switch (_c.label) {
-                    case 0: return [4, next(__assign$1({}, args))];
-                    case 1:
-                        resp = _c.sent();
-                        output = resp.output;
-                        hash = new options.md5();
-                        hash.update(args.input.MessageBody || "");
-                        _a = output.MD5OfMessageBody;
-                        _b = toHex;
-                        return [4, hash.digest()];
-                    case 2:
-                        if (_a !== _b.apply(void 0, [_c.sent()])) {
-                            throw new Error("InvalidChecksumError");
-                        }
-                        return [2, resp];
-                }
-            });
-        }); };
-    };
-};
-var sendMessageMiddlewareOptions = {
-    step: "initialize",
-    tags: ["VALIDATE_BODY_MD5"],
-    name: "sendMessageMiddleware",
-    override: true,
-};
-var getSendMessagePlugin = function (config) { return ({
-    applyToStack: function (clientStack) {
-        clientStack.add(sendMessageMiddleware(config), sendMessageMiddlewareOptions);
-    },
-}); };
-
-var SendMessageCommand = (function (_super) {
-    __extends$1(SendMessageCommand, _super);
-    function SendMessageCommand(input) {
-        var _this = _super.call(this) || this;
-        _this.input = input;
-        return _this;
-    }
-    SendMessageCommand.prototype.resolveMiddleware = function (clientStack, configuration, options) {
-        this.middlewareStack.use(getSerdePlugin(configuration, this.serialize, this.deserialize));
-        this.middlewareStack.use(getSendMessagePlugin(configuration));
-        var stack = clientStack.concat(this.middlewareStack);
-        var logger = configuration.logger;
-        var clientName = "SQSClient";
-        var commandName = "SendMessageCommand";
-        var handlerExecutionContext = {
-            logger: logger,
-            clientName: clientName,
-            commandName: commandName,
-            inputFilterSensitiveLog: SendMessageRequest.filterSensitiveLog,
-            outputFilterSensitiveLog: SendMessageResult.filterSensitiveLog,
-        };
-        var requestHandler = configuration.requestHandler;
-        return stack.resolve(function (request) {
-            return requestHandler.handle(request.request, options || {});
-        }, handlerExecutionContext);
-    };
-    SendMessageCommand.prototype.serialize = function (input, context) {
-        return serializeAws_querySendMessageCommand(input, context);
-    };
-    SendMessageCommand.prototype.deserialize = function (output, context) {
-        return deserializeAws_querySendMessageCommand(output, context);
-    };
-    return SendMessageCommand;
-}(Command));
-
-var name = "@aws-sdk/client-sqs";
-var description = "AWS SDK for JavaScript Sqs Client for Node.js, Browser and React Native";
-var version = "3.38.0";
-var scripts = {
-	build: "yarn build:cjs && yarn build:es && yarn build:types",
-	"build:cjs": "tsc -p tsconfig.json",
-	"build:docs": "yarn clean:docs && typedoc ./",
-	"build:es": "tsc -p tsconfig.es.json",
-	"build:types": "tsc -p tsconfig.types.json",
-	clean: "yarn clean:dist && yarn clean:docs",
-	"clean:dist": "rimraf ./dist",
-	"clean:docs": "rimraf ./docs",
-	"downlevel-dts": "downlevel-dts dist-types dist-types/ts3.4",
-	test: "exit 0"
-};
-var main = "./dist-cjs/index.js";
-var types = "./dist-types/index.d.ts";
-var module$1 = "./dist-es/index.js";
-var sideEffects = false;
-var dependencies = {
-	"@aws-crypto/sha256-browser": "^1.0.0",
-	"@aws-crypto/sha256-js": "^1.0.0",
-	"@aws-sdk/client-sts": "3.38.0",
-	"@aws-sdk/config-resolver": "3.38.0",
-	"@aws-sdk/credential-provider-node": "3.38.0",
-	"@aws-sdk/fetch-http-handler": "3.38.0",
-	"@aws-sdk/hash-node": "3.38.0",
-	"@aws-sdk/invalid-dependency": "3.38.0",
-	"@aws-sdk/md5-js": "3.38.0",
-	"@aws-sdk/middleware-content-length": "3.38.0",
-	"@aws-sdk/middleware-host-header": "3.38.0",
-	"@aws-sdk/middleware-logger": "3.38.0",
-	"@aws-sdk/middleware-retry": "3.38.0",
-	"@aws-sdk/middleware-sdk-sqs": "3.38.0",
-	"@aws-sdk/middleware-serde": "3.38.0",
-	"@aws-sdk/middleware-signing": "3.38.0",
-	"@aws-sdk/middleware-stack": "3.38.0",
-	"@aws-sdk/middleware-user-agent": "3.38.0",
-	"@aws-sdk/node-config-provider": "3.38.0",
-	"@aws-sdk/node-http-handler": "3.38.0",
-	"@aws-sdk/protocol-http": "3.38.0",
-	"@aws-sdk/smithy-client": "3.38.0",
-	"@aws-sdk/types": "3.38.0",
-	"@aws-sdk/url-parser": "3.38.0",
-	"@aws-sdk/util-base64-browser": "3.37.0",
-	"@aws-sdk/util-base64-node": "3.37.0",
-	"@aws-sdk/util-body-length-browser": "3.37.0",
-	"@aws-sdk/util-body-length-node": "3.37.0",
-	"@aws-sdk/util-user-agent-browser": "3.38.0",
-	"@aws-sdk/util-user-agent-node": "3.38.0",
-	"@aws-sdk/util-utf8-browser": "3.37.0",
-	"@aws-sdk/util-utf8-node": "3.37.0",
-	entities: "2.2.0",
-	"fast-xml-parser": "3.19.0",
-	tslib: "^2.3.0"
-};
-var devDependencies = {
-	"@aws-sdk/service-client-documentation-generator": "3.38.0",
-	"@types/node": "^12.7.5",
-	"downlevel-dts": "0.7.0",
-	jest: "^26.1.0",
-	rimraf: "^3.0.0",
-	"ts-jest": "^26.4.1",
-	typedoc: "^0.19.2",
-	typescript: "~4.3.5"
-};
-var engines = {
-	node: ">=10.0.0"
-};
-var typesVersions = {
-	"<4.0": {
-		"dist-types/*": [
-			"dist-types/ts3.4/*"
-		]
-	}
-};
-var files = [
-	"dist-*"
-];
-var author = {
-	name: "AWS SDK for JavaScript Team",
-	url: "https://aws.amazon.com/javascript/"
-};
-var license = "Apache-2.0";
-var browser = {
-	"./dist-es/runtimeConfig": "./dist-es/runtimeConfig.browser"
-};
-var homepage = "https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sqs";
-var repository = {
-	type: "git",
-	url: "https://github.com/aws/aws-sdk-js-v3.git",
-	directory: "clients/client-sqs"
-};
-var packageInfo = {
-	name: name,
-	description: description,
-	version: version,
-	scripts: scripts,
-	main: main,
-	types: types,
-	module: module$1,
-	sideEffects: sideEffects,
-	dependencies: dependencies,
-	devDependencies: devDependencies,
-	engines: engines,
-	typesVersions: typesVersions,
-	files: files,
-	author: author,
-	license: license,
-	browser: browser,
-	"react-native": {
-	"./dist-es/runtimeConfig": "./dist-es/runtimeConfig.native"
-},
-	homepage: homepage,
-	repository: repository
-};
-
-var regionHash = {
-    "fips-us-east-1": {
-        hostname: "sqs-fips.us-east-1.amazonaws.com",
-        signingRegion: "us-east-1",
-    },
-    "fips-us-east-2": {
-        hostname: "sqs-fips.us-east-2.amazonaws.com",
-        signingRegion: "us-east-2",
-    },
-    "fips-us-west-1": {
-        hostname: "sqs-fips.us-west-1.amazonaws.com",
-        signingRegion: "us-west-1",
-    },
-    "fips-us-west-2": {
-        hostname: "sqs-fips.us-west-2.amazonaws.com",
-        signingRegion: "us-west-2",
-    },
-    "us-gov-east-1": {
-        hostname: "sqs.us-gov-east-1.amazonaws.com",
-        signingRegion: "us-gov-east-1",
-    },
-    "us-gov-west-1": {
-        hostname: "sqs.us-gov-west-1.amazonaws.com",
-        signingRegion: "us-gov-west-1",
-    },
-};
-var partitionHash = {
-    aws: {
-        regions: [
-            "af-south-1",
-            "ap-east-1",
-            "ap-northeast-1",
-            "ap-northeast-2",
-            "ap-northeast-3",
-            "ap-south-1",
-            "ap-southeast-1",
-            "ap-southeast-2",
-            "ca-central-1",
-            "eu-central-1",
-            "eu-north-1",
-            "eu-south-1",
-            "eu-west-1",
-            "eu-west-2",
-            "eu-west-3",
-            "fips-us-east-1",
-            "fips-us-east-2",
-            "fips-us-west-1",
-            "fips-us-west-2",
-            "me-south-1",
-            "sa-east-1",
-            "us-east-1",
-            "us-east-2",
-            "us-west-1",
-            "us-west-2",
-        ],
-        hostname: "sqs.{region}.amazonaws.com",
-    },
-    "aws-cn": {
-        regions: ["cn-north-1", "cn-northwest-1"],
-        hostname: "sqs.{region}.amazonaws.com.cn",
-    },
-    "aws-iso": {
-        regions: ["us-iso-east-1", "us-iso-west-1"],
-        hostname: "sqs.{region}.c2s.ic.gov",
-    },
-    "aws-iso-b": {
-        regions: ["us-isob-east-1"],
-        hostname: "sqs.{region}.sc2s.sgov.gov",
-    },
-    "aws-us-gov": {
-        regions: ["us-gov-east-1", "us-gov-west-1"],
-        hostname: "sqs.{region}.amazonaws.com",
-    },
-};
-var defaultRegionInfoProvider = function (region, options) { return __awaiter$1(void 0, void 0, void 0, function () {
-    return __generator$1(this, function (_a) {
-        return [2, getRegionInfo(region, __assign$1(__assign$1({}, options), { signingService: "sqs", regionHash: regionHash, partitionHash: partitionHash }))];
-    });
-}); };
-
-var getRuntimeConfig$1 = function (config) {
-    var _a, _b, _c, _d, _e;
-    return ({
-        apiVersion: "2012-11-05",
-        disableHostPrefix: (_a = config === null || config === void 0 ? void 0 : config.disableHostPrefix) !== null && _a !== void 0 ? _a : false,
-        logger: (_b = config === null || config === void 0 ? void 0 : config.logger) !== null && _b !== void 0 ? _b : {},
-        regionInfoProvider: (_c = config === null || config === void 0 ? void 0 : config.regionInfoProvider) !== null && _c !== void 0 ? _c : defaultRegionInfoProvider,
-        serviceId: (_d = config === null || config === void 0 ? void 0 : config.serviceId) !== null && _d !== void 0 ? _d : "SQS",
-        urlParser: (_e = config === null || config === void 0 ? void 0 : config.urlParser) !== null && _e !== void 0 ? _e : parseUrl,
-    });
-};
-
-var getRuntimeConfig = function (config) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
-    emitWarningIfUnsupportedVersion(process.version);
-    var clientSharedValues = getRuntimeConfig$1(config);
-    return __assign$1(__assign$1(__assign$1({}, clientSharedValues), config), { runtime: "node", base64Decoder: (_a = config === null || config === void 0 ? void 0 : config.base64Decoder) !== null && _a !== void 0 ? _a : fromBase64, base64Encoder: (_b = config === null || config === void 0 ? void 0 : config.base64Encoder) !== null && _b !== void 0 ? _b : toBase64, bodyLengthChecker: (_c = config === null || config === void 0 ? void 0 : config.bodyLengthChecker) !== null && _c !== void 0 ? _c : calculateBodyLength, credentialDefaultProvider: (_d = config === null || config === void 0 ? void 0 : config.credentialDefaultProvider) !== null && _d !== void 0 ? _d : decorateDefaultCredentialProvider(defaultProvider), defaultUserAgentProvider: (_e = config === null || config === void 0 ? void 0 : config.defaultUserAgentProvider) !== null && _e !== void 0 ? _e : defaultUserAgent({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }), maxAttempts: (_f = config === null || config === void 0 ? void 0 : config.maxAttempts) !== null && _f !== void 0 ? _f : loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS), md5: (_g = config === null || config === void 0 ? void 0 : config.md5) !== null && _g !== void 0 ? _g : Hash.bind(null, "md5"), region: (_h = config === null || config === void 0 ? void 0 : config.region) !== null && _h !== void 0 ? _h : loadConfig(NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS), requestHandler: (_j = config === null || config === void 0 ? void 0 : config.requestHandler) !== null && _j !== void 0 ? _j : new NodeHttpHandler(), retryMode: (_k = config === null || config === void 0 ? void 0 : config.retryMode) !== null && _k !== void 0 ? _k : loadConfig(NODE_RETRY_MODE_CONFIG_OPTIONS), sha256: (_l = config === null || config === void 0 ? void 0 : config.sha256) !== null && _l !== void 0 ? _l : Hash.bind(null, "sha256"), streamCollector: (_m = config === null || config === void 0 ? void 0 : config.streamCollector) !== null && _m !== void 0 ? _m : streamCollector, utf8Decoder: (_o = config === null || config === void 0 ? void 0 : config.utf8Decoder) !== null && _o !== void 0 ? _o : fromUtf8$3, utf8Encoder: (_p = config === null || config === void 0 ? void 0 : config.utf8Encoder) !== null && _p !== void 0 ? _p : toUtf8$3 });
-};
-
-var SQSClient = (function (_super) {
-    __extends$1(SQSClient, _super);
-    function SQSClient(configuration) {
-        var _this = this;
-        var _config_0 = getRuntimeConfig(configuration);
-        var _config_1 = resolveRegionConfig(_config_0);
-        var _config_2 = resolveEndpointsConfig(_config_1);
-        var _config_3 = resolveRetryConfig(_config_2);
-        var _config_4 = resolveHostHeaderConfig(_config_3);
-        var _config_5 = resolveAwsAuthConfig(_config_4);
-        var _config_6 = resolveUserAgentConfig(_config_5);
-        _this = _super.call(this, _config_6) || this;
-        _this.config = _config_6;
-        _this.middlewareStack.use(getRetryPlugin(_this.config));
-        _this.middlewareStack.use(getContentLengthPlugin(_this.config));
-        _this.middlewareStack.use(getHostHeaderPlugin(_this.config));
-        _this.middlewareStack.use(getLoggerPlugin(_this.config));
-        _this.middlewareStack.use(getAwsAuthPlugin(_this.config));
-        _this.middlewareStack.use(getUserAgentPlugin(_this.config));
-        return _this;
-    }
-    SQSClient.prototype.destroy = function () {
-        _super.prototype.destroy.call(this);
-    };
-    return SQSClient;
-}(Client));
-
-// FIXME: using static imports for AWS clients instead of dynamic imports are not imported correctly (if (1) imported from root @aws-sdk/client-sqs it works but isn't treeshook and
-// (2) if dynamically imported from deeper @aws-sdk/client-sqs/SQSClient it doesn't resolve and is treated as external. However (2) is working in the old way where AWS clients are direct dependencies of lambda-at-edge. Might be due to nested dynamic imports?
-// However it should be negligible as these clients are pretty lightweight.
 /**
- * Client to access pages/files, store pages to S3 and trigger SQS regeneration.
+ * There are multiple occasions where a static/SSG page will be generated after
+ * the initial build. This function accepts a generated page, stores it and
+ * applies the appropriate headers (e.g. setting an 'Expires' header for
+ * regeneration).
  */
-class AwsPlatformClient {
-    constructor(bucketName, bucketRegion, regenerationQueueName, regenerationQueueRegion) {
-        this.bucketName = bucketName;
-        this.bucketRegion = bucketRegion;
-        this.regenerationQueueName = regenerationQueueName;
-        this.regenerationQueueRegion = regenerationQueueRegion;
+const s3StorePage = async (options) => {
+    const s3 = new S3Client({
+        region: options.region,
+        maxAttempts: 3
+    });
+    const s3BasePath = options.basePath
+        ? `${options.basePath.replace(/^\//, "")}/`
+        : "";
+    const baseKey = options.uri
+        .replace(/^\/$/, "index")
+        .replace(/^\//, "")
+        .replace(/\.(json|html)$/, "")
+        .replace(/^_next\/data\/[^\/]*\//, "");
+    const jsonKey = `_next/data/${options.buildId}/${baseKey}.json`;
+    const htmlKey = `static-pages/${options.buildId}/${baseKey}.html`;
+    const cacheControl = options.revalidate
+        ? undefined
+        : "public, max-age=0, s-maxage=2678400, must-revalidate";
+    const expires = options.revalidate
+        ? new Date(new Date().getTime() + 1000 * options.revalidate)
+        : undefined;
+    const s3JsonParams = {
+        Bucket: options.bucketName,
+        Key: `${s3BasePath}${jsonKey}`,
+        Body: JSON.stringify(options.pageData),
+        ContentType: "application/json",
+        CacheControl: cacheControl,
+        Expires: expires
+    };
+    const s3HtmlParams = {
+        Bucket: options.bucketName,
+        Key: `${s3BasePath}${htmlKey}`,
+        Body: options.html,
+        ContentType: "text/html",
+        CacheControl: cacheControl,
+        Expires: expires
+    };
+    await Promise.all([
+        s3.send(new PutObjectCommand(s3JsonParams)),
+        s3.send(new PutObjectCommand(s3HtmlParams))
+    ]);
+    return {
+        cacheControl,
+        expires
+    };
+};
+
+const {PassThrough: PassThroughStream} = Stream__default["default"];
+
+var bufferStream = options => {
+	options = {...options};
+
+	const {array} = options;
+	let {encoding} = options;
+	const isBuffer = encoding === 'buffer';
+	let objectMode = false;
+
+	if (array) {
+		objectMode = !(encoding || isBuffer);
+	} else {
+		encoding = encoding || 'utf8';
+	}
+
+	if (isBuffer) {
+		encoding = null;
+	}
+
+	const stream = new PassThroughStream({objectMode});
+
+	if (encoding) {
+		stream.setEncoding(encoding);
+	}
+
+	let length = 0;
+	const chunks = [];
+
+	stream.on('data', chunk => {
+		chunks.push(chunk);
+
+		if (objectMode) {
+			length = chunks.length;
+		} else {
+			length += chunk.length;
+		}
+	});
+
+	stream.getBufferedValue = () => {
+		if (array) {
+			return chunks;
+		}
+
+		return isBuffer ? Buffer.concat(chunks, length) : chunks.join('');
+	};
+
+	stream.getBufferedLength = () => length;
+
+	return stream;
+};
+
+const {constants: BufferConstants} = buffer__default["default"];
+
+const {promisify} = util__default["default"];
+
+
+const streamPipelinePromisified = promisify(Stream__default["default"].pipeline);
+
+class MaxBufferError extends Error {
+	constructor() {
+		super('maxBuffer exceeded');
+		this.name = 'MaxBufferError';
+	}
+}
+
+async function getStream(inputStream, options) {
+	if (!inputStream) {
+		throw new Error('Expected a stream');
+	}
+
+	options = {
+		maxBuffer: Infinity,
+		...options
+	};
+
+	const {maxBuffer} = options;
+	const stream = bufferStream(options);
+
+	await new Promise((resolve, reject) => {
+		const rejectPromise = error => {
+			// Don't retrieve an oversized buffer.
+			if (error && stream.getBufferedLength() <= BufferConstants.MAX_LENGTH) {
+				error.bufferedData = stream.getBufferedValue();
+			}
+
+			reject(error);
+		};
+
+		(async () => {
+			try {
+				await streamPipelinePromisified(inputStream, stream);
+				resolve();
+			} catch (error) {
+				rejectPromise(error);
+			}
+		})();
+
+		stream.on('data', () => {
+			if (stream.getBufferedLength() > maxBuffer) {
+				rejectPromise(new MaxBufferError());
+			}
+		});
+	});
+
+	return stream.getBufferedValue();
+}
+
+var getStream_1 = getStream;
+var buffer = (stream, options) => getStream(stream, {...options, encoding: 'buffer'});
+var array = (stream, options) => getStream(stream, {...options, array: true});
+var MaxBufferError_1 = MaxBufferError;
+getStream_1.buffer = buffer;
+getStream_1.array = array;
+getStream_1.MaxBufferError = MaxBufferError_1;
+
+/**
+ * This function is experimental to allow rendering static pages fully from the handler.
+ * It uses a client such as S3 client to retrieve the page.
+ */
+const renderStaticPage = async ({ route, request, req, res, responsePromise, manifest, routesManifest, bucketName, s3Key, s3Uri, basePath }) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+    const staticRoute = route.isStatic ? route : undefined;
+    const statusCode = (_a = route === null || route === void 0 ? void 0 : route.statusCode) !== null && _a !== void 0 ? _a : 200;
+    // For PUT, DELETE, PATCH, POST, OPTIONS just return a 405 response as these are unsupported S3 methods
+    // when using CloudFront S3 origin to return the page, so we keep it in parity.
+    // TODO: now that we are directly calling S3 in the origin request handler,
+    //  we could implement OPTIONS method as well.
+    if (request.method === "PUT" ||
+        request.method === "DELETE" ||
+        request.method === "PATCH" ||
+        request.method === "POST" ||
+        request.method === "OPTIONS") {
+        res.writeHead(405);
+        res.end();
+        return await responsePromise;
     }
-    async getObject(pageKey) {
-        var _a, _b, _c, _d;
-        const s3 = new S3Client({
-            region: this.bucketRegion,
-            maxAttempts: 3
-        });
+    // Render response from S3
+    const s3 = new S3Client({
+        region: (_c = (_b = request.origin) === null || _b === void 0 ? void 0 : _b.s3) === null || _c === void 0 ? void 0 : _c.region,
+        maxAttempts: 3
+    });
+    const s3BasePath = basePath ? `${basePath.replace(/^\//, "")}/` : "";
+    const s3Params = {
+        Bucket: bucketName,
+        Key: s3Key
+    };
+    let s3StatusCode;
+    let bodyString;
+    let s3Response;
+    try {
+        s3Response = await s3.send(new GetObjectCommand(s3Params));
         // S3 Body is stream per: https://github.com/aws/aws-sdk-js-v3/issues/1096
-        const getStream = await Promise.resolve().then(function () { return require('./index-515339ac.js'); }).then(function (n) { return n.index; });
+        bodyString = await getStream_1(s3Response.Body);
+        s3StatusCode = s3Response.$metadata.httpStatusCode;
+    }
+    catch (e) {
+        s3StatusCode = e.$metadata.httpStatusCode;
+    }
+    // These statuses are returned when S3 does not have access to the page.
+    // 404 will also be returned if CloudFront has permissions to list objects.
+    if (s3Response && s3StatusCode !== 403 && s3StatusCode !== 404) {
+        let cacheControl = s3Response.CacheControl;
+        // If these are error pages, then just return them
+        if (statusCode === 404 || statusCode === 500) {
+            cacheControl =
+                statusCode === 500
+                    ? "public, max-age=0, s-maxage=0, must-revalidate"
+                    : cacheControl;
+        }
+        else {
+            // Otherwise we may need to do static regeneration
+            const staticRegenerationResponse = getStaticRegenerationResponse({
+                expiresHeader: (_e = (_d = s3Response.Expires) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "",
+                lastModifiedHeader: (_g = (_f = s3Response.LastModified) === null || _f === void 0 ? void 0 : _f.toString()) !== null && _g !== void 0 ? _g : "",
+                initialRevalidateSeconds: staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.revalidate
+            });
+            if (staticRegenerationResponse) {
+                cacheControl = staticRegenerationResponse.cacheControl;
+                if ((staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.page) &&
+                    staticRegenerationResponse.secondsRemainingUntilRevalidation === 0) {
+                    const regenerationQueueName = (_h = manifest.regenerationQueueName) !== null && _h !== void 0 ? _h : `${bucketName}.fifo`; // if queue name not specified, we used [bucketName].fifo as used in deployment
+                    if (!regenerationQueueName) {
+                        throw new Error("Regeneration queue name is undefined.");
+                    }
+                    const { throttle } = await triggerStaticRegeneration({
+                        basePath,
+                        request,
+                        pageS3Path: s3Key,
+                        eTag: s3Response.ETag,
+                        lastModified: (_j = s3Response.LastModified) === null || _j === void 0 ? void 0 : _j.getTime().toString(),
+                        pagePath: staticRoute.page,
+                        queueName: regenerationQueueName
+                    });
+                    // Occasionally we will get rate-limited by the Queue (in the event we
+                    // send it too many messages) and so we we use the cache to reduce
+                    // requests to the queue for a short period.
+                    if (throttle) {
+                        cacheControl =
+                            getThrottledStaticRegenerationCachePolicy(1).cacheControl;
+                    }
+                }
+            }
+        }
+        // Get custom headers and convert it into a plain object
+        const customHeaders = getCustomHeaders(request.uri, routesManifest);
+        const convertedCustomHeaders = {};
+        for (const key in customHeaders) {
+            convertedCustomHeaders[key] = customHeaders[key][0].value;
+        }
+        const headers = {
+            "Cache-Control": cacheControl,
+            "Content-Disposition": s3Response.ContentDisposition,
+            "Content-Type": s3Response.ContentType,
+            "Content-Language": s3Response.ContentLanguage,
+            "Content-Length": s3Response.ContentLength,
+            "Content-Encoding": s3Response.ContentEncoding,
+            "Content-Range": s3Response.ContentRange,
+            ETag: s3Response.ETag,
+            LastModified: (_k = s3Response.LastModified) === null || _k === void 0 ? void 0 : _k.getTime().toString(),
+            "Accept-Ranges": s3Response.AcceptRanges,
+            ...convertedCustomHeaders
+        };
+        res.writeHead(statusCode, headers);
+        res.end(bodyString);
+        return await responsePromise;
+    }
+    const getPage = (pagePath) => {
+        return require(`./${pagePath}`);
+    };
+    const fallbackRoute = await handleFallback({ req, res, responsePromise }, route, manifest, routesManifest, getPage);
+    // Already handled dynamic error path
+    if (!fallbackRoute) {
+        return await responsePromise;
+    }
+    // Either a fallback: true page or a static error page
+    if (fallbackRoute.isStatic) {
+        const file = fallbackRoute.file.slice("pages".length);
+        const s3Key = `${s3BasePath}static-pages/${manifest.buildId}${file}`;
         const s3Params = {
-            Bucket: this.bucketName,
-            Key: pageKey
+            Bucket: bucketName,
+            Key: s3Key
         };
-        let s3StatusCode;
-        let bodyBuffer;
-        let s3Response;
-        try {
-            s3Response = await s3.send(new GetObjectCommand(s3Params));
-            bodyBuffer = await getStream.buffer(s3Response.Body);
-            s3StatusCode = (_a = s3Response.$metadata.httpStatusCode) !== null && _a !== void 0 ? _a : 200; // assume OK if not set, but it should be
-        }
-        catch (e) {
-            s3StatusCode = e.$metadata.httpStatusCode;
-            console.info("Got error response from S3. Will default to returning empty response. Error: " +
-                JSON.stringify(e));
-            return {
-                body: undefined,
-                headers: {},
-                statusCode: s3StatusCode,
-                expires: undefined,
-                lastModified: undefined,
-                eTag: undefined,
-                cacheControl: undefined,
-                contentType: undefined
-            };
-        }
-        return {
-            body: bodyBuffer,
-            headers: {
-                "Cache-Control": s3Response.CacheControl,
-                "Content-Disposition": s3Response.ContentDisposition,
-                "Content-Type": s3Response.ContentType,
-                "Content-Language": s3Response.ContentLanguage,
-                "Content-Length": (_b = s3Response.ContentLength) === null || _b === void 0 ? void 0 : _b.toString(),
-                "Content-Encoding": s3Response.ContentEncoding,
-                "Content-Range": s3Response.ContentRange,
-                ETag: s3Response.ETag,
-                "Accept-Ranges": s3Response.AcceptRanges
-            },
-            lastModified: (_c = s3Response.LastModified) === null || _c === void 0 ? void 0 : _c.toString(),
-            expires: (_d = s3Response.Expires) === null || _d === void 0 ? void 0 : _d.toString(),
-            eTag: s3Response.ETag,
-            cacheControl: s3Response.CacheControl,
-            statusCode: s3StatusCode,
-            contentType: s3Response.ContentType
-        };
-    }
-    async storePage(options) {
-        const s3 = new S3Client({
-            region: this.bucketRegion,
-            maxAttempts: 3
+        const s3Response = await s3.send(new GetObjectCommand(s3Params));
+        const bodyString = await getStream_1(s3Response.Body);
+        const statusCode = fallbackRoute.statusCode || 200;
+        const is500 = statusCode === 500;
+        const cacheControl = is500
+            ? "public, max-age=0, s-maxage=0, must-revalidate" // static 500 page should never be cached
+            : (_l = s3Response.CacheControl) !== null && _l !== void 0 ? _l : (fallbackRoute.fallback // Use cache-control from S3 response if possible, otherwise use defaults
+                ? "public, max-age=0, s-maxage=0, must-revalidate" // fallback should never be cached
+                : "public, max-age=0, s-maxage=2678400, must-revalidate");
+        res.writeHead(statusCode, {
+            "Cache-Control": cacheControl,
+            "Content-Type": "text/html"
         });
-        const s3BasePath = options.basePath
-            ? `${options.basePath.replace(/^\//, "")}/`
-            : "";
-        const baseKey = options.uri
-            .replace(/^\/$/, "index")
-            .replace(/^\//, "")
-            .replace(/\.(json|html)$/, "")
-            .replace(/^_next\/data\/[^\/]*\//, "");
-        const jsonKey = `_next/data/${options.buildId}/${baseKey}.json`;
-        const htmlKey = `static-pages/${options.buildId}/${baseKey}.html`;
-        const cacheControl = options.revalidate
-            ? undefined
-            : "public, max-age=0, s-maxage=2678400, must-revalidate";
-        const expires = options.revalidate
-            ? new Date(new Date().getTime() + 1000 * options.revalidate)
-            : undefined;
-        const s3JsonParams = {
-            Bucket: this.bucketName,
-            Key: `${s3BasePath}${jsonKey}`,
-            Body: JSON.stringify(options.pageData),
-            ContentType: "application/json",
-            CacheControl: cacheControl,
-            Expires: expires
-        };
-        const s3HtmlParams = {
-            Bucket: this.bucketName,
-            Key: `${s3BasePath}${htmlKey}`,
-            Body: options.html,
-            ContentType: "text/html",
-            CacheControl: cacheControl,
-            Expires: expires
-        };
-        await Promise.all([
-            s3.send(new PutObjectCommand(s3JsonParams)),
-            s3.send(new PutObjectCommand(s3HtmlParams))
-        ]);
-        return {
-            cacheControl,
-            expires
-        };
+        res.end(bodyString);
+        return await responsePromise;
     }
-    async triggerStaticRegeneration(options) {
-        var _a, _b;
-        if (!this.regenerationQueueRegion || !this.regenerationQueueName) {
-            throw new Error("SQS regeneration queue region and name is not set.");
+    // This is a fallback route that should be stored in S3 before returning it
+    const { renderOpts, html } = fallbackRoute;
+    const { expires } = await s3StorePage({
+        html,
+        uri: s3Uri,
+        basePath,
+        bucketName: bucketName || "",
+        buildId: manifest.buildId,
+        pageData: renderOpts.pageData,
+        region: ((_o = (_m = request.origin) === null || _m === void 0 ? void 0 : _m.s3) === null || _o === void 0 ? void 0 : _o.region) || "",
+        revalidate: renderOpts.revalidate
+    });
+    const isrResponse = expires
+        ? getStaticRegenerationResponse({
+            expiresHeader: expires.toJSON(),
+            lastModifiedHeader: undefined,
+            initialRevalidateSeconds: staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.revalidate
+        })
+        : null;
+    const cacheControl = (isrResponse && isrResponse.cacheControl) ||
+        "public, max-age=0, s-maxage=2678400, must-revalidate";
+    res.setHeader("Cache-Control", cacheControl);
+    if (fallbackRoute.route.isData) {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(renderOpts.pageData));
+    }
+    else {
+        res.setHeader("Content-Type", "text/html");
+        res.end(html);
+    }
+    return await responsePromise;
+};
+
+// Blacklisted or read-only headers in CloudFront
+const ignoredHeaders = [
+    "connection",
+    "expect",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "proxy-connection",
+    "trailer",
+    "upgrade",
+    "x-accel-buffering",
+    "x-accel-charset",
+    "x-accel-limit-rate",
+    "x-accel-redirect",
+    "x-cache",
+    "x-forwarded-proto",
+    "x-real-ip",
+    "content-length",
+    "host",
+    "transfer-encoding",
+    "via"
+];
+const ignoredHeaderPrefixes = ["x-amz-cf-", "x-amzn-", "x-edge-"];
+function isIgnoredHeader(name) {
+    const lowerCaseName = name.toLowerCase();
+    for (const prefix of ignoredHeaderPrefixes) {
+        if (lowerCaseName.startsWith(prefix)) {
+            return true;
         }
-        const sqs = new SQSClient({
-            region: this.regenerationQueueRegion,
-            maxAttempts: 1
+    }
+    return ignoredHeaders.includes(lowerCaseName);
+}
+async function createExternalRewriteResponse(customRewrite, req, res, body) {
+    const { default: fetch } = await Promise.resolve().then(function () { return index; });
+    // Set request headers
+    const reqHeaders = {};
+    Object.assign(reqHeaders, req.headers);
+    // Delete host header otherwise request may fail due to host mismatch
+    if (reqHeaders.hasOwnProperty("host")) {
+        delete reqHeaders.host;
+    }
+    let fetchResponse;
+    if (body) {
+        const decodedBody = Buffer.from(body, "base64").toString("utf8");
+        fetchResponse = await fetch(customRewrite, {
+            headers: reqHeaders,
+            method: req.method,
+            body: decodedBody,
+            redirect: "manual"
         });
-        const regenerationEvent = {
-            request: {
-                url: options.req.url,
-                headers: options.req.headers
-            },
-            pagePath: options.pagePath,
-            basePath: options.basePath,
-            pageKey: options.pageKey,
-            storeName: this.bucketName,
-            storeRegion: this.bucketRegion
-        };
-        try {
-            const crypto = await Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require('crypto')); });
-            // Hashed URI for messageGroupId to allow for long URIs, as SQS has limit of 128 characters
-            // MD5 is used since this is only used for grouping purposes
-            const hashedUri = crypto
-                .createHash("md5")
-                .update((_a = options.req.url) !== null && _a !== void 0 ? _a : "")
-                .digest("hex");
-            await sqs.send(new SendMessageCommand({
-                QueueUrl: `https://sqs.${this.regenerationQueueRegion}.amazonaws.com/${this.regenerationQueueName}`,
-                MessageBody: JSON.stringify(regenerationEvent),
-                // We only want to trigger the regeneration once for every previous
-                // update. This will prevent the case where this page is being
-                // requested again whilst its already started to regenerate.
-                MessageDeduplicationId: (_b = options.eTag) !== null && _b !== void 0 ? _b : (options.lastModified
-                    ? new Date(options.lastModified).getTime().toString()
-                    : new Date().getTime().toString()),
-                // Only deduplicate based on the object, i.e. we can generate
-                // different pages in parallel, just not the same one
-                MessageGroupId: hashedUri
-            }));
-            return { throttle: false };
+    }
+    else {
+        fetchResponse = await fetch(customRewrite, {
+            headers: reqHeaders,
+            method: req.method,
+            compress: false,
+            redirect: "manual"
+        });
+    }
+    for (const [name, val] of fetchResponse.headers.entries()) {
+        if (!isIgnoredHeader(name)) {
+            res.setHeader(name, val);
         }
-        catch (error) {
-            if (error.code === "RequestThrottled") {
-                return { throttle: true };
-            }
-            else {
-                throw error;
-            }
+    }
+    res.statusCode = fetchResponse.status;
+    res.end(await fetchResponse.buffer());
+}
+const externalRewrite = async (event, enableHTTPCompression, rewrite) => {
+    var _a;
+    const request = event.Records[0].cf.request;
+    const { req, res, responsePromise } = nextAwsCloudfront(event.Records[0].cf, {
+        enableHTTPCompression
+    });
+    await createExternalRewriteResponse(rewrite + (request.querystring ? "?" : "") + request.querystring, req, res, (_a = request.body) === null || _a === void 0 ? void 0 : _a.data);
+    return await responsePromise;
+};
+
+const blacklistedHeaders = [
+    "connection",
+    "expect",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "proxy-connection",
+    "trailer",
+    "upgrade",
+    "x-accel-buffering",
+    "x-accel-charset",
+    "x-accel-limit-rate",
+    "x-accel-redirect",
+    "x-cache",
+    "x-forwarded-proto",
+    "x-real-ip"
+];
+const blacklistedHeaderPrefixes = ["x-amz-cf-", "x-amzn-", "x-edge-"];
+function isBlacklistedHeader(name) {
+    const lowerCaseName = name.toLowerCase();
+    for (const prefix of blacklistedHeaderPrefixes) {
+        if (lowerCaseName.startsWith(prefix)) {
+            return true;
+        }
+    }
+    return blacklistedHeaders.includes(lowerCaseName);
+}
+function removeBlacklistedHeaders(headers) {
+    for (const header in headers) {
+        if (isBlacklistedHeader(header)) {
+            delete headers[header];
         }
     }
 }
 
 // @ts-ignore
 const basePath = RoutesManifestJson__default["default"].basePath;
-const normaliseUri = (uri) => {
-    if (uri.startsWith(basePath)) {
-        uri = uri.slice(basePath.length);
+const perfLogger = (logLambdaExecutionTimes) => {
+    if (logLambdaExecutionTimes) {
+        return {
+            now: () => perf_hooks.performance.now(),
+            log: (metricDescription, t1, t2) => {
+                if (!t1 || !t2)
+                    return;
+                console.log(`${metricDescription}: ${t2 - t1} (ms)`);
+            }
+        };
     }
-    return uri;
+    return {
+        now: () => 0,
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        log: () => { }
+    };
 };
-const isImageOptimizerRequest = (uri) => uri.startsWith("/_next/image");
+const addS3HostHeader = (req, s3DomainName) => {
+    req.headers["host"] = [{ key: "host", value: s3DomainName }];
+};
+const normaliseS3OriginDomain = (s3Origin) => {
+    if (s3Origin.region === "us-east-1") {
+        return s3Origin.domainName;
+    }
+    if (!s3Origin.domainName.includes(s3Origin.region)) {
+        const regionalEndpoint = s3Origin.domainName.replace("s3.amazonaws.com", `s3.${s3Origin.region}.amazonaws.com`);
+        return regionalEndpoint;
+    }
+    return s3Origin.domainName;
+};
 const handler = async (event) => {
-    var _a;
-    const request = event.Records[0].cf.request;
+    const manifest = Manifest__default["default"];
+    let response;
+    const prerenderManifest = PrerenderManifest__default["default"];
     const routesManifest = RoutesManifestJson__default["default"];
-    const buildManifest = manifest__default["default"];
-    // Handle basic auth
-    const authRoute = handleAuth(request, buildManifest);
-    if (authRoute) {
-        const { status, ...response } = authRoute;
-        return { ...response, status: status.toString() };
-    }
-    // Handle domain redirects e.g www to non-www domain
-    const redirectRoute = handleDomainRedirects(request, manifest__default["default"]);
-    if (redirectRoute) {
-        const { status, ...response } = redirectRoute;
-        return { ...response, status: status.toString() };
-    }
-    // No other redirects or rewrites supported for now as it's assumed one is accessing this directly.
-    // But it can be added later.
-    const uri = normaliseUri(request.uri);
-    // Handle image optimizer requests
-    const isImageRequest = isImageOptimizerRequest(uri);
-    if (isImageRequest) {
-        let imagesManifest;
-        try {
-            // @ts-ignore
-            imagesManifest = await Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require('./images-manifest.json')); });
-        }
-        catch (error) {
-            console.warn("Images manifest not found for image optimizer request. Image optimizer will fallback to defaults.");
-        }
-        const { req, res, responsePromise } = nextAwsCloudfront(event.Records[0].cf, {
-            enableHTTPCompression: manifest__default["default"].enableHTTPCompression
+    const { now, log } = perfLogger(manifest.logLambdaExecutionTimes);
+    const tHandlerBegin = now();
+    if (isOriginResponse(event)) {
+        response = await handleOriginResponse({
+            event,
+            manifest,
+            prerenderManifest,
+            routesManifest
         });
-        const urlWithParsedQuery = Url__default["default"].parse(`${request.uri}?${request.querystring}`, true);
-        const { region: bucketRegion } = request.origin.s3;
+    }
+    else {
+        response = await handleOriginRequest({
+            event,
+            manifest,
+            prerenderManifest,
+            routesManifest
+        });
+    }
+    // Remove blacklisted headers
+    if (response.headers) {
+        removeBlacklistedHeaders(response.headers);
+    }
+    const tHandlerEnd = now();
+    log("handler execution time", tHandlerBegin, tHandlerEnd);
+    return response;
+};
+const staticRequest = async (event, file, path, route, manifest, routesManifest) => {
+    var _a, _b;
+    const request = event.Records[0].cf.request;
+    if (manifest.disableOriginResponseHandler) {
+        const { req, res, responsePromise } = nextAwsCloudfront(event.Records[0].cf, {
+            enableHTTPCompression: manifest.enableHTTPCompression
+        });
         const bucketName = (_a = s3BucketNameFromEventRequest(request)) !== null && _a !== void 0 ? _a : "";
-        const awsPlatformClient = new AwsPlatformClient(bucketName, bucketRegion, undefined, undefined);
-        await imageOptimizer(basePath, imagesManifest, req, res, urlWithParsedQuery, awsPlatformClient);
-        setCustomHeaders({ res, req, responsePromise }, routesManifest);
-        const response = await responsePromise;
-        if (response.headers) {
-            removeBlacklistedHeaders(response.headers);
+        const s3Key = (path + file).slice(1); // need to remove leading slash from path for s3 key
+        return await renderStaticPage({
+            route: route,
+            request: request,
+            req: req,
+            res: res,
+            responsePromise: responsePromise,
+            manifest: manifest,
+            routesManifest: routesManifest,
+            bucketName: bucketName,
+            s3Key: s3Key,
+            s3Uri: file,
+            basePath: basePath
+        });
+    }
+    else {
+        const s3Origin = (_b = request.origin) === null || _b === void 0 ? void 0 : _b.s3;
+        const s3Domain = normaliseS3OriginDomain(s3Origin);
+        s3Origin.domainName = s3Domain;
+        s3Origin.path = path;
+        request.uri = file;
+        addS3HostHeader(request, s3Domain);
+        return request;
+    }
+};
+const reconstructOriginalRequestUri = (s3Uri, manifest) => {
+    // For public files we do not replace .html as it can cause public HTML files to be classified with wrong status code
+    const publicFile = handlePublicFiles(s3Uri, manifest);
+    if (publicFile) {
+        return `${basePath}${s3Uri}`;
+    }
+    let originalUri = `${basePath}${s3Uri.replace(/(\.html)?$/, manifest.trailingSlash ? "/" : "")}`;
+    // For index.html page, it will become "/index" or "/index/", which is not a route so normalize it to "/"
+    originalUri = originalUri.replace(manifest.trailingSlash ? /\/index\/$/ : /\/index$/, "/");
+    return originalUri;
+};
+const handleOriginRequest = async ({ event, manifest, prerenderManifest, routesManifest }) => {
+    event.Records[0].cf.request;
+    const { req, res, responsePromise } = nextAwsCloudfront(event.Records[0].cf, {
+        enableHTTPCompression: manifest.enableHTTPCompression
+    });
+    const { now, log } = perfLogger(manifest.logLambdaExecutionTimes);
+    let tBeforeSSR = null;
+    const getPage = (pagePath) => {
+        const tBeforePageRequire = now();
+        const page = require(`./${pagePath}`); // eslint-disable-line
+        const tAfterPageRequire = (tBeforeSSR = now());
+        log("require JS execution time", tBeforePageRequire, tAfterPageRequire);
+        return page;
+    };
+    const route = await handleDefault({ req, res, responsePromise }, manifest, prerenderManifest, routesManifest, getPage);
+    if (tBeforeSSR) {
+        const tAfterSSR = now();
+        log("SSR execution time", tBeforeSSR, tAfterSSR);
+    }
+    if (!route) {
+        return await responsePromise;
+    }
+    if (route.isPublicFile) {
+        const { file } = route;
+        return await staticRequest(event, file, `${routesManifest.basePath}/public`, route, manifest, routesManifest);
+    }
+    if (route.isNextStaticFile) {
+        const { file } = route;
+        return await staticRequest(event, file, `${routesManifest.basePath}/_next/static`, route, manifest, routesManifest);
+    }
+    if (route.isStatic) {
+        const { file, isData } = route;
+        const path = isData
+            ? `${routesManifest.basePath}`
+            : `${routesManifest.basePath}/static-pages/${manifest.buildId}`;
+        const relativeFile = isData ? file : file.slice("pages".length);
+        return await staticRequest(event, relativeFile, path, route, manifest, routesManifest);
+    }
+    const external = route;
+    const { path } = external;
+    return externalRewrite(event, manifest.enableHTTPCompression, path);
+};
+const handleOriginResponse = async ({ event, manifest, prerenderManifest, routesManifest }) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    const response = event.Records[0].cf.response;
+    const request = event.Records[0].cf.request;
+    const bucketName = s3BucketNameFromEventRequest(request);
+    // Reconstruct valid request uri for routing
+    const s3Uri = request.uri;
+    request.uri = reconstructOriginalRequestUri(s3Uri, manifest);
+    const route = await routeDefault(request, manifest, prerenderManifest, routesManifest);
+    const staticRoute = route.isStatic ? route : undefined;
+    const statusCode = route === null || route === void 0 ? void 0 : route.statusCode;
+    // These statuses are returned when S3 does not have access to the page.
+    // 404 will also be returned if CloudFront has permissions to list objects.
+    if (response.status !== "403" && response.status !== "404") {
+        response.headers = {
+            ...response.headers,
+            ...getCustomHeaders(request.uri, routesManifest)
+        };
+        // Set 404 status code for static 404 page.
+        if (statusCode === 404) {
+            response.status = "404";
+            response.statusDescription = "Not Found";
+            return response;
+        }
+        // Set 500 status code for static 500 page.
+        if (statusCode === 500) {
+            response.status = "500";
+            response.statusDescription = "Internal Server Error";
+            response.headers["cache-control"] = [
+                {
+                    key: "Cache-Control",
+                    value: "public, max-age=0, s-maxage=0, must-revalidate" // server error page should not be cached
+                }
+            ];
+            return response;
+        }
+        const staticRegenerationResponse = getStaticRegenerationResponse({
+            expiresHeader: ((_c = (_b = (_a = response.headers) === null || _a === void 0 ? void 0 : _a.expires) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value) || "",
+            lastModifiedHeader: ((_f = (_e = (_d = response.headers) === null || _d === void 0 ? void 0 : _d["last-modified"]) === null || _e === void 0 ? void 0 : _e[0]) === null || _f === void 0 ? void 0 : _f.value) || "",
+            initialRevalidateSeconds: staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.revalidate
+        });
+        if (staticRegenerationResponse) {
+            response.headers["cache-control"] = [
+                {
+                    key: "Cache-Control",
+                    value: staticRegenerationResponse.cacheControl
+                }
+            ];
+            // We don't want the `expires` header to be sent to the client we manage
+            // the cache at the edge using the s-maxage directive in the cache-control
+            // header
+            delete response.headers.expires;
+            if ((staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.page) &&
+                staticRegenerationResponse.secondsRemainingUntilRevalidation === 0) {
+                const regenerationQueueName = (_g = manifest.regenerationQueueName) !== null && _g !== void 0 ? _g : `${bucketName}.fifo`; // if queue name not specified, we used [bucketName].fifo as used in deployment
+                if (!regenerationQueueName) {
+                    throw new Error("Regeneration queue name is undefined.");
+                }
+                const { throttle } = await triggerStaticRegeneration({
+                    basePath,
+                    request,
+                    pageS3Path: s3Uri,
+                    eTag: (_h = response.headers["etag"]) === null || _h === void 0 ? void 0 : _h[0].value,
+                    lastModified: (_j = response.headers["etag"]) === null || _j === void 0 ? void 0 : _j[0].value,
+                    pagePath: staticRoute.page,
+                    queueName: regenerationQueueName
+                });
+                // Occasionally we will get rate-limited by the Queue (in the event we
+                // send it too many messages) and so we we use the cache to reduce
+                // requests to the queue for a short period.
+                if (throttle) {
+                    response.headers["cache-control"] = [
+                        {
+                            key: "Cache-Control",
+                            value: getThrottledStaticRegenerationCachePolicy(1).cacheControl
+                        }
+                    ];
+                }
+            }
         }
         return response;
     }
-    else {
-        return {
-            status: "404"
-        };
+    // For PUT or DELETE just return the response as these should be unsupported S3 methods
+    if (request.method === "PUT" || request.method === "DELETE") {
+        return response;
     }
+    const { req, res, responsePromise } = nextAwsCloudfront(event.Records[0].cf, {
+        enableHTTPCompression: manifest.enableHTTPCompression
+    });
+    const getPage = (pagePath) => {
+        return require(`./${pagePath}`);
+    };
+    const fallbackRoute = await handleFallback({ req, res, responsePromise }, route, manifest, routesManifest, getPage);
+    // Already handled dynamic error path
+    if (!fallbackRoute) {
+        return await responsePromise;
+    }
+    const s3 = new S3Client({
+        region: (_l = (_k = request.origin) === null || _k === void 0 ? void 0 : _k.s3) === null || _l === void 0 ? void 0 : _l.region,
+        maxAttempts: 3
+    });
+    const s3BasePath = basePath ? `${basePath.replace(/^\//, "")}/` : "";
+    // Either a fallback: true page or a static error page
+    if (fallbackRoute.isStatic) {
+        const file = fallbackRoute.file.slice("pages".length);
+        const s3Key = `${s3BasePath}static-pages/${manifest.buildId}${file}`;
+        const s3Params = {
+            Bucket: bucketName,
+            Key: s3Key
+        };
+        const s3Response = await s3.send(new GetObjectCommand(s3Params));
+        // S3 Body is stream per: https://github.com/aws/aws-sdk-js-v3/issues/1096
+        const bodyBuffer = await getStream_1.buffer(s3Response.Body);
+        const statusCode = fallbackRoute.statusCode || 200;
+        const is500 = statusCode === 500;
+        const cacheControl = is500
+            ? "public, max-age=0, s-maxage=0, must-revalidate" // static 500 page should never be cached
+            : (_m = s3Response.CacheControl) !== null && _m !== void 0 ? _m : (fallbackRoute.fallback // Use cache-control from S3 response if possible, otherwise use defaults
+                ? "public, max-age=0, s-maxage=0, must-revalidate" // fallback should never be cached
+                : "public, max-age=0, s-maxage=2678400, must-revalidate");
+        res.writeHead(statusCode, {
+            "Cache-Control": cacheControl,
+            "Content-Type": "text/html"
+        });
+        res.end(bodyBuffer);
+        return await responsePromise;
+    }
+    // This is a fallback route that should be stored in S3 before returning it
+    const { renderOpts, html } = fallbackRoute;
+    // Check if response is a redirect
+    if (typeof renderOpts.pageData !== "undefined" &&
+        typeof renderOpts.pageData.pageProps !== "undefined" &&
+        typeof renderOpts.pageData.pageProps.__N_REDIRECT !== "undefined") {
+        const statusCode = renderOpts.pageData.pageProps.__N_REDIRECT_STATUS;
+        const redirectPath = renderOpts.pageData.pageProps.__N_REDIRECT;
+        const redirectResponse = createRedirectResponse(redirectPath, request.querystring, statusCode);
+        redirect({ req, res, responsePromise }, redirectResponse);
+        return await responsePromise;
+    }
+    const { expires } = await s3StorePage({
+        html,
+        uri: s3Uri,
+        basePath,
+        bucketName: bucketName || "",
+        buildId: manifest.buildId,
+        pageData: renderOpts.pageData,
+        region: ((_p = (_o = request.origin) === null || _o === void 0 ? void 0 : _o.s3) === null || _p === void 0 ? void 0 : _p.region) || "",
+        revalidate: renderOpts.revalidate
+    });
+    const isrResponse = expires
+        ? getStaticRegenerationResponse({
+            expiresHeader: expires.toJSON(),
+            lastModifiedHeader: undefined,
+            initialRevalidateSeconds: staticRoute === null || staticRoute === void 0 ? void 0 : staticRoute.revalidate
+        })
+        : null;
+    const cacheControl = (isrResponse && isrResponse.cacheControl) ||
+        "public, max-age=0, s-maxage=2678400, must-revalidate";
+    res.setHeader("Cache-Control", cacheControl);
+    if (fallbackRoute.route.isData) {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(renderOpts.pageData));
+    }
+    else {
+        res.setHeader("Content-Type", "text/html");
+        res.end(html);
+    }
+    return await responsePromise;
+};
+const isOriginResponse = (event) => {
+    return event.Records[0].cf.config.eventType === "origin-response";
 };
 
+exports.createCommonjsModule = createCommonjsModule;
 exports.handler = handler;

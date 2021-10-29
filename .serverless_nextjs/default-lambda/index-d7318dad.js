@@ -1,10 +1,10 @@
 'use strict';
 
-var defaultHandler = require('./default-handler-7431a686.js');
+var defaultHandler = require('./default-handler-b27a5cf9.js');
 
 function _mergeNamespaces(n, m) {
     m.forEach(function (e) {
-        Object.keys(e).forEach(function (k) {
+        e && typeof e !== 'string' && !Array.isArray(e) && Object.keys(e).forEach(function (k) {
             if (k !== 'default' && !(k in n)) {
                 var d = Object.getOwnPropertyDescriptor(e, k);
                 Object.defineProperty(n, k, d.get ? d : {
@@ -1412,7 +1412,7 @@ var once$1 = function (method) {
 
 var reachTemplate$1 = function (obj, template, options) {
 
-    return template.replace(/{([^}]+)}/g, ($0, chain) => {
+    return template.replace(/{([^{}]+)}/g, ($0, chain) => {
 
         const value = reach$1(obj, chain, options);
         return (value === undefined || value === null ? '' : value);

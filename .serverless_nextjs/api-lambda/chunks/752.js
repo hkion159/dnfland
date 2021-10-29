@@ -481,58 +481,8 @@ function Footer() {
     className: `p-3 pb-0 bg-light ${(footer_module_default()).footer}`,
     children: /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
       className: `d-flex container-xl justify-content-between ${(footer_module_default()).container}`,
-      children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
-        className: `${(footer_module_default()).devprof} ${(footer_module_default()).container}`,
-        children: [/*#__PURE__*/jsx_runtime.jsx("h4", {
-          children: "\uB358\uD30C\uB79C\uB4DC \uAC1C\uBC1C\uC790"
-        }), /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
-          className: `d-flex`,
-          children: [/*#__PURE__*/jsx_runtime.jsx("div", {
-            children: /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
-              href: `/search?charactername=${encodeURIComponent('고운말_7794')}`,
-              children: /*#__PURE__*/jsx_runtime.jsx("a", {
-                children: /*#__PURE__*/jsx_runtime.jsx(next_image.default, {
-                  loader: ({
-                    src,
-                    width
-                  }) => `${src}&w=${width}`,
-                  alt: "",
-                  src: "https://img-api.neople.co.kr/df/servers/cain/characters/4ecd3f9eea4b6dd87044a9d9323efd20?zoom=1",
-                  width: "100",
-                  height: "115"
-                })
-              })
-            })
-          }), /*#__PURE__*/jsx_runtime.jsx("div", {
-            className: `align-self-center`,
-            children: /*#__PURE__*/(0,jsx_runtime.jsxs)("h5", {
-              children: ["\uBAA8\uD5D8\uB2E8\uBA85:", ' ', /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
-                href: `/search?adventure=${encodeURIComponent('변태소녀')}`,
-                children: /*#__PURE__*/jsx_runtime.jsx("a", {
-                  className: "link-primary",
-                  children: "\uBCC0\uD0DC\uC18C\uB140"
-                })
-              }), /*#__PURE__*/jsx_runtime.jsx("br", {}), "\uBCF8\uCE90\uBA85:", ' ', /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
-                href: `/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20}`,
-                children: /*#__PURE__*/jsx_runtime.jsx("a", {
-                  className: "link-primary",
-                  children: "\uACE0\uC6B4\uB9D0_7794"
-                })
-              }), /*#__PURE__*/jsx_runtime.jsx("br", {}), /*#__PURE__*/jsx_runtime.jsx(next_link.default, {
-                href: "http://df.nexon.com/df/guild/search/detail?guId=10163541&page=1&gname=%BA%EE%B9%CC%BF%AC%C7%D5",
-                children: /*#__PURE__*/(0,jsx_runtime.jsxs)("a", {
-                  className: "link-primary",
-                  children: [/*#__PURE__*/jsx_runtime.jsx(next_image.default, {
-                    alt: "",
-                    src: "/images/icon02 copy6.png",
-                    width: "28",
-                    height: "28"
-                  }), "\uBE1C\uBBF8\uC5F0\uD569"]
-                })
-              }), ' ', "\uAE38\uB4DC\uB9C8\uC2A4\uD130"]
-            })
-          })]
-        })]
+      children: [/*#__PURE__*/jsx_runtime.jsx("div", {
+        className: `${(footer_module_default()).devprof} ${(footer_module_default()).container}`
       }), /*#__PURE__*/jsx_runtime.jsx("div", {
         className: `d-flex align-items-center justify-content-center ${(footer_module_default()).container}`,
         children: /*#__PURE__*/jsx_runtime.jsx(next_link.default, {

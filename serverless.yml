@@ -1,2 +1,4 @@
 dnfland:
   component: '@sls-next/serverless-component'
+  inputs:
+    roleArn: arn:aws:iam::112955791918:role/GOD

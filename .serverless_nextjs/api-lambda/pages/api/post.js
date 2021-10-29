@@ -58,7 +58,7 @@ async function handle(req, res) {
 
 /***/ }),
 
-/***/ 9601:
+/***/ 29037:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -72,7 +72,7 @@ __webpack_require__.r(__webpack_exports__);
 
         
       const { processEnv } = __webpack_require__(72333)
-      processEnv([{"path":".env","contents":"SESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=postgresql://hkion159:wpwkr1532@dnfland-db-instance-1.ch1ocouzylsi.ap-northeast-2.rds.amazonaws.com:5432/dnfland-db\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=https://dnf.land/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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"}])
+      processEnv([{"path":".env","contents":"SESSION_SECRET=keyboard cat\nNEOPLE_API_KEY=\"MSOqlyHQcHL4swyCgVw3nUCesB5sD0Tt\"\n\nDATABASE_URL=postgresql://hkion159:wpwkr1532@dnfland-db-instance-1.ch1ocouzylsi.ap-northeast-2.rds.amazonaws.com:5432/dnfland-db\n\nKAKAO_CLIENT_ID=6314fbf05148912722e2ee5ffcee76f7\nKAKAO_CLIENT_SECRET=P47DvWLgzB4uOsX4odcQshwhmvpDlBRf\nNAVER_CLIENT_ID=C0QATfFJtgOZ5Jh2FRGd\nNAVER_CLIENT_SECRET=HZbLTtWc4k\n\nNEXTAUTH_URL=https://dnf.land/api/auth\n\nAWS_ACCESS_KEY_ID=AKIARUTFQTIXBOIXFFOH\nAWS_SECRET_ACCESS_KEY=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\n\narn:aws:iam::112955791918:mfa/root-account-mfa-device"}])
     
         
         const runtimeConfig = {}
@@ -98,7 +98,7 @@ __webpack_require__.r(__webpack_exports__);
           page: "/api/post",
           basePath: "",
           pageIsDynamic: false,
-          encodedPreviewProps: {previewModeId:"9cc010fe0a301554bcb55dad5651582f",previewModeSigningKey:"6dfcbe883527461bafcfae0860ac1127eec900e24de8e5835b241d01e8484fbc",previewModeEncryptionKey:"6b2611403ef6d1494dffb3962b9c79230790dc4a5f73270f5e88cdbf4f6f9fac"}
+          encodedPreviewProps: {previewModeId:"297cfef98865b31f5d10076a04916ce3",previewModeSigningKey:"e84ad4836c82132675712b9c534436c92f3be7ba55a4e12cb8b646cab40edfa7",previewModeEncryptionKey:"80dc26f8d63cf8b69ec5b5da6d828b374576c255273d8cdcd3eb82e66cdba644"}
         })
         /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (apiHandler);
       
@@ -312,7 +312,7 @@ module.exports = require("zlib");
 /******/ 	__webpack_require__.x = () => {
 /******/ 		// Load entry module and return exports
 /******/ 		// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,130,930,884,10,633,874], () => (__webpack_require__(9601)))
+/******/ 		var __webpack_exports__ = __webpack_require__.O(undefined, [580,994,572,130,930,884,10,633,874], () => (__webpack_require__(29037)))
 /******/ 		__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 		return __webpack_exports__;
 /******/ 	};
