@@ -59,6 +59,7 @@ function Homebox({ maxId, notices }) {
       const user = await response.json();
       const adventure = await user.adventure;
       setAdventure(adventure);
+      console.log(`모험단 조회됨(userId: ${user.id})`);
     };
     if (session) {
       api();
