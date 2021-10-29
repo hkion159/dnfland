@@ -19,7 +19,9 @@ function Layout(props) {
       {/* 내비게이션 바 */}
       <Navbar />
       {/* 메인 컨텐츠 영역 */}
-      <MainBox>{props.children}</MainBox>
+      <main>
+        <MainBox>{props.children}</MainBox>
+      </main>
       {/* 홈페이지 푸터 */}
       {props.home && <Footer />}
     </div>

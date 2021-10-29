@@ -1,4 +1,4 @@
-import { getSkillStyles } from './api/neople';
+import { getSkillStyles } from './neople';
 
 export async function getPosition(character) {
   // 직업명으로 판별함
