@@ -59,7 +59,6 @@ function Homebox({ maxId, notices }) {
       const user = await response.json();
       const adventure = await user.adventure;
       setAdventure(adventure);
-      console.log(`모험단 조회됨(userId: ${user.id})`);
     };
     if (session) {
       api();
@@ -79,16 +78,26 @@ function Homebox({ maxId, notices }) {
         )}
         {session &&
           (adventure ? (
-            <div
-              className="border border-secondary rounded-3 ms-auto me-auto p-3 my-4 mt-auto"
-              style={{ minWidth: '100px', maxWidth: '90%', minHeight: '100px' }}
-            >
-              {adventure?.characters?.length === 0 ? (
-                <p className="text-center">캐릭터를 검색하세요!</p>
-              ) : (
-                <p>뎃</p>
-              )}
-            </div>
+            <>
+              <h5 className="mt-auto mb-3">
+                <span style={{ color: '#B9EFBD' }}>{adventure.name}</span>{' '}
+                모험단{' '}
+              </h5>
+              <div
+                className="border border-secondary rounded-3 ms-auto me-auto p-3 mb-4 d-flex align-items-center"
+                style={{
+                  minWidth: '100px',
+                  maxWidth: '90%',
+                  minHeight: '100px',
+                }}
+              >
+                {adventure?.characters?.length === 0 ? (
+                  <p className="text-center ">캐릭터를 검색하세요!</p>
+                ) : (
+                  <p>캐릭터를 검색하고 모험단에 등록하세요!</p>
+                )}
+              </div>
+            </>
           ) : (
             <div className="p-4">
               <p className="m-2">자신의 모험단을 등록하세요!!</p>
