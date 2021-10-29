@@ -1,6 +1,6 @@
 import thumbnailStyle from '../../styles/thumbnail.module.css';
 import Link from 'next/link';
-import { CharImg, getDamage } from '../../api/neople';
+import { CharImg, getDamage } from '../../pages/api/neople';
 
 function Thumbnail({ character }) {
   const {

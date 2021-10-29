@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import axios from '../node_modules/axios/index';
+import axios from 'axios';
 
 export function getAPIKey() {
   return process.env.NEOPLE_API_KEY;

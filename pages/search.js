@@ -2,9 +2,9 @@ import Layout from '../components/layout/layout';
 import Head from 'next/head';
 import SearchBox from '../components/box/searchbox';
 import { useRouter } from 'next/router';
-import { getCharacters, getServerList } from '../api/neople';
+import { getCharacters, getServerList } from './api/neople';
 import { useEffect } from 'react';
-import { getPosition } from '../api/jobs';
+import { getPosition } from './api/jobs';
 import wrapper from '../modules/index';
 
 function Search({ characters, searchKey, error }) {
