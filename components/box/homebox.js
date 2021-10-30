@@ -80,7 +80,15 @@ function Homebox({ maxId, notices }) {
           (adventure ? (
             <>
               <h5 className="mt-auto mb-3">
-                <span style={{ color: '#B9EFBD' }}>{adventure.name}</span>{' '}
+                <span
+                  style={{
+                    color: '#B9EFBD',
+                    textShadow:
+                      '-1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000',
+                  }}
+                >
+                  {adventure.name}
+                </span>{' '}
                 모험단{' '}
               </h5>
               <div

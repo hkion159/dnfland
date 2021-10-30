@@ -7,11 +7,11 @@ module.exports = /*withImages(*/ {
     domains: ['img-api.neople.co.kr'],
     // disableStaticImages: true,
   },
-  webpack5: true,
-  webpack: (config) => {
-    config.externals.push('_http_common');
-    return config;
-  },
+  // webpack5: true,
+  // webpack: (config) => {
+  //   config.externals.push('_http_common');
+  //   return config;
+  // },
   //   config.resolve.fallback = {
   //     fs: false,
   //     path: false,
