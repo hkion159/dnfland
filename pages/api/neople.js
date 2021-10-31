@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import axios from 'axios';
+import prisma from '../../lib/prisma';
 
 export function getAPIKey() {
   return process.env.NEOPLE_API_KEY;
@@ -17,9 +18,8 @@ export function CharImg(props) {
     <Image
       alt="character"
       src={`https://img-api.neople.co.kr/df/servers/${serverId}/characters/${charId}?zoom=${zoom}`}
-      loader={({ src, width }) => `${src}&w=${width}`}
-      width={`${200 * zoom}`}
-      height={`${230 * zoom}`}
+      width={200 * zoom}
+      height={230 * zoom}
     />
   );
 }
@@ -75,6 +75,11 @@ export async function getCharacters(charName, { scope, wordType, filter }) {
       if (filter === 'true') return data.filter((user) => user['level'] >= 100);
       return data;
     case 'adventure':
+      const characters = prisma.adventure.findMany({
+        where: {
+          name: '',
+        },
+      });
       return 0;
   }
 }

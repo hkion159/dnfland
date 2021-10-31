@@ -170,22 +170,22 @@ const Accordion = () => {
       </div>
       {/* 66666666666666 */}
       <div className="accordion-item">
-        <h2 className="accordion-header" id="headingFive">
+        <h2 className="accordion-header" id="headingSix">
           <button
             className="accordion-button collapsed"
             type="button"
             data-bs-toggle="collapse"
-            data-bs-target="#collapseFive"
+            data-bs-target="#collapseSix"
             aria-expanded="true"
-            aria-controls="collapseFive"
+            aria-controls="collapseSix"
           >
             여기 사이트가 던옾이랑 던담과의 차별점이 뭔가요?
           </button>
         </h2>
         <div
-          id="collapseFive"
+          id="collapseSix"
           className="accordion-collapse collapse"
-          aria-labelledby="headingFive"
+          aria-labelledby="headingSix"
           data-bs-parent="#accordionExample"
         >
           <div className="accordion-body">
@@ -196,12 +196,12 @@ const Accordion = () => {
               업데이트하며 신기능을 꾸준히 추가해나갈 예정입니다.
             </strong>
             <br />
-            <br /> 사용한 기술은 아래와 같습니다. 관심 있으시면 한 번
-            찾아보세요.
-            <br /> HTML/CSS/Javascript, React.js, Next.js, Redux, next-auth,
-            prisma, bootstrap, popper, toastui editor, serverless
+            <br /> 기술 스택은 아래와 같습니다. 관심 있으시면 한 번 찾아보세요.
+            <br /> HTML/CSS/Javascript, React.js, Next.js, Redux,
+            next-redux-cookie-wrapper, next-auth, prisma, aws rds, bootstrap,
+            popper, toastui editor, git
             <br /> 초기 사이트 접속 시에 로딩 시간이 좀 걸릴 수 있습니다. 서버
-            위치 문제때문에 조금 느릴 수 있는데 곧 옮길 예정입니다.
+            위치 문제때문에 느린건데 곧 옮길 예정입니다.
           </div>
         </div>
       </div>

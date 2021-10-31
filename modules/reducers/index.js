@@ -6,7 +6,7 @@ import { character } from '../character';
 const rootReducer = (state, action) => {
   switch (action.type) {
     case HYDRATE:
-      return state;
+      return { ...state, ...action.payload };
     default:
       const combineReducer = combineReducers({ search, character }); // 이 안에 리듀서 넣기
       return combineReducer(state, action);

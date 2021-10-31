@@ -8,6 +8,7 @@ import { usePopper } from 'react-popper';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSettings } from '../../modules/search';
 import loginBtn from '../../public/images/kakao_login_medium_narrow.png';
+import logo from '../../public/images/DLlogo.png';
 
 function Navbar() {
   const router = useRouter();
@@ -76,12 +77,7 @@ function Navbar() {
           {/* DL 로고 */}
           <Link href="/">
             <a className={`navbar-brand p-0`}>
-              <Image
-                src="/images/DLlogo.png"
-                height="50%"
-                width="50%"
-                alt="homelogo"
-              />
+              <Image src={logo} height="50%" width="50%" alt="homelogo" />
             </a>
           </Link>
 
@@ -144,7 +140,7 @@ function Navbar() {
           </div>
         </div>
 
-        {/* 중앙 캐릭터 검색 form */}
+        {/* 캐릭터 검색 form */}
         <div className={NavStyle.n1}>
           <form
             className={`d-flex mb-3 mb-md-0 pb-1 ms-auto me-auto`}
@@ -351,7 +347,7 @@ function Navbar() {
           {!loading &&
             (!session ? (
               <a onClick={() => signIn('kakao')}>
-                <Image alt="loginbtn" src={loginBtn} width="183" height="45" />
+                <Image alt="loginbtn" src={loginBtn} />
               </a>
             ) : (
               <ul className="navbar-nav mb-2 mb-md-1">

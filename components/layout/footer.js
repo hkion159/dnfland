@@ -1,6 +1,8 @@
 import footerStyle from '../../styles/footer.module.css';
 import Image from 'next/image';
 import Link from 'next/link';
+import guiIcon from '../../public/images/icon02 copy6.png';
+import neopleLogo from '../../public/images/row_color.png';
 
 function Footer() {
   return (
@@ -21,8 +23,7 @@ function Footer() {
                 >
                   <a>
                     <Image
-                      loader={({ src, width }) => `${src}&w=${width}`}
-                      alt=""
+                      alt="developer"
                       src="https://img-api.neople.co.kr/df/servers/cain/characters/4ecd3f9eea4b6dd87044a9d9323efd20?zoom=1"
                       width="100"
                       height="115"
@@ -48,12 +49,7 @@ function Footer() {
                   <br />
                   <Link href="http://df.nexon.com/df/guild/search/detail?guId=10163541&page=1&gname=%BA%EE%B9%CC%BF%AC%C7%D5">
                     <a className="link-primary">
-                      <Image
-                        alt=""
-                        src="/images/icon02 copy6.png"
-                        width="28"
-                        height="28"
-                      />
+                      <Image alt="" src={guiIcon} />
                       븜미연합
                     </a>
                   </Link>{' '}
@@ -69,12 +65,7 @@ function Footer() {
           >
             <Link href="http://developers.neople.co.kr" target="_blank">
               <a>
-                <Image
-                  alt="openapi"
-                  src="/images/row_color.png"
-                  height="36"
-                  width="191"
-                />
+                <Image alt="openapi" src={neopleLogo} />
               </a>
             </Link>
           </div>

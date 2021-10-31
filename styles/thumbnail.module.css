@@ -2,29 +2,6 @@
   background-color: #bbbbbb;
 }
 
-.box {
-  margin: 20px;
-  /*animation: fadein 1s;*/
-}
-
-/* @keyframes fadein {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-} */
-
-.box a {
-  color: black;
-}
-
-.name {
-  flex: 1;
-  text-align: center;
-}
-
 .align {
   flex: 1;
   text-align: center;

@@ -3,6 +3,7 @@ import Thumbnail from '../profile/thumbnail';
 
 function SearchBox({ characters, name }) {
   const charsArr = JSON.parse(characters);
+  console.log(charsArr);
   return (
     <div>
       <div className="p-4 border-bottom border-secondary">

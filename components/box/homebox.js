@@ -84,7 +84,7 @@ function Homebox({ maxId, notices }) {
                   style={{
                     color: '#B9EFBD',
                     textShadow:
-                      '-1px 0 #000, 0 1px #000, 1px 0 #000, 0 -1px #000',
+                      '-1px 0 #749776, 0 1px #749776, 1px 0 #749776, 0 -1px #749776',
                   }}
                 >
                   {adventure.name}
@@ -196,7 +196,7 @@ function Homebox({ maxId, notices }) {
             </button>
           </form>
           {submit && (
-            <p className="mx-3 my-1 text-success" style={{ fontSize: '8' }}>
+            <p className="mx-4 my-1 text-success" style={{ fontSize: '8' }}>
               전송되었습니다!
             </p>
           )}

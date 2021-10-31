@@ -1,4 +1,4 @@
-import thumbnailStyle from '../../styles/thumbnail.module.css';
+import st from '../../styles/thumbnail.module.css';
 import Link from 'next/link';
 import { CharImg, getDamage } from '../../pages/api/neople';
 
@@ -9,18 +9,21 @@ function Thumbnail({ character }) {
     characterName: name,
     jobGrowName: job,
     position,
+    level,
   } = character;
   const positionColor = {
     d: 'text-danger',
     s: 'text-primary',
     b: 'text-success',
+    '노전직이세요?': 'text-warning',
   };
   return (
     <div
-      className={`border border-secondary rounded-3 p-0 ${thumbnailStyle.box}`}
+      className={`border border-secondary rounded-3 p-0 ${st.box}`}
+      style={{ margin: '15px' }}
     >
       <Link href={`/character?characterid=${charId}`} as="/character">
-        <a>
+        <a style={{ color: 'black' }}>
           {/* 이미지 */}
           <div>
             <CharImg character={character} />
@@ -29,7 +32,7 @@ function Thumbnail({ character }) {
           {/* 서버, 이름 */}
           <div className="d-flex border-top">
             <div className="px-2 border-end text-secondary">{serverName}</div>
-            <div className={`px-2 ${thumbnailStyle.name}`}>
+            <div className={`px-2 ${st.align}`}>
               <b>{name}</b>
             </div>
           </div>
@@ -38,7 +41,9 @@ function Thumbnail({ character }) {
             <div className={`px-2 border-end ${positionColor[position]}`}>
               {position.toUpperCase()}
             </div>
-            <div className={`px-2 text-dark ${thumbnailStyle.align}`}>
+            <div
+              className={`px-2 ${st.align} ${level < 100 && 'text-secondary'}`}
+            >
               {job}
             </div>
           </div>

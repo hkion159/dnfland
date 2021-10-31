@@ -3,9 +3,9 @@ import Head from 'next/head';
 import SearchBox from '../components/box/searchbox';
 import { useRouter } from 'next/router';
 import { getCharacters, getServerList } from './api/neople';
-import { useEffect } from 'react';
 import { getPosition } from './api/jobs';
 import wrapper from '../modules/index';
+import { useEffect } from 'react';
 
 function Search({ characters, searchKey, error }) {
   const router = useRouter();
@@ -14,7 +14,7 @@ function Search({ characters, searchKey, error }) {
       alert('응애!!');
       router.push('/');
     }
-  });
+  }, [error, router]);
   return (
     <>
       <Layout>
@@ -29,11 +29,11 @@ function Search({ characters, searchKey, error }) {
 
 export const getServerSideProps = wrapper.getServerSideProps(
   (store) => async (ctx) => {
-    const charName = ctx.query.charactername;
+    const charName = await ctx.query.charactername;
     if (!charName) {
       return { props: { error: true } };
     }
-    const settings = store.getState().search;
+    const settings = await store.getState().search;
     const servers = getServerList();
     const charsArr = await getCharacters(charName, settings);
     const chars = [];

@@ -5,7 +5,7 @@ const Help = () => {
   return (
     <Layout>
       <div className="text-center py-5">
-        <h3>자주 묻는 질문 모음</h3>
+        <h3>자주 묻는 질문 모음(뇌피셜)</h3>
       </div>
       <div className="p-5 pt-0">
         <Accordion />
