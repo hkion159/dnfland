@@ -9,8 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import Flip from '../../../components/common/flip';
-import { usePopper } from 'react-popper';
-import st from '../../../styles/post.module.css';
+import Popper from '../../../components/common/popper';
 
 const PostViewer = dynamic(() => import('../../../components/common/postviewer'), {
   ssr: false,
@@ -37,40 +36,14 @@ const Board = ({ post: strPost }) => {
     }, 10000);
   }, [id]);
   const onLike = useCallback(async () => {
+    await axios.put(`/api/post/${id}`, { like: likes + 1 });
     setLikes(likes + 1);
-    await axios.put(`/api/post/${id}`, { like: likes });
   }, [id, likes]);
   const onHate = useCallback(() => {}, []);
   const [referenceElement, setReferenceElement] = useState(null);
-  const [popperElement, setPopperElement] = useState(null);
-  const [arrowElement, setArrowElement] = useState(null);
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
-    placement: 'top',
-    modifiers: [
-      { name: 'arrow', options: { element: arrowElement } },
-      {
-        name: 'offset',
-        options: {
-          offset: [0, 8],
-        },
-      },
-    ],
-  });
   const [referenceElementSecond, setReferenceElementSecond] = useState(null);
-  const [popperElementSecond, setPopperElementSecond] = useState(null);
-  const [arrowElementSecond, setArrowElementSecond] = useState(null);
-  const { stylesSecond, attributesSecond } = usePopper(referenceElementSecond, popperElementSecond, {
-    placement: 'top',
-    modifiers: [
-      { name: 'arrow', options: { element: arrowElementSecond } },
-      {
-        name: 'offset',
-        options: {
-          offset: [0, 8],
-        },
-      },
-    ],
-  });
+  const [popperFirst, setPopperFirst] = useState(false);
+  const [popperSecond, setPopperSecond] = useState(false);
   return (
     <Layout>
       <div className="px-4">
@@ -97,13 +70,25 @@ const Board = ({ post: strPost }) => {
         <PostViewer initialValue={markdown} />
         <div className="d-flex justify-content-center text-center">
           <div className="d-flex flex-column text-primary mx-2">
-            <a onClick={onLike} style={!session ? { cursor: 'default' } : {}} ref={setReferenceElement}>
+            <a
+              onClick={onLike}
+              style={!session ? { cursor: 'default' } : {}}
+              ref={setReferenceElement}
+              onMouseOver={() => setPopperFirst(true)}
+              onMouseLeave={() => setPopperFirst(false)}
+            >
               <i className="bi bi-hand-thumbs-up fs-3"></i>
             </a>
             <Flip numbers={likes} color="#0d6efd" />
           </div>
           <div className="d-flex flex-column text-danger mx-2">
-            <a onClick={onHate} style={!session ? { cursor: 'default' } : {}} ref={setReferenceElementSecond}>
+            <a
+              onClick={onHate}
+              style={!session ? { cursor: 'default' } : {}}
+              ref={setReferenceElementSecond}
+              onMouseOver={() => setPopperSecond(true)}
+              onMouseLeave={() => setPopperSecond(false)}
+            >
               <i className="bi bi-hand-thumbs-down fs-3"></i>
             </a>
             <Flip numbers={hates} color="#dc3545" />
@@ -133,19 +118,8 @@ const Board = ({ post: strPost }) => {
           </button>
         </div>
         <hr />
-        <div ref={setPopperElement} style={styles.popper} className={`${st.pop} shadow-sm`} {...attributes.popper}>
-          로그인 후 가능합니다!
-          <div ref={setArrowElement} style={styles.arrow} className={st.arrow} />
-        </div>
-        <div
-          ref={setPopperElementSecond}
-          style={stylesSecond?.popper}
-          className={`${st.pop} shadow-sm`}
-          {...attributesSecond?.popper}
-        >
-          로그인 후 가능합니다!
-          <div ref={setArrowElementSecond} style={stylesSecond?.arrow} className={st.arrow} />
-        </div>
+        {!session && popperFirst && <Popper refEl={referenceElement} />}
+        {!session && popperSecond && <Popper refEl={referenceElementSecond} />}
       </div>
     </Layout>
   );
