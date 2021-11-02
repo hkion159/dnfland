@@ -1,4 +1,4 @@
-import footerStyle from '../../styles/footer.module.css';
+import st from '../../styles/footer.module.css';
 import Image from 'next/image';
 import Link from 'next/link';
 import guiIcon from '../../public/images/icon02 copy6.png';
@@ -7,20 +7,14 @@ import neopleLogo from '../../public/images/row_color.png';
 function Footer() {
   return (
     <footer>
-      <div className={`p-3 pb-0 bg-light ${footerStyle.footer}`}>
-        <div
-          className={`d-flex container-xl justify-content-between ${footerStyle.container}`}
-        >
+      <div className={`p-3 pb-0 bg-light ${st.footer}`}>
+        <div className={`d-flex container-xl justify-content-between ${st.container}`}>
           {/* 개발자 프로필 */}
-          <div className={`${footerStyle.devprof} ${footerStyle.container}`}>
+          <div className={`${st.devprof} ${st.container}`}>
             <h4>던파랜드 개발자</h4>
             <div className={`d-flex`}>
               <div>
-                <Link
-                  href={`/search?charactername=${encodeURIComponent(
-                    '고운말_7794',
-                  )}`}
-                >
+                <Link href={`/search?charactername=${encodeURIComponent('고운말_7794')}`}>
                   <a>
                     <Image
                       alt="developer"
@@ -34,16 +28,12 @@ function Footer() {
               <div className={`align-self-center`}>
                 <h5>
                   모험단명:{' '}
-                  <Link
-                    href={`/search?adventure=${encodeURIComponent('변태소녀')}`}
-                  >
+                  <Link href={`/search?adventure=${encodeURIComponent('변태소녀')}`}>
                     <a className="link-primary">변태소녀</a>
                   </Link>
                   <br />
                   본캐명:{' '}
-                  <Link
-                    href={`/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20}`}
-                  >
+                  <Link href={`/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20}`}>
                     <a className="link-primary">고운말_7794</a>
                   </Link>
                   <br />
@@ -60,9 +50,7 @@ function Footer() {
           </div>
 
           {/* 센터 네오플 로고 */}
-          <div
-            className={`d-flex align-items-center justify-content-center ${footerStyle.container}`}
-          >
+          <div className={`d-flex align-items-center justify-content-center ${st.container}`}>
             <Link href="http://developers.neople.co.kr" target="_blank">
               <a>
                 <Image alt="openapi" src={neopleLogo} />
@@ -71,10 +59,8 @@ function Footer() {
           </div>
 
           {/* 우측 기타 정보 */}
-          <div className={footerStyle.container}>
-            <p className="text-secondary">
-              Copyright 2021. dnfland all rights reserved.
-            </p>
+          <div className={st.container}>
+            <p className="text-secondary">Copyright 2021. dnfland all rights reserved.</p>
           </div>
         </div>
       </div>

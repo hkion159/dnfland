@@ -28,11 +28,11 @@ function Thumbnail({ character }) {
           </div>
           {/* 포지션, 직업 */}
           <div className="d-flex border-top">
-            <div className={`px-2 border-end ${positionColor[position]}`}>
-              {position.toUpperCase()}
-              {position === '노전직' && ` Lv.${level}`}
+            <div className={`px-2 border-end ${positionColor[position]}`}>{position.toUpperCase()}</div>
+            <div className={`px-2 ${st.align} ${level < 100 && 'text-secondary'}`}>
+              {level < 100 && `Lv. ${level} `}
+              {job}
             </div>
-            <div className={`px-2 ${st.align} ${level < 100 && 'text-secondary'}`}>{job}</div>
           </div>
           {/* 데미지 */}
           <div className="px-2 border-top text-center text-secondary">{getDamage(character)}</div>
