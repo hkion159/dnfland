@@ -37,7 +37,7 @@ const WritePost = () => {
       await router.push('/board');
     };
     api();
-  }, [htmlValue, markdownValue, router, session.id, titleValue]);
+  }, [htmlValue, markdownValue, router, session?.id, titleValue]);
   const onCancel = useCallback(() => {
     router.push('/board');
   }, [router]);
