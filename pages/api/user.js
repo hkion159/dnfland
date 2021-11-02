@@ -3,16 +3,18 @@ import prisma from '../../lib/prisma';
 
 export default async function handle(req, res) {
   const session = await getSession({ req });
-  const id = await session.id;
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: id,
-    },
-    include: {
-      adventure: true,
-    },
-  });
-  const result = await user;
-  res.json(result);
+  const id = await session?.id;
+  switch (req.method) {
+    case 'GET':
+      const user = await prisma.user.findUnique({
+        where: {
+          id: id,
+        },
+        include: {
+          adventure: true,
+        },
+      });
+      res.json(user);
+      break;
+  }
 }

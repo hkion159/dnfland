@@ -35,13 +35,9 @@
 }
 
 .pop {
-  background-color: #e7e7e7;
+  background-color: #e8ecef;
   border: 1px solid #b6b6b6;
   border-radius: 10px;
-}
-
-.hide {
-  display: none;
 }
 
 .arrow,

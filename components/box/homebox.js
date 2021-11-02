@@ -2,7 +2,10 @@ import HomeStyle from '../../styles/homebox.module.css';
 import { useSession } from 'next-auth/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { getDate } from '../../lib/date';
+import { getDate, getDateDiff } from '../../lib/date';
+import axios from 'axios';
+import Image from 'next/image';
+import logo from '../../public/images/DLlogo.png';
 
 function Homebox({ maxId, notices }) {
   const [session, loading] = useSession();
@@ -16,11 +19,7 @@ function Homebox({ maxId, notices }) {
       setSubmit(false);
     }, 1500);
     const api = async () => {
-      await fetch('/api/sug', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputRef.current.value),
-      });
+      await axios.post('/api/sug', inputRef.current.value);
     };
     api();
     inputRef.current.value = '';
@@ -28,8 +27,10 @@ function Homebox({ maxId, notices }) {
   // 모험단 등록 //
   const enrollRef = useRef(null);
   const [enroll, setEnroll] = useState(false);
+  const [advName, setAdvName] = useState('');
   const onEnroll = useCallback(
     (e) => {
+      setAdvName(enrollRef.current.value);
       setEnroll(true);
       setTimeout(() => {
         setEnroll(false);
@@ -37,11 +38,7 @@ function Homebox({ maxId, notices }) {
       e.preventDefault();
       const api = async () => {
         const body = { id: session.id, name: enrollRef.current.value };
-        await fetch('/api/adventure', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
+        await axios.put('/api/adventure', body);
       };
       api();
       enrollRef.current.value = '';
@@ -52,11 +49,8 @@ function Homebox({ maxId, notices }) {
   const [adventure, setAdventure] = useState(null);
   useEffect(() => {
     const api = async () => {
-      const response = await fetch('/api/user', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const user = await response.json();
+      const response = await axios.get('/api/user');
+      const user = await response.data;
       const adventure = await user.adventure;
       setAdventure(adventure);
     };
@@ -66,16 +60,13 @@ function Homebox({ maxId, notices }) {
   }, [session, enroll]);
   return (
     <div className={HomeStyle.container}>
-      <div className={`${HomeStyle.introduce} d-flex flex-column`}>
+      <div className={`${HomeStyle.introduce} text-center d-flex flex-column flex-grow-2 flex-shrink-1`}>
         <div className="py-3 px-4 text-end">{`회원 수: ${maxId}명`}</div>
-        <h3>던파랜드에 오신 것을 환영합니다.</h3>
-        <h5>
-          현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현
-          상태입니다.
-        </h5>
-        {!session && (
-          <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>
-        )}
+        <div style={{ flex: 'none' }}>
+          <Image alt="logo" src={logo} width="100" height="100" />
+        </div>
+        <h5>현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현 상태입니다.</h5>
+        {!session && <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>}
         {session &&
           (adventure ? (
             <>
@@ -83,8 +74,7 @@ function Homebox({ maxId, notices }) {
                 <span
                   style={{
                     color: '#B9EFBD',
-                    textShadow:
-                      '-1px 0 #749776, 0 1px #749776, 1px 0 #749776, 0 -1px #749776',
+                    textShadow: '-1px 0 #749776, 0 1px #749776, 1px 0 #749776, 0 -1px #749776',
                   }}
                 >
                   {adventure.name}
@@ -120,34 +110,30 @@ function Homebox({ maxId, notices }) {
                   style={{ flex: '0 0 auto', width: '20%', minWidth: '200px' }}
                   ref={enrollRef}
                 />
-                <button
-                  className="btn btn-outline-success me-auto"
-                  type="submit"
-                  id="button-addon"
-                >
+                <button className="btn btn-outline-success me-auto" type="submit" id="button-addon">
                   등록
                 </button>
               </form>
-              {enroll && <p className="text-success my-3">등록되었습니다!!</p>}
+              {enroll && <p className="text-success my-3">{advName}(으)로 등록되었습니다!!</p>}
             </div>
           ))}
       </div>
-      <div className={HomeStyle.infos}>
-        <div className={HomeStyle.f1}>
+      <div className="d-flex">
+        <div style={{ flex: '1', border: '1px solid #bbbbbb', borderRadius: '15px', margin: '15px' }}>
           <div
             className="py-3 px-4 bg-light"
-            style={{ borderBottom: '1px solid #e0e0e0' }}
+            style={{ borderBottom: '1px solid #e0e0e0', borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
           >
             <Link href="/">
               <a>
                 <h5 className="text-black m-0">
-                  던파랜드소식
+                  공지사항
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
                     height="16"
                     fill="currentColor"
-                    className="bi bi-chevron-right"
+                    className="bi bi-chevron-right align-baseline"
                     viewBox="0 0 16 16"
                   >
                     <path
@@ -162,36 +148,59 @@ function Homebox({ maxId, notices }) {
           <div>
             <table className="table table-hover m-0">
               <tbody>
-                {notices.map(({ id, title, postDate }) => (
-                  <tr key={id}>
-                    <td className="px-4">
+                {notices.map(({ id, title, postDate }, index) => (
+                  <tr key={id} style={index === notices.length - 1 ? { borderBottom: '0px solid transparent' } : {}}>
+                    <td
+                      className="ps-4"
+                      style={
+                        index === notices.length - 1
+                          ? {
+                              borderBottomLeftRadius: '15px',
+                              textOverflow: 'ellipsis',
+                              overflow: 'hidden',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '0',
+                            }
+                          : { textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '0' }
+                      }
+                    >
                       <Link href={`/board/post/${id}`}>
                         <a>{title}</a>
                       </Link>
                     </td>
-                    <td className="text-end">{getDate(postDate)}</td>
+                    <td
+                      className="text-end pe-4 text-secondary"
+                      style={
+                        index === notices.length - 1
+                          ? { borderBottomRightRadius: '15px', width: '15%', minWidth: '100px' }
+                          : {}
+                      }
+                    >
+                      {getDateDiff(postDate)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-        <div className={HomeStyle.f1}>
+        <div
+          style={{ flex: '1', border: '1px solid #bbbbbb', borderRadius: '15px', margin: '15px' }}
+          className="bg-light bg-gradient"
+        >
           <h5 className="my-3 mx-4">한 줄 건의하기</h5>
-          <form className="input-group py-3 px-4" onSubmit={onSubmit}>
+          <form className="input-group pb-3 px-4 mb-3" onSubmit={onSubmit}>
             <input
               type="text"
               className="form-control"
-              placeholder="건의 내용"
+              placeholder={session ? '건의 내용' : '로그인하시면 건의 가능합니다!'}
               aria-label="건의 내용"
               aria-describedby="button-addon"
+              maxLength="200"
               ref={inputRef}
+              disabled={!session}
             />
-            <button
-              className="btn btn-outline-success"
-              type="submit"
-              id="button-addon"
-            >
+            <button className="btn btn-outline-success" type="submit" id="button-addon" disabled={!session}>
               전송
             </button>
           </form>

@@ -11,20 +11,24 @@ generator client {
 }
 
 model User {
-  id            Int          @id @default(autoincrement())
-  name          String?
-  email         String?      @unique
+  id            Int           @id @default(autoincrement())
+  name          String?       @default("흔한아라드의모험가")
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   accounts      Account[]
   sessions      Session[]
-  adventure     Adventure?   @relation(fields: [adId], references: [id])
+  adventure     Adventure?    @relation(fields: [adId], references: [id])
   adId          Int?
   setting       Setting?
   posts         Post[]
   suggestions   Suggestion[]
+  comments      Comment[]
+  like          Int           @default(0)
+  hate          Int           @default(0)
+  postcomments  Postcomment[]
 }
 
 model Account {
@@ -66,24 +70,29 @@ model VerificationRequest {
 }
 
 model Character {
-  id            Int       @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   name          String
   server        String
+  adventure     Adventure  @relation("normal", fields: [adventureName], references: [name])
   adventureName String
-  adventure     Adventure @relation(fields: [adventureName], references: [name])
-  // guildName     String?
-  // guild         Guild?     @relation(fields: [guildName], references: [name])
+  guild         Guild?     @relation(fields: [guildName], references: [name])
+  guildName     String?
+  guildPosition String?
   damage        BigInt?
   images        Image[]
-  like          Int       @default(0)
-  hate          Int       @default(0)
+  like          Int        @default(0)
+  hate          Int        @default(0)
+  commentFrom   Comment[]
+  king          Adventure? @relation("king")
 }
 
 model Adventure {
   id         Int         @id @default(autoincrement())
   name       String      @unique
-  characters Character[]
+  characters Character[] @relation("normal")
   user       User[]
+  king       Character?  @relation("king", fields: [kingId], references: [id])
+  kingId     Int?        @unique
 }
 
 model Image {
@@ -94,32 +103,36 @@ model Image {
   date        DateTime  @default(now())
 }
 
-// model Guild {
-//   id     Int         @id @default(autoincrement())
-//   name   String      @unique
-//   master Character
-//   stars  Character[]
-//   high   Character[]
-//   low    Character[]
-// }
+model Guild {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  characters Character[]
+  icon       String
+}
 
 model Setting {
-  id       Int     @id @default(autoincrement())
-  user     User    @relation(fields: [userId], references: [id])
-  userId   Int     @unique
-  darkmode Boolean @default(false)
+  id       Int    @id @default(autoincrement())
+  user     User   @relation(fields: [userId], references: [id])
+  userId   Int    @unique
+  scope    String @default("character")
+  wordType String @default("match")
+  filter   String @default("true")
+  darkmode String @default("false")
 }
 
 model Post {
-  id         Int       @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   type       String
   title      String
   html       String
   markdown   String
-  author     User      @relation(fields: [authorId], references: [id])
+  author     User          @relation(fields: [authorId], references: [id])
   authorId   Int
-  postDate   DateTime  @default(now()) @map(name: "post_date")
-  reviseDate DateTime? @map(name: "revise_date")
+  postDate   DateTime      @default(now()) @map(name: "post_date")
+  reviseDate DateTime?     @map(name: "revise_date")
+  comments   Postcomment[]
+  like       Int           @default(0)
+  hate       Int           @default(0)
 }
 
 model Suggestion {
@@ -128,4 +141,31 @@ model Suggestion {
   author   User?    @relation(fields: [authorId], references: [id])
   authorId Int
   date     DateTime @default(now())
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String
+  character Character @relation(fields: [charId], references: [id])
+  charId    Int
+  author    User      @relation(fields: [userId], references: [id])
+  userId    Int
+  date      DateTime  @default(now())
+  like      Int       @default(0)
+  hate      Int       @default(0)
+}
+
+model Postcomment {
+  id       Int          @id @default(autoincrement())
+  content  String
+  post     Post         @relation(fields: [postId], references: [id])
+  postId   Int
+  author   User         @relation(fields: [userId], references: [id])
+  userId   Int
+  date     DateTime     @default(now())
+  like     Int          @default(0)
+  hate     Int          @default(0)
+  reTarget Postcomment? @relation("recomment", fields: [targetId], references: [id])
+  targetId Int?         @unique
+  tail     Postcomment? @relation("recomment")
 }

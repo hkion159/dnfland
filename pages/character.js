@@ -1,4 +1,4 @@
-import { CharImg } from './api/neople';
+import { CharImg } from '../lib/neople';
 import Layout from '../components/layout/layout';
 import wrapper from '../modules/index';
 import axios from '../node_modules/axios/index';

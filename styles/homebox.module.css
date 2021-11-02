@@ -6,19 +6,4 @@
 
 .introduce {
   flex: 2;
-  text-align: center;
-  border-bottom: 1px solid #c9c9c9;
-}
-
-.infos {
-  flex: 1;
-  display: flex;
-}
-
-.f1 {
-  flex: 1;
-}
-
-.f1 + .f1 {
-  border-left: 1px solid #c9c9c9;
 }

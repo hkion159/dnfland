@@ -5,6 +5,7 @@ import '@toast-ui/editor/dist/toastui-editor-viewer.css';
 import Layout from '../../components/layout/layout';
 import { useRouter } from '../../node_modules/next/dist/client/router';
 import { useSession } from 'next-auth/client';
+import axios from 'axios';
 
 const WritePost = () => {
   const [session, loading] = useSession();
@@ -29,17 +30,14 @@ const WritePost = () => {
       title: titleValue,
       html: htmlValue,
       markdown: markdownValue,
+      authorId: session.id,
     };
     const api = async () => {
-      await fetch('/api/post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      await axios.post('api/post', body);
       await router.push('/board');
     };
     api();
-  }, [htmlValue, markdownValue, router, titleValue]);
+  }, [htmlValue, markdownValue, router, session.id, titleValue]);
   const onCancel = useCallback(() => {
     router.push('/board');
   }, [router]);
@@ -62,18 +60,13 @@ const WritePost = () => {
       <div className="">
         <h4 className="m-4">게시글 작성</h4>
         <div className="p-4">
-          <input
-            onChange={onChangeTitle}
-            className="form-control"
-            placeholder="제목"
-          />
+          <input onChange={onChangeTitle} className="form-control" placeholder="제목" required maxLength="100" />
         </div>
         <div className="p-4">
           <Editor
             placeholder="헤롱헤롱쿨쿨"
             initialValue={markdownValue}
-            previewStyle="vertical"
-            initialEditType="markdown"
+            initialEditType="wysiwyg"
             height="600px"
             usageStatistics={false}
             useCommandShortcut
@@ -82,18 +75,10 @@ const WritePost = () => {
           />
         </div>
         <div className="d-flex justify-content-center">
-          <button
-            type="button"
-            className="btn btn-outline-success mx-3"
-            onClick={onPost}
-          >
+          <button type="button" className="btn btn-outline-success mx-3" onClick={onPost}>
             등록
           </button>
-          <button
-            type="button"
-            className="btn btn-outline-secondary mx-3"
-            onClick={onCancel}
-          >
+          <button type="button" className="btn btn-outline-secondary mx-3" onClick={onCancel}>
             취소
           </button>
         </div>

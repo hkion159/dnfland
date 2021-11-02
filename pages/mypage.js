@@ -1,13 +1,16 @@
 import Layout from '../components/layout/layout';
 import { useSession } from 'next-auth/client';
 import { useState, useCallback, useRef } from 'react';
+import axios from 'axios';
 
 const MyPage = () => {
   const [session, loading] = useSession();
-  const [enroll, setEnroll] = useState(false);
   const enrollRef = useRef(null);
+  const [enroll, setEnroll] = useState(false);
+  const [advName, setAdvName] = useState('');
   const onEnroll = useCallback(
     (e) => {
+      setAdvName(enrollRef.current.value);
       setEnroll(true);
       setTimeout(() => {
         setEnroll(false);
@@ -15,11 +18,7 @@ const MyPage = () => {
       e.preventDefault();
       const api = async () => {
         const body = { id: session.id, name: enrollRef.current.value };
-        await fetch('/api/adventure', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
+        await axios.put('/api/adventure', body);
       };
       api();
       enrollRef.current.value = '';
@@ -49,7 +48,11 @@ const MyPage = () => {
             등록
           </button>
         </form>
-        {enroll && <p className="text-success my-3">등록되었습니다!!</p>}
+        {enroll && (
+          <p className="text-success text-center my-3">
+            {advName}(으)로 등록되었습니다!!
+          </p>
+        )}
       </div>
     </Layout>
   );

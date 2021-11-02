@@ -1,0 +1,27 @@
+.pop {
+  background-color: rgb(232, 236, 239);
+  opacity: 0.7;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.arrow,
+.arrow::before {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border-top: inherit;
+  border-left: inherit;
+}
+
+.arrow {
+  visibility: hidden;
+  bottom: -4px;
+}
+
+.arrow::before {
+  visibility: visible;
+  content: '';
+  transform: rotate(45deg);
+}

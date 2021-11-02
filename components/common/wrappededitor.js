@@ -7,9 +7,7 @@ const PostEditor = dynamic(() => import('./posteditor'), {
 });
 
 // eslint-disable-next-line react/display-name
-const WrappedEditor = React.forwardRef((props, ref) => (
-  <PostEditor {...props} forwardRef={ref} />
-));
+const WrappedEditor = React.forwardRef((props, ref) => <PostEditor {...props} forwardRef={ref} />);
 
 const Index = (props) => {
   const editorRef = useRef(null);
@@ -17,7 +15,6 @@ const Index = (props) => {
   const onChange = useCallback(() => {
     if (!editorRef.current) return;
     const instance = editorRef.current.getInstance();
-    console.log(instance);
     props.onChange(instance.getHTML(), instance.getMarkdown());
   }, [props, editorRef]);
   useEffect(() => {

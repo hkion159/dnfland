@@ -1,4 +1,4 @@
-import { getSkillStyles } from './neople';
+import { getSkillStyles } from '../../lib/neople';
 
 export async function getPosition(character) {
   // 직업명으로 판별함
@@ -1149,7 +1149,7 @@ export async function getPosition(character) {
   ];
   let position = '몰라!';
   for (let jobClass of jobTable) {
-    if (jobClass.jobName === jobGrowName) return '노전직이세요?';
+    if (jobClass.jobName === jobGrowName) return '노전직';
     const jobs = jobClass.rows;
     for (let job of jobs) {
       const growNameList = [
@@ -1163,9 +1163,7 @@ export async function getPosition(character) {
         if (growNameList[1] === '홀리오더') {
           const skills = await getSkillStyles(character);
           const actives = skills['active'];
-          const mase = await actives.filter(
-            (skill) => skill['name'] === '성령의 메이스',
-          );
+          const mase = await actives.filter((skill) => skill['name'] === '성령의 메이스');
           if (mase.length) return 'd';
         }
         return job.position;

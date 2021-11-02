@@ -14,28 +14,29 @@ function Home({ maxId, notices }) {
   );
 }
 
-export const getServerSideProps = wrapper.getServerSideProps(
-  (store) => async (ctx) => {
-    const max = await prisma.user.aggregate({
-      _max: {
-        id: true,
-      },
-    });
-    const maxId = await max._max.id;
-    const noticesJSON = await prisma.post.findMany({
-      where: {
-        type: 'notice',
-      },
-      take: -1,
-    });
-    const notices = JSON.stringify(noticesJSON);
-    return {
-      props: {
-        maxId: maxId,
-        notices: notices,
-      },
-    };
-  },
-);
+export const getServerSideProps = wrapper.getServerSideProps((store) => async (ctx) => {
+  const max = await prisma.user.aggregate({
+    _max: {
+      id: true,
+    },
+  });
+  const maxId = await max._max.id;
+  const noticesJSON = await prisma.post.findMany({
+    where: {
+      type: 'notice',
+    },
+    take: 4,
+    orderBy: {
+      id: 'desc',
+    },
+  });
+  const notices = JSON.stringify(noticesJSON);
+  return {
+    props: {
+      maxId: maxId,
+      notices: notices,
+    },
+  };
+});
 
 export default Home;
