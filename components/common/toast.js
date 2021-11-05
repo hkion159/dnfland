@@ -5,7 +5,7 @@ const Toast = () => {
         Show live toast
       </button>
 
-      <div className="position-fixed top-0 start-50 p-3" style={{ zIndex: '11' }}>
+      <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: '11' }}>
         <div id="liveToast" className="toast" role="alert" aria-live="assertive" aria-atomic="true">
           <div className="toast-header">
             {/* <img src="..." class="rounded me-2" alt="..."> */}

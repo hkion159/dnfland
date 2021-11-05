@@ -11,7 +11,6 @@ const BoardBox = ({ posts: strPosts, type }) => {
   const onWrite = useCallback(() => {
     router.push('/board/write');
   }, [router]);
-  const diff = getDateDiff('2021-11-01T12:48:51.761Z');
   return (
     <div>
       <div className="p-4">
@@ -28,21 +27,24 @@ const BoardBox = ({ posts: strPosts, type }) => {
               <th scope="col" style={{ width: '15%', minWidth: '130px' }}>
                 작성자
               </th>
-              <th scope="col" style={{ width: '10%', minWidth: '83px' }}>
+              <th scope="col" style={{ width: '10%', minWidth: '100px' }}>
                 작성일
               </th>
             </tr>
           </thead>
           <tbody>
-            {posts.map(({ id, title, author, postDate }) => (
+            {posts.map(({ id, title, author, postDate, comments }) => (
               <tr key={id}>
                 <td scope="row">{id}</td>
                 <td style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '0' }}>
                   <Link href={`/board/post/${id}`}>
-                    <a>{title}</a>
+                    <a>
+                      {title}
+                      <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+                    </a>
                   </Link>
                 </td>
-                <td>{author?.name ?? '몰?루'}</td>
+                <td>{author?.name}</td>
                 <td>{getDateDiff(postDate)}</td>
               </tr>
             ))}

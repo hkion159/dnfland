@@ -11,21 +11,20 @@ const Board = ({ posts }) => {
   );
 };
 
-export const getServerSideProps = wrapper.getServerSideProps(
-  (store) => async (ctx) => {
-    const posts = await prisma.post.findMany({
-      where: {
-        type: 'notice',
-      },
-      take: 10,
-    });
-    const data = JSON.stringify(posts);
-    return {
-      props: {
-        posts: data,
-      },
-    };
-  },
-);
+export const getServerSideProps = wrapper.getServerSideProps((store) => async (ctx) => {
+  const posts = await prisma.post.findMany({
+    where: {
+      type: 'notice',
+    },
+    include: { author: true, comments: true },
+    take: 10,
+  });
+  const data = JSON.stringify(posts);
+  return {
+    props: {
+      posts: data,
+    },
+  };
+});
 
 export default Board;

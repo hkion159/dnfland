@@ -16,26 +16,81 @@ import Comment from '../../../components/common/comment';
 import Modal from '../../../components/common/modal';
 import Toast from '../../../components/common/toast';
 import UserTag from '../../../components/common/usertag';
+import Head from 'next/head';
 
 const PostViewer = dynamic(() => import('../../../components/common/postviewer'), {
   ssr: false,
 });
 
-const Board = ({ post: strPost }) => {
-  const post = JSON.parse(strPost);
+const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
+  const post = JSON.parse(postStr);
+  const prevPosts = JSON.parse(prevPostsStr);
+  const nextPosts = JSON.parse(nextPostsStr);
   const { type, authorId, author, markdown, title, postDate, reviseDate, comments, like, hate } = post;
-  const [rtComments, setRtComments] = useState(comments);
   const [session, loading] = useSession();
   const router = useRouter();
   const { id } = router.query;
-  const onRemove = useCallback(() => {
-    axios.delete(`/api/post/${id}`);
-    router.push('/board');
-  }, [id, router]);
   const [likes, setLikes] = useState(like);
   const [hates, setHates] = useState(hate);
   const [isLike, setIsLike] = useState(false);
   const [isHate, setIsHate] = useState(false);
+  const [rtComments, setRtComments] = useState(comments);
+  const commentRef = useRef(null);
+  const [willInitialize, setWillInitialize] = useState(false);
+  const [isRecomment, setIsRecomment] = useState([]);
+  const recommentRef = useRef(null);
+  const removeBtnRef = useRef(null);
+  const [removeId, setRemoveId] = useState(0);
+  const [removeConfirm, setRemoveConfirm] = useState(false);
+  const getComments = useCallback(async () => {
+    const res = await axios.get(`/api/post/${id}`);
+    const comments = await res.data.comments;
+    setRtComments(comments);
+  }, [id]);
+  const initializePost = useCallback(() => {
+    setLikes(like);
+    setHates(hate);
+    const likeFind = post.likedUser.filter((user) => user.id === session?.id);
+    if (likeFind.length > 0) setIsLike(true);
+    else setIsLike(false);
+    const hateFind = post.hatedUser.filter((user) => user.id === session?.id);
+    if (hateFind.length > 0) setIsHate(true);
+    else setIsHate(false);
+    getComments();
+  }, [getComments, hate, like, post.hatedUser, post.likedUser, session?.id]);
+  useEffect(() => {
+    setWillInitialize(true);
+  }, [id]);
+  useEffect(() => {
+    if (willInitialize) {
+      initializePost();
+      setWillInitialize(false);
+    }
+  }, [initializePost, willInitialize]);
+  useEffect(() => {
+    if (removeId !== 0 && removeConfirm) {
+      const comment = rtComments.filter((comment) => comment.id === removeId)[0];
+      if (comment.tail.length === 0) {
+        axios.put(`/api/post/${id}`, {
+          comments: {
+            delete: {
+              id: removeId,
+            },
+          },
+        });
+      } else {
+        alert('대댓글이 달린 댓글은 삭제할 수 없습니다!');
+      }
+      setRemoveId(0);
+      setRemoveConfirm(false);
+    }
+  }, [getComments, id, removeConfirm, removeId, rtComments]);
+  const onRemove = useCallback(() => {
+    removeBtnRef.current.target = '게시글';
+    removeBtnRef.current.click();
+    axios.delete(`/api/post/${id}`);
+    router.push('/board');
+  }, [id, router]);
   const onLike = useCallback(async () => {
     if (!session) return;
     if (isLike) {
@@ -48,7 +103,7 @@ const Board = ({ post: strPost }) => {
           },
         },
       });
-      setLikes(likes - 1);
+      setLikes((likes) => likes - 1);
     } else {
       setIsLike(true);
       if (isHate) {
@@ -61,7 +116,7 @@ const Board = ({ post: strPost }) => {
             },
           },
         });
-        setHates(hates - 1);
+        setHates((hates) => hates - 1);
       }
       await axios.put(`/api/post/${id}`, {
         like: { increment: 1 },
@@ -71,9 +126,9 @@ const Board = ({ post: strPost }) => {
           },
         },
       });
-      setLikes(likes + 1);
+      setLikes((likes) => likes + 1);
     }
-  }, [hates, id, isHate, isLike, likes, session]);
+  }, [id, isHate, isLike, session]);
   const onHate = useCallback(async () => {
     if (!session) return;
     if (isHate) {
@@ -86,7 +141,7 @@ const Board = ({ post: strPost }) => {
           },
         },
       });
-      setHates(hates - 1);
+      setHates((hates) => hates - 1);
     } else {
       setIsHate(true);
       if (isLike) {
@@ -99,7 +154,7 @@ const Board = ({ post: strPost }) => {
             },
           },
         });
-        setLikes(likes - 1);
+        setLikes((likes) => likes - 1);
       }
       await axios.put(`/api/post/${id}`, {
         hate: { increment: 1 },
@@ -109,15 +164,10 @@ const Board = ({ post: strPost }) => {
           },
         },
       });
-      setHates(hates + 1);
+      setHates((hates) => hates + 1);
     }
-  }, [hates, id, isHate, isLike, likes, session]);
-  const getComments = useCallback(async () => {
-    const res = await axios.get(`/api/post/${id}`);
-    const comments = await res.data.comments;
-    setRtComments(comments);
-  }, [id]);
-  const commentRef = useRef(null);
+  }, [id, isHate, isLike, session]);
+
   const onComment = useCallback(
     async (e) => {
       e.preventDefault();
@@ -135,16 +185,12 @@ const Board = ({ post: strPost }) => {
         },
       });
       commentRef.current.value = '';
-      await getComments();
+      setWillInitialize(true);
     },
-    [getComments, id, session],
+    [id, session],
   );
-  const [isRecomment, setIsRecomment] = useState([]);
-  const recommentRef = useRef(null);
-  const removeBtnRef = useRef(null);
-  const [removeId, setRemoveId] = useState(0);
-  const [removeConfirm, setRemoveConfirm] = useState(false);
   const onCommentRemove = useCallback((commentId) => {
+    removeBtnRef.current.target = '댓글';
     removeBtnRef.current.click();
     setRemoveId(commentId);
   }, []);
@@ -181,49 +227,33 @@ const Board = ({ post: strPost }) => {
       });
       recommentRef.current.value = '';
       setIsRecomment([]);
-      await getComments();
+      setWillInitialize(true);
     },
-    [getComments, id, session?.id],
+    [id, session?.id],
   );
-  useEffect(() => {
-    const likeFind = post.likedUser.filter((user) => user.id === session?.id);
-    if (likeFind.length > 0) setIsLike(true);
-    const hateFind = post.hatedUser.filter((user) => user.id === session?.id);
-    if (hateFind.length > 0) setIsHate(true);
-    setInterval(async () => {
-      const res = await axios.get(`/api/post/${id}`);
-      const post = await res.data;
-      setLikes(post?.like);
-      setHates(post?.hate);
-      await getComments();
-    }, 10000);
-    if (removeId !== 0 && removeConfirm) {
-      const comment = rtComments.filter((comment) => comment.id === removeId)[0];
-      if (comment.tail.length === 0) {
-        axios.put(`/api/post/${id}`, {
-          comments: {
-            delete: {
-              id: removeId,
-            },
-          },
-        });
-      } else {
-      }
-      setRemoveId(0);
-      setRemoveConfirm(false);
-      getComments();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, removeConfirm, removeId, session?.id]);
   const [referenceElement, setReferenceElement] = useState(null);
   const [referenceElementSecond, setReferenceElementSecond] = useState(null);
   const [popperFirst, setPopperFirst] = useState(false);
   const [popperSecond, setPopperSecond] = useState(false);
+  console.log(markdown);
   return (
     <Layout>
-      <div className="px-4">
+      <Head>
+        <title>{title}</title>
+      </Head>
+      <div>
         <div className="d-flex my-4">
-          <p className="">{type === 'notice' ? '공지사항' : '일반'}</p>
+          <span className="align-self-center">
+            {type === 'notice' ? (
+              <Link href="/board/notice">
+                <a className="link-dark">공지사항</a>
+              </Link>
+            ) : (
+              <Link href="/board">
+                <a className="link-dark">종합 게시판</a>
+              </Link>
+            )}
+          </span>
           <div className="ms-auto">
             {session?.id === authorId && <button className="btn btn-outline-info">수정</button>}
             {(session?.id === id || session?.id === 1) && (
@@ -243,7 +273,7 @@ const Board = ({ post: strPost }) => {
         <Time className="ms-1" datetime={postDate} />
         {reviseDate && <p>{`마지막 수정 ${getDateDiff(reviseDate)}`}</p>}
         <hr />
-        <PostViewer initialValue={markdown} />
+        <span className="text-break">{!willInitialize && <PostViewer initialValue={markdown} />}</span>
         <div className="d-flex justify-content-center text-center">
           <div className="d-flex flex-column text-primary mx-2">
             <a
@@ -337,20 +367,94 @@ const Board = ({ post: strPost }) => {
           })}
         </div>
         <CommentForm commentRef={commentRef} onClick={onComment} className="mt-4" />
-        <hr />
-        {!session && popperFirst && <Popper refEl={referenceElement} />}
-        {!session && popperSecond && <Popper refEl={referenceElementSecond} />}
+        <table className="table table-hover my-4">
+          <tbody>
+            {prevPosts.map(({ id, title, author, postDate, comments }, index) => (
+              <tr key={id} style={index === 0 ? { borderTop: '1px solid #e0e0e0' } : {}}>
+                <td style={{ width: '5%', minWidth: '50px' }}>{id}</td>
+                <td
+                  className="ps-4"
+                  style={{
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '0',
+                  }}
+                >
+                  <Link href={`/board/post/${id}`}>
+                    <a>
+                      {title}
+                      <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+                    </a>
+                  </Link>
+                </td>
+                <td style={{ width: '15%', minWidth: '130px' }}>{author.name}</td>
+                <td className="text-end pe-4 text-secondary" style={{ width: '10%', minWidth: '100px' }}>
+                  {getDateDiff(postDate)}
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td>{id}</td>
+              <td
+                className="ps-4"
+                style={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '0',
+                }}
+              >
+                <span className="fw-bold text-decoration-underline">{title}</span>
+                <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+              </td>
+              <td>{author.name}</td>
+              <td className="text-end pe-4 text-secondary">{getDateDiff(postDate)}</td>
+            </tr>
+            {nextPosts.map(({ id, title, author, postDate, comments }, index) => (
+              <tr key={id} style={index === 0 ? { borderTop: '1px solid #e0e0e0' } : {}}>
+                <td style={{ width: '5%', minWidth: '50px' }}>{id}</td>
+                <td
+                  className="ps-4"
+                  style={{
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '0',
+                  }}
+                >
+                  <Link href={`/board/post/${id}`}>
+                    <a>
+                      {title}
+                      <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+                    </a>
+                  </Link>
+                </td>
+                <td style={{ width: '15%', minWidth: '130px' }}>{author.name}</td>
+                <td className="text-end pe-4 text-secondary" style={{ width: '10%', minWidth: '100px' }}>
+                  {getDateDiff(postDate)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="d-flex mb-4">
+          <button className="btn btn-outline-primary ms-auto">목록</button>
+        </div>
       </div>
-      <Modal btnRef={removeBtnRef} target={'댓글'} onConfirm={onRemoveConfirm} />
+      {!session && popperFirst && <Popper refEl={referenceElement} />}
+      {!session && popperSecond && <Popper refEl={referenceElementSecond} />}
+      <Modal btnRef={removeBtnRef} target={''} onConfirm={onRemoveConfirm} />
       {/* <Toast /> */}
     </Layout>
   );
 };
 
 export const getServerSideProps = wrapper.getServerSideProps((store) => async (ctx) => {
+  const id = Number(ctx.query.id);
   const post = await prisma.post.findUnique({
     where: {
-      id: Number(ctx.query.id),
+      id: id,
     },
     include: {
       author: true,
@@ -369,10 +473,42 @@ export const getServerSideProps = wrapper.getServerSideProps((store) => async (c
       hatedUser: true,
     },
   });
-  const data = JSON.stringify(post);
+  const previousPosts = await prisma.post.findMany({
+    take: -2,
+    skip: 1,
+    cursor: {
+      id: id,
+    },
+    where: {
+      type: post.type,
+    },
+    include: {
+      author: true,
+      comments: true,
+    },
+  });
+  const nextPosts = await prisma.post.findMany({
+    take: 2,
+    skip: 1,
+    cursor: {
+      id: id,
+    },
+    where: {
+      type: post.type,
+    },
+    include: {
+      author: true,
+      comments: true,
+    },
+  });
+  const postStr = JSON.stringify(post);
+  const prevPostsStr = JSON.stringify(previousPosts);
+  const nextPostsStr = JSON.stringify(nextPosts);
   return {
     props: {
-      post: data,
+      postStr: postStr,
+      prevPostsStr: prevPostsStr,
+      nextPostsStr: nextPostsStr,
     },
   };
 });
