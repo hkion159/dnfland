@@ -23,12 +23,14 @@ model User {
   adventure     Adventure?    @relation(fields: [adId], references: [id])
   adId          Int?
   setting       Setting?
-  posts         Post[]
+  posts         Post[]        @relation("author")
   suggestions   Suggestion[]
   comments      Comment[]
   like          Int           @default(0)
   hate          Int           @default(0)
   postcomments  Postcomment[]
+  likedPosts    Post[]        @relation("like")
+  hatedPosts    Post[]        @relation("hate")
 }
 
 model Account {
@@ -126,13 +128,15 @@ model Post {
   title      String
   html       String
   markdown   String
-  author     User          @relation(fields: [authorId], references: [id])
+  author     User          @relation("author", fields: [authorId], references: [id])
   authorId   Int
   postDate   DateTime      @default(now()) @map(name: "post_date")
   reviseDate DateTime?     @map(name: "revise_date")
   comments   Postcomment[]
   like       Int           @default(0)
   hate       Int           @default(0)
+  likedUser  User[]        @relation("like")
+  hatedUser  User[]        @relation("hate")
 }
 
 model Suggestion {
@@ -156,16 +160,16 @@ model Comment {
 }
 
 model Postcomment {
-  id       Int          @id @default(autoincrement())
+  id       Int           @id @default(autoincrement())
   content  String
-  post     Post         @relation(fields: [postId], references: [id])
+  post     Post          @relation(fields: [postId], references: [id])
   postId   Int
-  author   User         @relation(fields: [userId], references: [id])
-  userId   Int
-  date     DateTime     @default(now())
-  like     Int          @default(0)
-  hate     Int          @default(0)
-  reTarget Postcomment? @relation("recomment", fields: [targetId], references: [id])
-  targetId Int?         @unique
-  tail     Postcomment? @relation("recomment")
+  author   User          @relation(fields: [authorId], references: [id])
+  authorId Int           @map("userId")
+  date     DateTime      @default(now())
+  like     Int           @default(0)
+  hate     Int           @default(0)
+  target   Postcomment?  @relation("recomment", fields: [targetId], references: [id])
+  targetId Int?
+  tail     Postcomment[] @relation("recomment")
 }

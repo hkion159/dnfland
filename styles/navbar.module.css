@@ -2,6 +2,11 @@
   padding: 0;
   padding-top: 4px;
   border-bottom: 1px solid rgb(197, 197, 197);
+  opacity: 0.9;
+}
+
+.Navbar:hover {
+  opacity: 1;
 }
 
 .form {

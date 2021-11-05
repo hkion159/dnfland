@@ -59,13 +59,13 @@ function Navbar() {
   const onSubmit = useCallback(
     (e) => {
       e.preventDefault();
-      router.push(`/search?${scope}=${inputRef.current.value}`, '/search');
+      router.push(`/search?${scope}=${inputRef.current.value}`);
       inputRef.current.value = '';
     },
     [router, scope],
   );
   return (
-    <nav className={`navbar navbar-expand-md navbar-light bg-light sticky-top shadow-sm ${st.Navbar}`}>
+    <nav className={`navbar navbar-expand-md navbar-light bg-light fixed-top shadow-sm ${st.Navbar}`}>
       {/* 전체 컨테이너 */}
       <div className={`container-xl`}>
         <div className={st.n1}>

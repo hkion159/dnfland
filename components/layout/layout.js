@@ -1,11 +1,11 @@
 import Navbar from './navbar';
-import layoutStyle from '../../styles/layout.module.css';
+import st from '../../styles/layout.module.css';
 import Footer from './footer';
 import MainBox from '../box/mainbox';
 
 function Layout(props) {
   return (
-    <div className={`${layoutStyle.layout}`}>
+    <div className={`${st.layout}`}>
       {/* 높이 100% 만들기 */}
       <style global jsx>{`
         html,

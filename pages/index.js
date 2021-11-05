@@ -25,6 +25,9 @@ export const getServerSideProps = wrapper.getServerSideProps((store) => async (c
     where: {
       type: 'notice',
     },
+    include: {
+      comments: true,
+    },
     take: 4,
     orderBy: {
       id: 'desc',

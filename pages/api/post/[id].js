@@ -22,10 +22,16 @@ export default async function handle(req, res) {
           comments: {
             include: {
               author: true,
-              reTarget: true,
-              tail: true,
+              target: true,
+              tail: {
+                include: {
+                  author: true,
+                },
+              },
             },
           },
+          likedUser: true,
+          hatedUser: true,
         },
       });
       break;

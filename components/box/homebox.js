@@ -124,23 +124,11 @@ function Homebox({ maxId, notices }) {
             className="py-3 px-4 bg-light"
             style={{ borderBottom: '1px solid #e0e0e0', borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
           >
-            <Link href="/">
-              <a>
-                <h5 className="text-black m-0">
+            <Link href="/board/notice">
+              <a className="link-dark">
+                <h5 className="text-black m-0 d-inline-block">
                   공지사항
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    className="bi bi-chevron-right align-baseline"
-                    viewBox="0 0 16 16"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
-                    />
-                  </svg>
+                  <i className="align-baseline bi bi-chevron-right"></i>
                 </h5>
               </a>
             </Link>
@@ -148,7 +136,7 @@ function Homebox({ maxId, notices }) {
           <div>
             <table className="table table-hover m-0">
               <tbody>
-                {notices.map(({ id, title, postDate }, index) => (
+                {notices.map(({ id, title, postDate, comments }, index) => (
                   <tr key={id} style={index === notices.length - 1 ? { borderBottom: '0px solid transparent' } : {}}>
                     <td
                       className="ps-4"
@@ -165,7 +153,10 @@ function Homebox({ maxId, notices }) {
                       }
                     >
                       <Link href={`/board/post/${id}`}>
-                        <a>{title}</a>
+                        <a>
+                          {title}
+                          <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+                        </a>
                       </Link>
                     </td>
                     <td
