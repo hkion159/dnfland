@@ -14,6 +14,8 @@ import Time from '../../../components/common/time';
 import CommentForm from '../../../components/common/commentform';
 import Comment from '../../../components/common/comment';
 import Modal from '../../../components/common/modal';
+import Toast from '../../../components/common/toast';
+import UserTag from '../../../components/common/usertag';
 
 const PostViewer = dynamic(() => import('../../../components/common/postviewer'), {
   ssr: false,
@@ -234,9 +236,10 @@ const Board = ({ post: strPost }) => {
         </div>
         <h3 className="d-block">{title}</h3>
         <Link href="/">
-          <a className="me-1 d-inline-block link-secondary">{author.name}</a>
+          <a className="d-inline-block link-secondary">{author.name}</a>
         </Link>
-        <span className="text-secondary">&sdot;</span>
+        <UserTag authorId={authorId} />
+        <span className="ms-1 text-secondary">&sdot;</span>
         <Time className="ms-1" datetime={postDate} />
         {reviseDate && <p>{`마지막 수정 ${getDateDiff(reviseDate)}`}</p>}
         <hr />
@@ -293,6 +296,7 @@ const Board = ({ post: strPost }) => {
                   <Comment
                     key={index}
                     comment={comment}
+                    postAuthorId={authorId}
                     session={session}
                     rtComments={rtComments}
                     index={index}
@@ -307,6 +311,7 @@ const Board = ({ post: strPost }) => {
                   <div key={index}>
                     <Comment
                       comment={comment}
+                      postAuthorId={authorId}
                       session={session}
                       index={index}
                       onRecommentClick={onRecommentClick}
@@ -319,6 +324,7 @@ const Board = ({ post: strPost }) => {
                       <Comment
                         key={index}
                         comment={recomment}
+                        postAuthorId={authorId}
                         session={session}
                         index={index}
                         onCommentRemove={() => onCommentRemove(recomment.id)}
@@ -336,6 +342,7 @@ const Board = ({ post: strPost }) => {
         {!session && popperSecond && <Popper refEl={referenceElementSecond} />}
       </div>
       <Modal btnRef={removeBtnRef} target={'댓글'} onConfirm={onRemoveConfirm} />
+      {/* <Toast /> */}
     </Layout>
   );
 };

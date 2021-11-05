@@ -1,8 +1,10 @@
 import Time from './time';
 import CommentForm from './commentform';
+import UserTag from './usertag';
 
 const Comment = ({
   comment,
+  postAuthorId,
   className,
   session,
   onRecommentClick,
@@ -30,7 +32,7 @@ const Comment = ({
         <p className="d-inline-block">
           <b>{author?.name}</b>
         </p>
-        {authorId === authorId && <span className="ms-2 badge bg-primary">작성자</span>}
+        <UserTag comment authorId={authorId} postAuthorId={postAuthorId} />
         <p style={{ whiteSpace: 'pre-line' }}>{content}</p>
         <div>
           <Time datetime={date} />
