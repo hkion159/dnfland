@@ -3,9 +3,12 @@ import { useCallback } from 'react';
 import { useRouter } from '../../node_modules/next/dist/client/router';
 import Link from 'next/link';
 import { getDateDiff } from '../../lib/date';
+import Pagination from '../common/pagination';
 
-const BoardBox = ({ posts: strPosts, type }) => {
+const BoardBox = ({ posts: strPosts, type, lastPageStr, currentPageStr }) => {
   const posts = JSON.parse(strPosts);
+  const lastPage = JSON.parse(lastPageStr);
+  const currentPage = JSON.parse(currentPageStr);
   const [session, loading] = useSession();
   const router = useRouter();
   const onWrite = useCallback(() => {
@@ -16,7 +19,7 @@ const BoardBox = ({ posts: strPosts, type }) => {
       <div className="p-4">
         <h3 className="text-center">{type === 'normal' ? '종합 게시판' : '공지사항'}</h3>
       </div>
-      <div className="p-4">
+      <div className="p-4 pt-0">
         <table className="table table-hover w-100">
           <thead className="table-light">
             <tr>
@@ -51,46 +54,18 @@ const BoardBox = ({ posts: strPosts, type }) => {
           </tbody>
         </table>
       </div>
-      <div className="d-flex justify-content-between">
-        <div></div>
-        <nav aria-label="Page navigation">
-          <ul className="pagination">
-            <li className={`page-item disabled`}>
-              <a className="page-link">&laquo;</a>
-            </li>
-            <li className="page-item disabled">
-              <a className="page-link">&lt;</a>
-            </li>
-            <li className="page-item active">
-              <a className="page-link" href="#">
-                1
-              </a>
-            </li>
-            <li className="page-item">
-              <a className="page-link" href="#">
-                2
-              </a>
-            </li>
-            <li className="page-item">
-              <a className="page-link" href="#">
-                3
-              </a>
-            </li>
-            <li className="page-item disabled">
-              <a className="page-link">&gt;</a>
-            </li>
-            <li className="page-item">
-              <a className="page-link" href="#">
-                <span aria-hidden="true">&raquo;</span>
-              </a>
-            </li>
-          </ul>
-        </nav>
-        {!loading && session && !(type === 'notice' && session?.id !== 1) && (
-          <button className="btn btn-outline-primary me-4 align-self-start" onClick={onWrite}>
-            글쓰기
-          </button>
-        )}
+      <div className="d-flex">
+        <div style={{ flex: '1' }}></div>
+        <div style={{ flex: '1' }} className="d-flex justify-content-center">
+          <Pagination type={type} current={currentPage} last={lastPage} />
+        </div>
+        <div style={{ flex: '1' }} className="d-flex justify-content-end">
+          {!loading && session && !(type === 'notice' && session?.id !== 1) && (
+            <button className="btn btn-outline-primary me-4 align-self-start" onClick={onWrite}>
+              글쓰기
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import axios from 'axios';
 
 const WritePost = () => {
   const [session, loading] = useSession();
-  const [markdown, content, title] = ['응애!!', null, ''];
+  const [markdown, content, title] = ['', null, ''];
   const [titleValue, setTitleValue] = useState(title);
   const [htmlValue, setHtml] = useState(content);
   const [markdownValue, setMarkdown] = useState(markdown);
@@ -30,16 +30,19 @@ const WritePost = () => {
       title: titleValue,
       html: htmlValue,
       markdown: markdownValue,
-      authorId: session.id,
+      authorId: session?.id,
     };
     const api = async () => {
-      await axios.post('api/post', body);
-      await router.push('/board');
+      await axios.post('/api/post', body);
+      const res = await axios.get(`/api/post?authorid=${session?.id}`);
+      const post = await res.data;
+      await router.push(`/board/post/${post?.id}`);
     };
-    api();
+    if (titleValue === '' || markdownValue === '') alert('제목이나 내용이 비어있으면 안 됩니다!');
+    else api();
   }, [htmlValue, markdownValue, router, session?.id, titleValue]);
   const onCancel = useCallback(() => {
-    router.push('/board');
+    router.back();
   }, [router]);
   useEffect(() => {
     if (ref.current) {

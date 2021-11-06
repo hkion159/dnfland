@@ -68,29 +68,44 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
     }
   }, [initializePost, willInitialize]);
   useEffect(() => {
-    if (removeId !== 0 && removeConfirm) {
-      const comment = rtComments.filter((comment) => comment.id === removeId)[0];
-      if (comment.tail.length === 0) {
-        axios.put(`/api/post/${id}`, {
-          comments: {
-            delete: {
-              id: removeId,
+    if (removeConfirm) {
+      if (removeId > 0) {
+        const comment = rtComments.filter((comment) => comment.id === removeId)[0];
+        if (comment.tail.length === 0) {
+          axios.put(`/api/post/${id}`, {
+            comments: {
+              delete: {
+                id: removeId,
+              },
             },
-          },
-        });
-      } else {
-        alert('대댓글이 달린 댓글은 삭제할 수 없습니다!');
+          });
+        } else {
+          alert('대댓글이 달린 댓글은 삭제할 수 없습니다!');
+        }
+        setRemoveId(0);
+        setRemoveConfirm(false);
+        setWillInitialize(true);
+      } else if (removeId < 0) {
+        const api = async () => {
+          await axios.put(`/api/post/${id}`, {
+            comments: {
+              deleteMany: {},
+            },
+          });
+          await axios.delete(`/api/post/${id}`);
+        };
+        api();
+        setRemoveId(0);
+        setRemoveConfirm(false);
+        router.push(`/board`);
       }
-      setRemoveId(0);
-      setRemoveConfirm(false);
     }
-  }, [getComments, id, removeConfirm, removeId, rtComments]);
+  }, [getComments, id, removeConfirm, removeId, router, rtComments]);
   const onRemove = useCallback(() => {
     removeBtnRef.current.target = '게시글';
     removeBtnRef.current.click();
-    axios.delete(`/api/post/${id}`);
-    router.push('/board');
-  }, [id, router]);
+    setRemoveId(-id);
+  }, [id]);
   const onLike = useCallback(async () => {
     if (!session) return;
     if (isLike) {
@@ -167,7 +182,6 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
       setHates((hates) => hates + 1);
     }
   }, [id, isHate, isLike, session]);
-
   const onComment = useCallback(
     async (e) => {
       e.preventDefault();
@@ -231,11 +245,11 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
     },
     [id, session?.id],
   );
+  const onGoToList = useCallback(() => {}, []);
   const [referenceElement, setReferenceElement] = useState(null);
   const [referenceElementSecond, setReferenceElementSecond] = useState(null);
   const [popperFirst, setPopperFirst] = useState(false);
   const [popperSecond, setPopperSecond] = useState(false);
-  console.log(markdown);
   return (
     <Layout>
       <Head>
@@ -261,7 +275,9 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
                 삭제
               </button>
             )}
-            <button className="btn btn-outline-primary ms-2">목록</button>
+            <button className="btn btn-outline-primary ms-2" onClick={onGoToList}>
+              목록
+            </button>
           </div>
         </div>
         <h3 className="d-block">{title}</h3>
@@ -370,7 +386,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
         <table className="table table-hover my-4">
           <tbody>
             {prevPosts.map(({ id, title, author, postDate, comments }, index) => (
-              <tr key={id} style={index === 0 ? { borderTop: '1px solid #e0e0e0' } : {}}>
+              <tr key={id}>
                 <td style={{ width: '5%', minWidth: '50px' }}>{id}</td>
                 <td
                   className="ps-4"
@@ -444,7 +460,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
       </div>
       {!session && popperFirst && <Popper refEl={referenceElement} />}
       {!session && popperSecond && <Popper refEl={referenceElementSecond} />}
-      <Modal btnRef={removeBtnRef} target={''} onConfirm={onRemoveConfirm} />
+      <Modal btnRef={removeBtnRef} onConfirm={onRemoveConfirm} />
       {/* <Toast /> */}
     </Layout>
   );
@@ -486,6 +502,9 @@ export const getServerSideProps = wrapper.getServerSideProps((store) => async (c
       author: true,
       comments: true,
     },
+    orderBy: {
+      id: 'desc',
+    },
   });
   const nextPosts = await prisma.post.findMany({
     take: 2,
@@ -499,6 +518,9 @@ export const getServerSideProps = wrapper.getServerSideProps((store) => async (c
     include: {
       author: true,
       comments: true,
+    },
+    orderBy: {
+      id: 'desc',
     },
   });
   const postStr = JSON.stringify(post);
