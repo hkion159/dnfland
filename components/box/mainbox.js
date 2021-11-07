@@ -12,7 +12,7 @@ function MainBox({ children }) {
   const [session, loading] = useSession();
   useEffect(() => {
     const visitListStr = window.localStorage.getItem('visitlist');
-    const visitList = JSON.parse(visitListStr);
+    const visitList = JSON.parse(visitListStr) || [];
     setVisitList(visitList);
   }, []);
   useEffect(() => {
