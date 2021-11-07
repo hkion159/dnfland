@@ -74,7 +74,10 @@ model VerificationRequest {
 model Character {
   id            Int        @id @default(autoincrement())
   name          String
-  server        String
+  serverName    String
+  serverId      String
+  characterId   String
+  jobName       String
   adventure     Adventure  @relation("normal", fields: [adventureName], references: [name])
   adventureName String
   guild         Guild?     @relation(fields: [guildName], references: [name])

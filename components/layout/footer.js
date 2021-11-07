@@ -32,7 +32,7 @@ function Footer() {
             <h4>던파랜드 개발자</h4>
             <div className={`d-flex`}>
               <div>
-                <Link href={`/search?character=${encodeURIComponent('고운말_7794')}`}>
+                <Link href={'/character?characterid=4ecd3f9eea4b6dd87044a9d9323efd20'}>
                   <a>
                     <Image
                       alt="developer"

@@ -11,7 +11,12 @@ export default async function handle(req, res) {
           id: id,
         },
         include: {
-          adventure: true,
+          adventure: {
+            include: {
+              characters: true,
+              king: true,
+            },
+          },
         },
       });
       res.json(user);

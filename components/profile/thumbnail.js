@@ -3,7 +3,15 @@ import Link from 'next/link';
 import { CharImg, getDamage } from '../../lib/neople';
 
 function Thumbnail({ character }) {
-  const { serverName, characterId: charId, characterName: name, jobGrowName: job, position, level } = character;
+  const {
+    serverName,
+    serverId,
+    characterId: charId,
+    characterName: name,
+    jobGrowName: job,
+    position,
+    level,
+  } = character;
   const positionColor = {
     d: 'text-danger',
     s: 'text-primary',
@@ -12,12 +20,10 @@ function Thumbnail({ character }) {
   };
   return (
     <div className={`border border-secondary rounded-3 p-0 ${st.box}`} style={{ margin: '15px' }}>
-      <Link href={`/character?characterid=${charId}`}>
+      <Link href={`/character?characterid=${charId}&serverid=${serverId}`}>
         <a style={{ color: 'black' }}>
           {/* 이미지 */}
-          <div>
-            <CharImg character={character} />
-          </div>
+          <div>{CharImg(charId, serverId)}</div>
 
           {/* 서버, 이름 */}
           <div className="d-flex border-top">

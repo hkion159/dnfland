@@ -1161,7 +1161,7 @@ export async function getPosition(character) {
       if (growNameList.includes(jobGrowName)) {
         // 남크루면 메이스 찍었을 때 D 판정
         if (growNameList[1] === '홀리오더') {
-          const skills = await getSkillStyles(character);
+          const skills = await getSkillStyles(character.characterId, character.serverId);
           const actives = skills['active'];
           const mase = await actives.filter((skill) => skill['name'] === '성령의 메이스');
           if (mase.length) return 'd';
