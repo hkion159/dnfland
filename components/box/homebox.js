@@ -7,7 +7,7 @@ import axios from 'axios';
 import Image from 'next/image';
 import logo from '../../public/images/DLlogo.png';
 
-function Homebox({ maxId, notices }) {
+function Homebox({ maxId, notices, posts }) {
   const [session, loading] = useSession();
   // 건의하기 //
   const inputRef = useRef(null);
@@ -179,27 +179,60 @@ function Homebox({ maxId, notices }) {
           style={{ flex: '1', border: '1px solid #bbbbbb', borderRadius: '15px', margin: '15px' }}
           className="bg-light bg-gradient"
         >
-          <h5 className="my-3 mx-4">한 줄 건의하기</h5>
-          <form className="input-group pb-3 px-4 mb-3" onSubmit={onSubmit}>
-            <input
-              type="text"
-              className="form-control"
-              placeholder={session ? '건의 내용' : '로그인하시면 건의 가능합니다!'}
-              aria-label="건의 내용"
-              aria-describedby="button-addon"
-              maxLength="200"
-              ref={inputRef}
-              disabled={!session}
-            />
-            <button className="btn btn-outline-success" type="submit" id="button-addon" disabled={!session}>
-              전송
-            </button>
-          </form>
-          {submit && (
-            <p className="mx-4 my-1 text-success" style={{ fontSize: '8' }}>
-              전송되었습니다!
-            </p>
-          )}
+          <div
+            className="py-3 px-4 bg-light"
+            style={{ borderBottom: '1px solid #e0e0e0', borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
+          >
+            <Link href="/board">
+              <a className="link-dark">
+                <h5 className="text-black m-0 d-inline-block">
+                  종합 게시판
+                  <i className="align-baseline bi bi-chevron-right"></i>
+                </h5>
+              </a>
+            </Link>
+          </div>
+          <div>
+            <table className="table table-hover m-0">
+              <tbody>
+                {posts.map(({ id, title, postDate, comments }, index) => (
+                  <tr key={id} style={index === notices.length - 1 ? { borderBottom: '0px solid transparent' } : {}}>
+                    <td
+                      className="ps-4"
+                      style={
+                        index === notices.length - 1
+                          ? {
+                              borderBottomLeftRadius: '15px',
+                              textOverflow: 'ellipsis',
+                              overflow: 'hidden',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '0',
+                            }
+                          : { textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '0' }
+                      }
+                    >
+                      <Link href={`/board/post/${id}`}>
+                        <a>
+                          {title}
+                          <span className="text-secondary">{comments?.length ? ` (${comments.length})` : null}</span>
+                        </a>
+                      </Link>
+                    </td>
+                    <td
+                      className="text-end pe-4 text-secondary"
+                      style={
+                        index === notices.length - 1
+                          ? { borderBottomRightRadius: '15px', width: '15%', minWidth: '100px' }
+                          : {}
+                      }
+                    >
+                      {getDateDiff(postDate)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

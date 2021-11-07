@@ -13,27 +13,37 @@ export default async function handle(req, res) {
       });
       break;
     case 'GET':
-      result = await prisma.post.findUnique({
-        where: {
-          id: idNumber,
-        },
-        include: {
-          author: true,
-          comments: {
-            include: {
-              author: true,
-              target: true,
-              tail: {
-                include: {
-                  author: true,
+      const { count } = await req.query;
+      if (count)
+        result = await prisma.post.count({
+          where: {
+            id: {
+              gte: idNumber,
+            },
+          },
+        });
+      else
+        result = await prisma.post.findUnique({
+          where: {
+            id: idNumber,
+          },
+          include: {
+            author: true,
+            comments: {
+              include: {
+                author: true,
+                target: true,
+                tail: {
+                  include: {
+                    author: true,
+                  },
                 },
               },
             },
+            likedUser: true,
+            hatedUser: true,
           },
-          likedUser: true,
-          hatedUser: true,
-        },
-      });
+        });
       break;
     case 'PUT':
       result = await prisma.post.update({

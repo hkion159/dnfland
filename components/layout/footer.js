@@ -3,8 +3,26 @@ import Image from 'next/image';
 import Link from 'next/link';
 import guiIcon from '../../public/images/icon02 copy6.png';
 import neopleLogo from '../../public/images/row_color.png';
+import { useCallback, useRef, useState } from 'react';
+import { useSession } from 'next-auth/client';
+import axios from 'axios';
 
 function Footer() {
+  const [session, loading] = useSession();
+  const inputRef = useRef(null);
+  const [submit, setSubmit] = useState(false);
+  const onSubmit = useCallback((e) => {
+    e.preventDefault();
+    setSubmit(true);
+    setTimeout(() => {
+      setSubmit(false);
+    }, 1500);
+    const api = async () => {
+      await axios.post('/api/sug', inputRef.current.value);
+    };
+    api();
+    inputRef.current.value = '';
+  }, []);
   return (
     <footer>
       <div className={`p-3 pb-0 bg-light ${st.footer}`}>
@@ -14,7 +32,7 @@ function Footer() {
             <h4>던파랜드 개발자</h4>
             <div className={`d-flex`}>
               <div>
-                <Link href={`/search?charactername=${encodeURIComponent('고운말_7794')}`}>
+                <Link href={`/search?character=${encodeURIComponent('고운말_7794')}`}>
                   <a>
                     <Image
                       alt="developer"
@@ -25,7 +43,7 @@ function Footer() {
                   </a>
                 </Link>
               </div>
-              <div className={`align-self-center`}>
+              {/* <div className={`align-self-center`}>
                 <h5>
                   모험단명:{' '}
                   <Link href={`/search?adventure=${encodeURIComponent('변태소녀')}`}>
@@ -45,7 +63,7 @@ function Footer() {
                   </Link>{' '}
                   길드마스터
                 </h5>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -59,8 +77,24 @@ function Footer() {
           </div>
 
           {/* 우측 기타 정보 */}
-          <div className={st.container}>
-            <p className="text-secondary">Copyright 2021. dnfland all rights reserved.</p>
+          <div style={{ flex: '1' }} className="d-flex flex-column">
+            <h5>한 줄 건의하기</h5>
+            <form className="input-group" onSubmit={onSubmit}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder={session ? '건의 내용' : '로그인하시면 건의 가능합니다!'}
+                aria-label="건의 내용"
+                aria-describedby="button-addon"
+                maxLength="200"
+                ref={inputRef}
+                disabled={!session}
+              />
+              <button className="btn btn-outline-success" type="submit" id="button-addon" disabled={!session}>
+                전송
+              </button>
+            </form>
+            <p className="text-secondary mt-auto mb-auto">Copyright 2021. dnfland all rights reserved.</p>
           </div>
         </div>
       </div>

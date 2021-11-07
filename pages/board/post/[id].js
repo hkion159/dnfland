@@ -17,6 +17,8 @@ import Modal from '../../../components/common/modal';
 import Toast from '../../../components/common/toast';
 import UserTag from '../../../components/common/usertag';
 import Head from 'next/head';
+import { setPost } from '../../../modules/post';
+import { useDispatch } from 'react-redux';
 
 const PostViewer = dynamic(() => import('../../../components/common/postviewer'), {
   ssr: false,
@@ -42,6 +44,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
   const removeBtnRef = useRef(null);
   const [removeId, setRemoveId] = useState(0);
   const [removeConfirm, setRemoveConfirm] = useState(false);
+  const dispatch = useDispatch();
   const getComments = useCallback(async () => {
     const res = await axios.get(`/api/post/${id}`);
     const comments = await res.data.comments;
@@ -245,7 +248,19 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
     },
     [id, session?.id],
   );
-  const onGoToList = useCallback(() => {}, []);
+  const onGoToList = useCallback(() => {
+    const api = async () => {
+      const res = await axios.get(`/api/post/${id}?count=true`);
+      const data = await res.data;
+      const page = parseInt(Math.max(0, data - 1) / 10) + 1;
+      await router.push(`/board${type === 'notice' ? '/notice' : ''}?page=${page}`);
+    };
+    api();
+  }, [id, router, type]);
+  const onRevise = useCallback(() => {
+    dispatch(setPost({ title: title, markdown: markdown }));
+    router.push(`/board/revise/${id}`);
+  }, [dispatch, id, markdown, router, title]);
   const [referenceElement, setReferenceElement] = useState(null);
   const [referenceElementSecond, setReferenceElementSecond] = useState(null);
   const [popperFirst, setPopperFirst] = useState(false);
@@ -269,7 +284,11 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
             )}
           </span>
           <div className="ms-auto">
-            {session?.id === authorId && <button className="btn btn-outline-info">수정</button>}
+            {session?.id === authorId && (
+              <button className="btn btn-outline-info" onClick={onRevise}>
+                수정
+              </button>
+            )}
             {(session?.id === id || session?.id === 1) && (
               <button className="btn btn-outline-danger ms-2" onClick={onRemove}>
                 삭제
@@ -287,7 +306,11 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
         <UserTag authorId={authorId} />
         <span className="ms-1 text-secondary">&sdot;</span>
         <Time className="ms-1" datetime={postDate} />
-        {reviseDate && <p>{`마지막 수정 ${getDateDiff(reviseDate)}`}</p>}
+        {reviseDate && (
+          <p className="text-secondary">
+            {`마지막 수정 : `} <Time datetime={reviseDate} />
+          </p>
+        )}
         <hr />
         <span className="text-break">{!willInitialize && <PostViewer initialValue={markdown} />}</span>
         <div className="d-flex justify-content-center text-center">
@@ -455,7 +478,9 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
           </tbody>
         </table>
         <div className="d-flex mb-4">
-          <button className="btn btn-outline-primary ms-auto">목록</button>
+          <button className="btn btn-outline-primary ms-auto" onClick={onGoToList}>
+            목록
+          </button>
         </div>
       </div>
       {!session && popperFirst && <Popper refEl={referenceElement} />}

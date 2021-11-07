@@ -12,7 +12,7 @@ function Thumbnail({ character }) {
   };
   return (
     <div className={`border border-secondary rounded-3 p-0 ${st.box}`} style={{ margin: '15px' }}>
-      <Link href={`/character?characterid=${charId}`} as="/character">
+      <Link href={`/character?characterid=${charId}`}>
         <a style={{ color: 'black' }}>
           {/* 이미지 */}
           <div>
