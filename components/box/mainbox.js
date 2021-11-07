@@ -50,14 +50,14 @@ function MainBox({ children }) {
               {adventure?.name}
             </div>
           )}
-          {session && characters.length === 0 && (
+          {session && characters?.length === 0 && (
             <div className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
               캐릭터를 검색하고
               <br />
               모험단에 등록하세요!
             </div>
           )}
-          {characters.map((character, index) => (
+          {characters?.map((character, index) => (
             <div key={index} className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
               <span>
                 <Link href={`/character?characterid=${character.characterId}&serverid=${character.serverId}`}>
@@ -77,7 +77,7 @@ function MainBox({ children }) {
           <div className="text-center py-1 px-3">
             <b>조회 기록</b>
           </div>
-          {visitList.map((visited, index) => (
+          {visitList?.map((visited, index) => (
             <div key={index} className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
               <span>
                 <Link href={`/character?characterid=${visited.characterId}&serverid=${visited.serverId}`}>
@@ -86,7 +86,7 @@ function MainBox({ children }) {
               </span>
             </div>
           ))}
-          {visitList.length === 0 && (
+          {visitList?.length === 0 && (
             <div className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
               캐릭터를 검색해보세요!
             </div>

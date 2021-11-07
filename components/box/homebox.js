@@ -68,35 +68,7 @@ function Homebox({ maxId, notices, posts }) {
         <h5>현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현 상태입니다.</h5>
         {!session && <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>}
         {session &&
-          (adventure ? (
-            <>
-              <h5 className="mt-auto mb-3">
-                <span
-                  style={{
-                    color: '#B9EFBD',
-                    textShadow: '-1px 0 #749776, 0 1px #749776, 1px 0 #749776, 0 -1px #749776',
-                  }}
-                >
-                  {adventure.name}
-                </span>{' '}
-                모험단{' '}
-              </h5>
-              <div
-                className="border border-secondary rounded-3 ms-auto me-auto p-3 mb-4 d-flex align-items-center"
-                style={{
-                  minWidth: '100px',
-                  maxWidth: '90%',
-                  minHeight: '100px',
-                }}
-              >
-                {adventure?.characters?.length === 0 ? (
-                  <p className="text-center ">캐릭터를 검색하세요!</p>
-                ) : (
-                  <p>캐릭터를 검색하고 모험단에 등록하세요!</p>
-                )}
-              </div>
-            </>
-          ) : (
+          (adventure ? null : (
             <div className="p-4">
               <p className="m-2">자신의 모험단을 등록하세요!!</p>
               <form className="input-group" onSubmit={onEnroll}>
