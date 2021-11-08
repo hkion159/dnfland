@@ -46,7 +46,7 @@ function MainBox({ children }) {
             </div>
           )}
           {adventure && (
-            <div className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0', color: '#B9EFBD' }}>
+            <div className="px-3 pb-1" style={{ color: '#B9EFBD' }}>
               {adventure?.name}
             </div>
           )}

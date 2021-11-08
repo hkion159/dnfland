@@ -17,9 +17,9 @@ const Character = ({ allInfoStr, timeStr }) => {
   useEffect(() => {
     const visitListStr = window.localStorage.getItem('visitlist');
     const visitList = JSON.parse(visitListStr) || [];
-    const filteredVL = visitList.filter((visitedCharacter) => visitedCharacter.characterName === characterName);
-    const appendedVL = visitList.unshift({ characterName, characterId, serverId });
-    const slicedVL = visitList.slice(0, 10);
+    const filteredVL = visitList.filter((visitedCharacter) => visitedCharacter.characterName !== characterName);
+    filteredVL.unshift({ characterName, characterId, serverId });
+    const slicedVL = filteredVL.slice(0, 10);
     window.localStorage.setItem('visitlist', JSON.stringify(slicedVL));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [characterId]);
