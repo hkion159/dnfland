@@ -3,7 +3,6 @@ import prisma from '../../lib/prisma';
 export default async function handle(req, res) {
   let { id, name } = await req.body;
   let result;
-  console.log('ㅇㅇㅇㅇㅇㅇㅇ');
   switch (req.method) {
     case 'PUT':
       result = await prisma.adventure.upsert({

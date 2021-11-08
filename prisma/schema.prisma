@@ -31,6 +31,7 @@ model User {
   postcomments  Postcomment[]
   likedPosts    Post[]        @relation("like")
   hatedPosts    Post[]        @relation("hate")
+  ban           Boolean       @default(false)
 }
 
 model Account {
@@ -74,12 +75,12 @@ model VerificationRequest {
 model Character {
   id            Int        @id @default(autoincrement())
   name          String
-  serverName    String
+  serverName    String?
   serverId      String
-  characterId   String
+  characterId   String     @unique
   jobName       String
-  adventure     Adventure  @relation("normal", fields: [adventureName], references: [name])
-  adventureName String
+  adventure     Adventure? @relation("normal", fields: [adventureName], references: [name])
+  adventureName String?
   guild         Guild?     @relation(fields: [guildName], references: [name])
   guildName     String?
   guildPosition String?
@@ -112,7 +113,7 @@ model Guild {
   id         Int         @id @default(autoincrement())
   name       String      @unique
   characters Character[]
-  icon       String
+  icon       String?
 }
 
 model Setting {

@@ -25,7 +25,7 @@ function Footer() {
   }, []);
   return (
     <footer>
-      <div className={`p-3 pb-0 bg-light ${st.footer}`}>
+      <div className={`p-3 pb-0 bg-light bg-gradient ${st.footer}`}>
         <div className={`d-flex container-xl justify-content-between ${st.container}`}>
           {/* 개발자 프로필 */}
           <div className={`${st.devprof} ${st.container}`}>

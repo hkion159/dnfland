@@ -66,6 +66,10 @@ function Homebox({ maxId, notices, posts }) {
           <Image alt="logo" src={logo} width="100" height="100" />
         </div>
         <h5>현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현 상태입니다.</h5>
+        <p>
+          현재 서버가 미국 워싱턴에 있어서 상당히 느립니다.
+          <br />곧 서버 위치를 서울로 바꿀 예정입니다.
+        </p>
         {!session && <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>}
         {session &&
           (adventure ? null : (
@@ -93,7 +97,7 @@ function Homebox({ maxId, notices, posts }) {
       <div className="d-flex">
         <div style={{ flex: '1', border: '1px solid #bbbbbb', borderRadius: '15px', margin: '15px' }}>
           <div
-            className="py-3 px-4 bg-light"
+            className="py-3 px-4 bg-light bg-gradient"
             style={{ borderBottom: '1px solid #e0e0e0', borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
           >
             <Link href="/board/notice">
@@ -152,7 +156,7 @@ function Homebox({ maxId, notices, posts }) {
           className="bg-light bg-gradient"
         >
           <div
-            className="py-3 px-4 bg-light"
+            className="py-3 px-4"
             style={{ borderBottom: '1px solid #e0e0e0', borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
           >
             <Link href="/board">

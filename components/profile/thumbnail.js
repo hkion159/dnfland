@@ -1,6 +1,7 @@
 import st from '../../styles/thumbnail.module.css';
 import Link from 'next/link';
 import { CharImg, getDamage } from '../../lib/neople';
+import Position from './position';
 
 function Thumbnail({ character }) {
   const {
@@ -12,12 +13,6 @@ function Thumbnail({ character }) {
     position,
     level,
   } = character;
-  const positionColor = {
-    d: 'text-danger',
-    s: 'text-primary',
-    b: 'text-success',
-    노전직: 'text-warning',
-  };
   return (
     <div className={`border border-secondary rounded-3 p-0 ${st.box}`} style={{ margin: '15px' }}>
       <Link href={`/character?characterid=${charId}&serverid=${serverId}`}>
@@ -34,7 +29,9 @@ function Thumbnail({ character }) {
           </div>
           {/* 포지션, 직업 */}
           <div className="d-flex border-top">
-            <div className={`px-2 border-end ${positionColor[position]}`}>{position.toUpperCase()}</div>
+            <div className={'px-2 border-end'}>
+              <Position position={position} />
+            </div>
             <div className={`px-2 ${st.align} ${level < 100 && 'text-secondary'}`}>
               {level < 100 && `Lv. ${level} `}
               {job}

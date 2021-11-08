@@ -65,7 +65,7 @@ function Navbar() {
     [router, scope],
   );
   return (
-    <nav className={`navbar navbar-expand-md navbar-light bg-light fixed-top shadow-sm ${st.Navbar}`}>
+    <nav className={`navbar navbar-expand-md navbar-light bg-light fixed-top bg-gradient shadow-sm ${st.Navbar}`}>
       {/* 전체 컨테이너 */}
       <div className={`container-xl`}>
         <div className={st.n1}>

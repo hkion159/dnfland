@@ -11,7 +11,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '웨펀마스터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '검성',
@@ -28,7 +28,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '소울브링어',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '소울테이커',
@@ -45,7 +45,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '버서커',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '헬벤터',
@@ -62,7 +62,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '아수라',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '대암흑천',
@@ -79,7 +79,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a59ba19824dc3292b6075e29b3862ad3',
           jobGrowName: '검귀',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'a427ec3e94087c64cb4144379c3a0d59',
             jobGrowName: '야차',
@@ -102,7 +102,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '넨마스터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '백화요란',
@@ -119,7 +119,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '스트라이커',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '챔피언',
@@ -136,7 +136,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '스트리트파이터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '독왕',
@@ -153,7 +153,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '그래플러',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '토네이도',
@@ -176,7 +176,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '레인저',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '데스페라도',
@@ -193,7 +193,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '런처',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '블래스터',
@@ -210,7 +210,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '메카닉',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '마이스터',
@@ -227,7 +227,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '스핏파이어',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '제네럴',
@@ -250,7 +250,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '엘레멘탈마스터',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '아크메이지',
@@ -267,7 +267,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '소환사',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '문 엠프레스',
@@ -284,7 +284,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '배틀메이지',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '벨라트릭스',
@@ -301,7 +301,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '마도학자',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '트릭스터',
@@ -318,7 +318,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a59ba19824dc3292b6075e29b3862ad3',
           jobGrowName: '인챈트리스',
-          position: 'b',
+          position: 'B',
           next: {
             jobGrowId: 'a427ec3e94087c64cb4144379c3a0d59',
             jobGrowName: '블랙 메이든',
@@ -341,7 +341,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '크루세이더',
-          position: 'b',
+          position: 'B',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '홀리오더',
@@ -358,7 +358,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '인파이터',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '갓핸드',
@@ -375,7 +375,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '퇴마사',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '용투사',
@@ -392,7 +392,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '어벤저',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '둠스가디언',
@@ -415,7 +415,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '레인저',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '블러디아',
@@ -432,7 +432,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '런처',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '헤비배럴',
@@ -449,7 +449,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '메카닉',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '메탈하트',
@@ -466,7 +466,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '스핏파이어',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '발키리',
@@ -489,7 +489,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '로그',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '실버문',
@@ -506,7 +506,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '사령술사',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '데스브링어',
@@ -523,7 +523,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '쿠노이치',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '이즈나비',
@@ -540,7 +540,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '섀도우댄서',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '나이트메어',
@@ -563,7 +563,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '넨마스터',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '광호제',
@@ -580,7 +580,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '스트라이커',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '무극',
@@ -597,7 +597,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '스트리트파이터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '천수나한',
@@ -614,7 +614,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '그래플러',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '자이언트',
@@ -637,7 +637,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '엘레멘탈 바머',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '워록',
@@ -654,7 +654,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '빙결사',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '프로즌하트',
@@ -671,7 +671,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '블러드 메이지',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '뱀파이어',
@@ -688,7 +688,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '스위프트 마스터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '스톰브링어',
@@ -705,7 +705,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a59ba19824dc3292b6075e29b3862ad3',
           jobGrowName: '디멘션워커',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'a427ec3e94087c64cb4144379c3a0d59',
             jobGrowName: '이레귤러',
@@ -728,7 +728,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4fdee159d5aa8874a1459861ced676ec',
           jobGrowName: '자각1',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'da6a126f45370e1a4cbbe8823c6c35be',
             jobGrowName: '자각2',
@@ -747,7 +747,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4fdee159d5aa8874a1459861ced676ec',
           jobGrowName: '자각1',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'da6a126f45370e1a4cbbe8823c6c35be',
             jobGrowName: '자각2',
@@ -766,7 +766,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '소드마스터',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '노블레스',
@@ -783,7 +783,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '다크템플러',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '암제',
@@ -800,7 +800,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '데몬슬레이어',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '검마',
@@ -817,7 +817,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '베가본드',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '검호',
@@ -834,7 +834,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a59ba19824dc3292b6075e29b3862ad3',
           jobGrowName: '블레이드',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'a427ec3e94087c64cb4144379c3a0d59',
             jobGrowName: '리벨리온',
@@ -857,7 +857,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '엘븐나이트',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '피스메이커',
@@ -874,7 +874,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '카오스',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '마왕',
@@ -891,7 +891,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '팔라딘',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '센티넬',
@@ -908,7 +908,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '드래곤나이트',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '타이런트',
@@ -931,7 +931,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '뱅가드',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '레버넌트',
@@ -948,7 +948,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '듀얼리스트',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '하이랜더',
@@ -965,7 +965,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '드래고니안 랜서',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '레비아탄',
@@ -982,7 +982,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '다크 랜서',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '램페이저',
@@ -1005,7 +1005,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '크루세이더',
-          position: 'b',
+          position: 'B',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '에반젤리스트',
@@ -1022,7 +1022,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '이단심판관',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '헬카이트',
@@ -1039,7 +1039,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '무녀',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '신녀',
@@ -1056,7 +1056,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '미스트리스',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '신세이어',
@@ -1079,7 +1079,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'df3870efe8e8754011cd12fa03cd275f',
           jobGrowName: '히트맨',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '4ec01f4ae3728c080f28a72213b6df10',
             jobGrowName: '빅보스',
@@ -1096,7 +1096,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '1ea78ae210f681a799feb4403a5c1e85',
           jobGrowName: '요원',
-          position: 'd',
+          position: 'D',
           next: {
             jobGrowId: '981d675414f83b926db5f54e5347eec0',
             jobGrowName: '인포서',
@@ -1113,7 +1113,7 @@ export async function getPosition(character) {
         {
           jobGrowId: 'a9a4ef4552d46e39cf6c874a51126410',
           jobGrowName: '트러블 슈터',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: '460822c3780a9bc3fbe9485cc89c44a4',
             jobGrowName: '와일드 카드',
@@ -1130,7 +1130,7 @@ export async function getPosition(character) {
         {
           jobGrowId: '4a1459a4fa3c7f59b6da2e43382ed0b9',
           jobGrowName: '스페셜리스트',
-          position: 's',
+          position: 'S',
           next: {
             jobGrowId: 'faf8fc6f0cd4c0f84f0035e23bd4fa19',
             jobGrowName: '코어 마스터',
@@ -1164,7 +1164,7 @@ export async function getPosition(character) {
           const skills = await getSkillStyles(character.characterId, character.serverId);
           const actives = skills['active'];
           const mase = await actives.filter((skill) => skill['name'] === '성령의 메이스');
-          if (mase.length) return 'd';
+          if (mase.length) return 'D';
         }
         return job.position;
       }

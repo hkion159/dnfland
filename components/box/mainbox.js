@@ -37,17 +37,19 @@ function MainBox({ children }) {
           className="m-3 bg-light sticky-top text-center"
           style={{ borderRadius: '10px', border: '1px solid #bbbbbb', top: '75px', opacity: '0.9' }}
         >
-          <div className="text-center py-1 px-3">
-            <b>내 모험단</b>
+          <div className="bg-gradient">
+            <div className="py-1 px-3">
+              <b>내 모험단</b>
+            </div>
+            {adventure && (
+              <div className="px-3 pb-1" style={{ color: '#8AC98E' }}>
+                {adventure?.name}
+              </div>
+            )}
           </div>
           {!session && (
             <div className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
               로그인을 해보세요!
-            </div>
-          )}
-          {adventure && (
-            <div className="px-3 pb-1" style={{ color: '#B9EFBD' }}>
-              {adventure?.name}
             </div>
           )}
           {session && characters?.length === 0 && (
@@ -57,15 +59,17 @@ function MainBox({ children }) {
               모험단에 등록하세요!
             </div>
           )}
-          {characters?.map((character, index) => (
-            <div key={index} className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
-              <span>
-                <Link href={`/character?characterid=${character.characterId}&serverid=${character.serverId}`}>
-                  <a className="link-black">{character.name}</a>
-                </Link>
-              </span>
-            </div>
-          ))}
+          <div className="overflow-scroll">
+            {characters?.map((character, index) => (
+              <div key={index} className="py-1 px-3" style={{ borderTop: '1px solid #e0e0e0' }}>
+                <span>
+                  <Link href={`/character?characterid=${character.characterId}&serverid=${character.serverId}`}>
+                    <a className="link-black">{character.name}</a>
+                  </Link>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
       <div className={`p-0 ${st.contentbox}`}>{children}</div>
@@ -74,7 +78,7 @@ function MainBox({ children }) {
           className="m-3 bg-light sticky-top text-center"
           style={{ borderRadius: '10px', border: '1px solid #bbbbbb', top: '75px', opacity: '0.9' }}
         >
-          <div className="text-center py-1 px-3">
+          <div className="py-1 px-3 bg-gradient">
             <b>조회 기록</b>
           </div>
           {visitList?.map((visited, index) => (
