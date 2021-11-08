@@ -272,7 +272,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
       </Head>
       <div>
         <div className="d-flex my-4">
-          <span className="align-self-center">
+          <span className="align-self-center ms-1">
             {type === 'notice' ? (
               <Link href="/board/notice">
                 <a className="link-dark">공지사항</a>

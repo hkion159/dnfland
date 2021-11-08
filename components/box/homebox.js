@@ -66,11 +66,7 @@ function Homebox({ maxId, notices, posts }) {
           <Image alt="logo" src={logo} width="100" height="100" />
         </div>
         <h5>현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현 상태입니다.</h5>
-        <p>
-          현재 서버가 미국 워싱턴에 있어서 상당히 느립니다.
-          <br />곧 서버 위치를 서울로 바꿀 예정입니다.
-        </p>
-        {!session && <h5>로그인하고 모험단을 등록하면 홈에서 바로 접근할 수 있습니다.</h5>}
+        {!session && <h5>로그인하고 모험단을 등록하면 왼쪽 배너에서 바로 접근할 수 있습니다.</h5>}
         {session &&
           (adventure ? null : (
             <div className="p-4">
@@ -93,6 +89,10 @@ function Homebox({ maxId, notices, posts }) {
               {enroll && <p className="text-success my-3">{advName}(으)로 등록되었습니다!!</p>}
             </div>
           ))}
+        <p>
+          현재 서버가 미국 워싱턴에 있어서 상당히 느립니다.
+          <br />곧 서버 위치를 서울로 바꿀 예정입니다.
+        </p>
       </div>
       <div className="d-flex">
         <div style={{ flex: '1', border: '1px solid #bbbbbb', borderRadius: '15px', margin: '15px' }}>
