@@ -63,6 +63,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
   }, [getComments, hate, like, post.hatedUser, post.likedUser, session?.id]);
   useEffect(() => {
     setWillInitialize(true);
+    setIsRecomment([]);
   }, [id]);
   useEffect(() => {
     if (willInitialize) {
