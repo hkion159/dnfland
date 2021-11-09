@@ -410,7 +410,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
         <table className="table table-hover my-4">
           <tbody>
             {prevPosts.map(({ id, title, author, postDate, comments }, index) => (
-              <tr key={id}>
+              <tr key={id} style={index === 0 ? { borderTop: '1px solid #e0e0e0' } : {}}>
                 <td style={{ width: '5%', minWidth: '50px' }}>{id}</td>
                 <td
                   className="ps-4"
@@ -452,7 +452,7 @@ const Board = ({ postStr, prevPostsStr, nextPostsStr }) => {
               <td className="text-end pe-4 text-secondary">{getDateDiff(postDate)}</td>
             </tr>
             {nextPosts.map(({ id, title, author, postDate, comments }, index) => (
-              <tr key={id} style={index === 0 ? { borderTop: '1px solid #e0e0e0' } : {}}>
+              <tr key={id}>
                 <td style={{ width: '5%', minWidth: '50px' }}>{id}</td>
                 <td
                   className="ps-4"
