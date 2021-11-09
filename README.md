@@ -15,7 +15,7 @@
 
 ## 사이트 링크
 
-Vercel 배포 주소: https://dnf.land
+Vercel 배포 주소: https://dnf.land/
 
 AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/ (배포에 에러가 생겨서 현재 접속 불가능합니다)
 
