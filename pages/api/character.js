@@ -15,16 +15,16 @@ export default async function handle(req, res) {
           serverId: serverId,
           serverName: serverName,
           jobName: jobName,
-          guild: {
-            connectOrCreate: {
-              create: {
-                name: guildName,
-              },
-              where: {
-                name: guildName,
-              },
-            },
-          },
+          // guild: {
+          //   connectOrCreate: {
+          //     create: {
+          //       name: guildName,
+          //     },
+          //     where: {
+          //       name: guildName,
+          //     },
+          //   },
+          // },
         },
         update: {
           name: charName,
@@ -39,16 +39,16 @@ export default async function handle(req, res) {
           //     },
           //   },
           // },
-          guild: {
-            connectOrCreate: {
-              create: {
-                name: guildName,
-              },
-              where: {
-                name: guildName,
-              },
-            },
-          },
+          // guild: {
+          //   connectOrCreate: {
+          //     create: {
+          //       name: guildName,
+          //     },
+          //     where: {
+          //       name: guildName,
+          //     },
+          //   },
+          // },
         },
       });
       break;

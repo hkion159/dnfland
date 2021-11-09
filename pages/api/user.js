@@ -21,5 +21,14 @@ export default async function handle(req, res) {
       });
       res.json(user);
       break;
+    case 'PUT':
+      const result = await prisma.user.update({
+        where: {
+          id: id,
+        },
+        data: req.body,
+      });
+      res.json(result);
+      break;
   }
 }

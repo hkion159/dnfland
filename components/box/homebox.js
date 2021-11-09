@@ -66,7 +66,7 @@ function Homebox({ maxId, notices, posts }) {
           <Image alt="logo" src={logo} width="100" height="100" />
         </div>
         <h5>현재 사이트 개발 중에 있으며 데미지 계산 로직은 아직 미구현 상태입니다.</h5>
-        {!session && <h5>로그인하고 모험단을 등록하면 왼쪽 배너에서 바로 접근할 수 있습니다.</h5>}
+        {/* {!session && <h5>로그인하고 모험단을 등록하면 왼쪽 배너에서 바로 접근할 수 있습니다.</h5>} */}
         {session &&
           (adventure ? null : (
             <div className="p-4">

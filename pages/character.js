@@ -16,10 +16,11 @@ import ItemType from '../components/profile/itemtype';
 import { getPosition } from './api/jobs';
 import Position from '../components/profile/position';
 
-const Character = ({ allInfoStr, timeStr, positionStr }) => {
+const Character = ({ allInfoStr, timeStr, positionStr, serverIdStr }) => {
   const allInfo = JSON.parse(allInfoStr);
   const time = JSON.parse(timeStr);
   const position = JSON.parse(positionStr);
+  const serverId = JSON.parse(serverIdStr);
   console.log(allInfo);
   const [rowStatus, rowEquipment, avatar, creature, flag, talisman, skill, buffEquipment, buffAvatar, buffCreature] =
     allInfo;
@@ -31,7 +32,6 @@ const Character = ({ allInfoStr, timeStr, positionStr }) => {
     getEquipInfo(equipment);
   const fame = status.filter((stat) => stat.name === '모험가 명성')[0]?.value ?? 0;
   const router = useRouter();
-  const { serverid: serverId } = router.query;
   const [menu, setMenu] = useState([true]);
   const updateChar = useCallback(async (info) => {
     await axios.put('/api/character', info);
@@ -83,7 +83,7 @@ const Character = ({ allInfoStr, timeStr, positionStr }) => {
               style={{ width: '80px', marginLeft: '60px' }}
             >
               <div style={{ margin: '0 2px' }}>{ItemImg(weapon.itemId)}</div>
-              <div style={{ margin: '0 2px' }}>{ItemImg(title.itemId)}</div>
+              <div style={{ margin: '0 2px' }}>{ItemImg(title?.itemId)}</div>
               <div style={{ margin: '0 2px' }}>{ItemImg(wrist.itemId)}</div>
               <div style={{ margin: '0 2px' }}>{ItemImg(amulet.itemId)}</div>
               <div style={{ margin: '0 2px' }}>{ItemImg(support.itemId)}</div>
@@ -93,9 +93,12 @@ const Character = ({ allInfoStr, timeStr, positionStr }) => {
             </div>
           </div>
           <ItemType itemRarity={'모험단'} itemName={adventureName} />
-          <ItemType itemName={`Lv.${level} ` + characterName} />
           <div>
-            <Position position={position} /> <ItemType itemName={`[${jobGrowName}]`} className="d-inline-block" />
+            <ItemType itemName={`Lv.${level} `} className="d-inline-block" />
+            <ItemType itemName={characterName} className="fw-bold d-inline-block ms-1" />
+          </div>
+          <div>
+            <Position position={position} /> <ItemType itemName={`[${jobGrowName}]`} className="d-inline-block ms-1" />
           </div>
           <div className="progress mt-2">
             <div
@@ -159,8 +162,9 @@ export const getServerSideProps = wrapper.getServerSideProps((store) => async (c
   const allInfoStr = JSON.stringify(allInfo);
   const timeStr = JSON.stringify(time);
   const positionStr = JSON.stringify(position);
+  const serverIdStr = JSON.stringify(serverId);
   return {
-    props: { allInfoStr: allInfoStr, timeStr: timeStr, positionStr: positionStr },
+    props: { allInfoStr: allInfoStr, timeStr: timeStr, positionStr: positionStr, serverIdStr: serverIdStr },
   };
 });
 
