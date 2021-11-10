@@ -151,7 +151,7 @@ AWS Cloudfront 배포 주소: https://d3gnzc2owds3id.cloudfront.net/ (배포에 
 
 이 문서에 더 기록하면 너무 길어질 것 같아서 따로 정리했습니다.
 
-조금 더 사소했던 문제들과 해결과정, 개발하면서 했던 기술적 고민, aws rds에서 요금이 청구된 스토리같은 에피소드를 기록했습니다.
+조금 더 사소했던 문제들과 해결과정, 개발하면서 했던 기술적 고민, 에피소드를 기록했습니다.
 
 [링크](https://github.com/hkion159/dnfland/tree/main/issue)
 
