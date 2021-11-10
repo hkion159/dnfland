@@ -61,7 +61,7 @@ function Homebox({ maxId, notices, posts }) {
   return (
     <div className={HomeStyle.container}>
       <div className={`${HomeStyle.introduce} text-center d-flex flex-column flex-grow-2 flex-shrink-1`}>
-        <div className="py-3 px-4 text-end">{`회원 수: ${maxId}명`}</div>
+        {/* <div className="py-3 px-4 text-end">{`회원 수: ${maxId}명`}</div> */}
         <div style={{ flex: 'none' }}>
           <Image alt="logo" src={logo} width="100" height="100" />
         </div>
