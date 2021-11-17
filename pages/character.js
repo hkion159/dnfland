@@ -91,6 +91,7 @@ const Character = ({ allInfoStr, timeStr, positionStr, serverIdStr }) => {
               <div style={{ margin: '0 2px' }}>{ItemImg(magicstone.itemId)}</div>
               <div style={{ margin: '0 2px' }}>{ItemImg(earring.itemId)}</div>
             </div>
+            <div>dddddddddddddddd</div>
           </div>
           <ItemType itemRarity={'모험단'} itemName={adventureName} />
           <div>
