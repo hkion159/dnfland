@@ -65,6 +65,7 @@ const Character = ({ allInfoStr, timeStr, positionStr, serverIdStr }) => {
       <div className="d-flex flex-column">
         <div className="d-flex flex-column text-center">
           <div className="d-flex justify-content-center">
+            <div className="flex-fill bg-light">left</div>
             <div
               className="d-flex align-items-start flex-wrap p-1 py-3"
               style={{ width: '80px', marginRight: '60px', alignContent: 'flex-start' }}
@@ -91,7 +92,7 @@ const Character = ({ allInfoStr, timeStr, positionStr, serverIdStr }) => {
               <div style={{ margin: '0 2px' }}>{ItemImg(magicstone.itemId)}</div>
               <div style={{ margin: '0 2px' }}>{ItemImg(earring.itemId)}</div>
             </div>
-            <div>dddddddddddddddd</div>
+            <div className="flex-fill bg-light">dddddddddddddddd</div>
           </div>
           <ItemType itemRarity={'모험단'} itemName={adventureName} />
           <div>
